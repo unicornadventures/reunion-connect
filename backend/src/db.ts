@@ -2,9 +2,12 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 🚨 Step backwards out of "src" and "backend" to reach your root folder
-const rootEnvPath = path.resolve(process.cwd(), '.env');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootEnvPath = path.resolve(__dirname, '../../.env');
 
 // Force dotenv to load the root file explicitly
 dotenv.config({ path: rootEnvPath });
