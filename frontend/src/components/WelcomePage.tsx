@@ -163,7 +163,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
         <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
           <div className="text-3xl mb-2">🎓</div>
-          <div className="text-2xl font-bold text-[#4CAF50]">20</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">{classInfo?.year ? new Date().getFullYear() - classInfo.year : 0}</div>
           <div className="text-xs font-semibold text-[#333333] mt-1">Years Since Graduation</div>
           <div className="text-xs text-[#999999] mt-0.5">Class of {classInfo?.year || '2004'}</div>
         </div>
