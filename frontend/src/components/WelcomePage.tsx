@@ -69,6 +69,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   const [events, setEvents] = useState<Event[]>([]);
   const [alumniCount, setAlumniCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
+  const [daysUntilNextEvent, setDaysUntilNextEvent] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -99,6 +100,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
       const messageResponse = await api.get(`/classes/${userClass.id}/message-count`);
       setMessageCount(messageResponse.data.count || 0);
+
+      const daysResponse = await api.get(`/events/class/${userClass.id}/days-until-next`);
+      setDaysUntilNextEvent(daysResponse.data.daysUntil);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -150,8 +154,12 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
             </p>
           </div>
           <div className="bg-[#E8F5E9] border border-[#4CAF50] rounded-lg px-5 py-4 text-center flex-shrink-0">
-            <div className="text-2xl font-bold text-[#4CAF50]">57</div>
-            <div className="text-xs text-[#2E7D32] font-semibold mt-0.5">Days Until Reunion</div>
+            <div className="text-2xl font-bold text-[#4CAF50]">
+              {daysUntilNextEvent !== null ? daysUntilNextEvent : '-'}
+            </div>
+            <div className="text-xs text-[#2E7D32] font-semibold mt-0.5">
+              {daysUntilNextEvent !== null ? 'Days Until Next Event' : 'No Upcoming Events'}
+            </div>
           </div>
         </div>
       </div>

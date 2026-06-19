@@ -52,6 +52,38 @@ router.get('/:eventId', async (req, res) => {
   }
 });
 
+// GET /api/events/class/:classId/days-until-next
+router.get('/class/:classId/days-until-next', async (req, res) => {
+  const { classId } = req.params;
+
+  try {
+    // Get the next event (including today)
+    const result = await query(
+      `SELECT event_date FROM events
+       WHERE class_id = $1 AND event_date >= CURRENT_DATE
+       ORDER BY event_date ASC
+       LIMIT 1`,
+      [classId]
+    );
+
+    if (result.rows.length === 0) {
+      // No upcoming events
+      return res.status(200).json({ daysUntil: null, eventDate: null });
+    }
+
+    const eventDate = new Date(result.rows[0].event_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+
+    res.status(200).json({ daysUntil, eventDate: result.rows[0].event_date });
+  } catch (error) {
+    console.error('Get Days Until Next Event Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as eventRoutes };
 
 
