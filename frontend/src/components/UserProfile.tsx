@@ -127,6 +127,22 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     );
   }
 
+  if (!isOwnProfile) {
+    return (
+      <div className="max-w-[1000px] mx-auto px-5 py-8">
+        <button
+          onClick={() => navigate('/directory')}
+          className="text-[#2196F3] text-sm font-bold hover:opacity-80 transition-opacity flex items-center gap-1 mb-6"
+        >
+          ← Back
+        </button>
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3">
+          You can only view your own profile.
+        </div>
+      </div>
+    );
+  }
+
   const { user, profile } = data;
   const displayName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}` : user.email;
 
@@ -152,41 +168,40 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
           {/* Profile Card */}
           <div className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6 text-center">
             <div className="flex justify-center mb-4">
-              <div
-                className="flex items-center justify-center rounded-full text-white font-bold text-2xl"
-                style={{
-                  width: 96,
-                  height: 96,
-                  background: '#4CAF50',
-                }}
-              >
-                YO
-              </div>
+              {profile?.now_photo_url ? (
+                <img
+                  src={profile.now_photo_url}
+                  alt={displayName}
+                  className="w-24 h-24 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center rounded-full text-white font-bold text-2xl"
+                  style={{
+                    width: 96,
+                    height: 96,
+                    background: '#4CAF50',
+                  }}
+                >
+                  {profile?.first_name?.charAt(0)}{profile?.last_name?.charAt(0)}
+                </div>
+              )}
             </div>
             <h2 className="text-2xl font-bold text-[#333333]">{displayName}</h2>
-            <p className="text-sm text-[#666666] mt-1">
-              {profile?.first_name ? `${profile.first_name}'s Job @ Company` : 'Your Job Title @ Company'}
-            </p>
-            <p className="text-sm text-[#999999] mt-0.5">📍 Your City, ST</p>
 
             <div className="mt-5 space-y-2">
-              <button className="w-full bg-[#4CAF50] text-white font-bold py-[10px] rounded text-sm hover:opacity-90 transition-opacity">
-                📧 Send Message
+              <button
+                onClick={() => setEditMode(!editMode)}
+                className={`w-full font-bold py-[10px] rounded text-sm hover:opacity-90 transition-opacity ${
+                  editMode ? 'bg-[#f44336] text-white' : 'bg-[#2196F3] text-white'
+                }`}
+              >
+                {editMode ? '✏️ Cancel Editing' : '✏️ Edit Profile'}
               </button>
-              {isOwnProfile && (
-                <button
-                  onClick={() => setEditMode(!editMode)}
-                  className={`w-full font-bold py-[10px] rounded text-sm hover:opacity-90 transition-opacity ${
-                    editMode ? 'bg-[#f44336] text-white' : 'bg-[#2196F3] text-white'
-                  }`}
-                >
-                  {editMode ? '✏️ Cancel Editing' : '✏️ Edit Profile'}
-                </button>
-              )}
             </div>
           </div>
 
-          {/* Contact Info Card */}
+          {/* Contact Info Card - Only visible to own profile */}
           <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] mt-4 overflow-hidden">
             <div className="px-5 py-3 border-b border-[#EEEEEE]">
               <h3 className="text-base font-bold text-[#333333]">Contact Info</h3>
@@ -195,14 +210,6 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
               <div>
                 <div className="text-xs font-semibold text-[#999999]">Email</div>
                 <div className="text-sm text-[#2196F3]">{user.email}</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-[#999999]">Class Year</div>
-                <div className="text-sm text-[#333333]">2004</div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-[#999999]">Company</div>
-                <div className="text-sm text-[#333333]">Your Company</div>
               </div>
             </div>
           </div>
@@ -250,18 +257,48 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
           <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6">
             <h3 className="text-lg font-bold text-[#333333] mb-4">📸 Then & Now</h3>
             <div className="grid grid-cols-2 gap-4">
-              {['Then (2004)', 'Now (2024)'].map((label) => (
-                <div key={label}>
-                  <div
-                    className="rounded-lg flex items-center justify-center text-[#999999] text-sm border-2 border-dashed border-[#DDDDDD] bg-[#F9F9F9] cursor-pointer hover:border-[#4CAF50] hover:bg-[#E8F5E9] transition-colors duration-200"
-                    style={{ height: 180 }}
-                  >
-                    <div className="text-center">
-                      <div className="text-3xl mb-2">📷</div>
-                      <div className="text-xs font-semibold">Add photo</div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-center text-[#666666] mt-2 font-semibold">{label}</div>
+              {[
+                { key: 'then', label: 'Then (2004)', url: profile?.then_photo_url },
+                { key: 'now', label: 'Now (2024)', url: profile?.now_photo_url }
+              ].map((photo) => (
+                <div key={photo.key}>
+                  <input
+                    type="file"
+                    id={`photo-${photo.key}`}
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handlePhotoUpload(photo.key as 'then' | 'now', file);
+                      }
+                    }}
+                    className="hidden"
+                    disabled={uploadingPhoto !== null}
+                  />
+                  <label htmlFor={`photo-${photo.key}`}>
+                    {photo.url ? (
+                      <div className="rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
+                        <img
+                          src={photo.url}
+                          alt={photo.label}
+                          className="w-full h-[180px] object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="rounded-lg flex items-center justify-center text-[#999999] text-sm border-2 border-dashed border-[#DDDDDD] bg-[#F9F9F9] cursor-pointer hover:border-[#4CAF50] hover:bg-[#E8F5E9] transition-colors duration-200"
+                        style={{ height: 180 }}
+                      >
+                        <div className="text-center">
+                          <div className="text-3xl mb-2">📷</div>
+                          <div className="text-xs font-semibold">
+                            {uploadingPhoto === photo.key ? 'Uploading...' : 'Add photo'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </label>
+                  <div className="text-xs text-center text-[#666666] mt-2 font-semibold">{photo.label}</div>
                 </div>
               ))}
             </div>

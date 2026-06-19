@@ -202,4 +202,55 @@ router.post('/:userId/assign-class', async (req: any, res) => {
   }
 });
 
+// PUT /api/users/:userId/profile - Update user profile
+router.put('/:userId/profile', async (req: any, res) => {
+  const { userId } = req.params;
+  const { bio, nickname_school } = req.body;
+
+  try {
+    // Check if user exists
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Check if profile exists
+    const profileCheck = await query('SELECT id FROM profiles WHERE user_id = $1', [userId]);
+    if (profileCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found.' });
+    }
+
+    // Update profile with provided fields
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
+
+    if (bio !== undefined) {
+      updateFields.push(`bio = $${paramCount}`);
+      updateValues.push(bio);
+      paramCount++;
+    }
+
+    if (nickname_school !== undefined) {
+      updateFields.push(`nickname_school = $${paramCount}`);
+      updateValues.push(nickname_school);
+      paramCount++;
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update.' });
+    }
+
+    updateValues.push(userId);
+    const updateQuery = `UPDATE profiles SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE user_id = $${paramCount} RETURNING *`;
+
+    const result = await query(updateQuery, updateValues);
+
+    res.status(200).json({ profile: result.rows[0] });
+  } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as userRoutes };
