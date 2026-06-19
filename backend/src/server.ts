@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { query } from './db.ts'; 
 import { initializeDatabase } from './schema.ts';
@@ -31,6 +32,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 
 // 2. API Routes
 app.use('/api/auth', authRoutes);
