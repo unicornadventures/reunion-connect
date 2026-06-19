@@ -1,1 +1,18 @@
 !.gitignore
+ 
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check
+out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+     … +18 lines (ctrl+o to expand)
+
+⏺ Now let me create Jest configuration:
+
+⏺ Write(jest.config.js)
+  ⎿  Wrote 12 lines to jest.config.js
+       1 export default {
+       2   preset: 'ts-jest',
+       3   testEnvironment: 'node',
+       4   rootDir: './',
+       5   testMatch: ['**/__tests__/**/*.test.ts'],
+       6   collectCoverageFrom: [
+       7     'src/**/*.ts',
+       8     '!src/**/*.d.ts',

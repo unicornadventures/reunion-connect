@@ -1,13 +1,10 @@
 import pkg from 'pg';
-const { Pool } = pkg; 
+const { Pool } = pkg;
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 // 🚨 Step backwards out of "src" and "backend" to reach your root folder
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootEnvPath = path.resolve(__dirname, '../../.env');
+const rootEnvPath = path.resolve(process.cwd(), '.env');
 
 // Force dotenv to load the root file explicitly
 dotenv.config({ path: rootEnvPath });
@@ -29,7 +26,7 @@ pool.on('connect', () => {
   console.log('✅ Connected to PostgreSQL database.');
 });
 
-pool.on('error', (err) => {
+pool.on('error', (err: Error) => {
   console.error('❌ Unexpected error on idle database client:', err.message);
 });
 
