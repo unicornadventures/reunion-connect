@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { User, Profile } from '../types';
 
@@ -7,7 +8,8 @@ interface UserWithProfile {
   profile: Profile | null;
 }
 
-const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
+const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
+  const { currentUser } = useAppContext();
   const [data, setData] = useState<UserWithProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,10 +17,19 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Partial<Profile>>({});
 
+  const profileUserId = userId || currentUser?.user_id;
+  const isOwnProfile = profileUserId === currentUser?.user_id;
+
   const fetchProfile = async () => {
+    if (!isOwnProfile && !currentUser?.is_admin) {
+      setError('You can only view your own profile.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await api.get(`/users/${userId}`);
+      const response = await api.get(`/users/${profileUserId}`);
       setData(response.data);
       if (response.data.profile) {
         setEditData(response.data.profile);
@@ -32,16 +43,18 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
   };
 
   useEffect(() => {
-    fetchProfile();
-  }, [userId]);
+    if (currentUser?.user_id) {
+      fetchProfile();
+    }
+  }, [profileUserId, currentUser?.user_id]);
 
   const handlePhotoUpload = async (photoType: 'then' | 'now', file: File) => {
-    if (!file) return;
+    if (!file || !isOwnProfile) return;
 
     setUploadingPhoto(photoType);
     try {
       // 1. Get presigned URL
-      const presignedResponse = await api.post(`/users/${userId}/photo/upload/${photoType}`, {
+      const presignedResponse = await api.post(`/users/${profileUserId}/photo/upload/${photoType}`, {
         fileName: file.name
       });
 
@@ -56,7 +69,7 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
 
       // 3. Update the profile with the photo URL
       const photoUrl = presignedUrl.split('?')[0]; // Get URL without query params
-      const updateResponse = await api.put(`/users/${userId}/photo/${photoType}`, {
+      const updateResponse = await api.put(`/users/${profileUserId}/photo/${photoType}`, {
         photoUrl
       });
 
@@ -70,12 +83,11 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
   };
 
   const handleProfileUpdate = async () => {
-    if (!data?.profile) return;
+    if (!data?.profile || !isOwnProfile) return;
 
     setLoading(true);
     try {
-      // Update profile
-      const response = await api.put(`/users/${data.user.id}/profile`, editData);
+      const response = await api.put(`/users/${profileUserId}/profile`, editData);
       setData(prev => prev ? { ...prev, profile: response.data.profile } : null);
       setEditMode(false);
       setError(null);
@@ -117,16 +129,18 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h2 style={styles.title}>{displayName}'s Profile</h2>
-        <button
-          onClick={() => setEditMode(!editMode)}
-          style={{
-            ...styles.button,
-            backgroundColor: editMode ? '#f44336' : '#2196F3',
-            cursor: 'pointer'
-          }}
-        >
-          {editMode ? 'Cancel' : 'Edit Profile'}
-        </button>
+        {isOwnProfile && (
+          <button
+            onClick={() => setEditMode(!editMode)}
+            style={{
+              ...styles.button,
+              backgroundColor: editMode ? '#f44336' : '#2196F3',
+              cursor: 'pointer'
+            }}
+          >
+            {editMode ? 'Cancel' : 'Edit Profile'}
+          </button>
+        )}
       </div>
 
       {error && <div style={styles.error}>{error}</div>}
@@ -145,7 +159,7 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
               <>
                 <div style={styles.infoItem}>
                   <label style={styles.label}>First Name</label>
-                  {editMode ? (
+                  {editMode && isOwnProfile ? (
                     <input
                       type="text"
                       value={editData.first_name || ''}
@@ -159,7 +173,7 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
 
                 <div style={styles.infoItem}>
                   <label style={styles.label}>Last Name</label>
-                  {editMode ? (
+                  {editMode && isOwnProfile ? (
                     <input
                       type="text"
                       value={editData.last_name || ''}
@@ -173,7 +187,7 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
 
                 <div style={styles.infoItem}>
                   <label style={styles.label}>Nickname (School)</label>
-                  {editMode ? (
+                  {editMode && isOwnProfile ? (
                     <input
                       type="text"
                       value={editData.nickname_school || ''}
@@ -187,7 +201,7 @@ const UserProfile: React.FC<{ userId: number | string }> = ({ userId }) => {
 
                 <div style={{ ...styles.infoItem, gridColumn: '1 / -1' }}>
                   <label style={styles.label}>Bio</label>
-                  {editMode ? (
+                  {editMode && isOwnProfile ? (
                     <textarea
                       value={editData.bio || ''}
                       onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
