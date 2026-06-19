@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { adminSchoolAPI } from '../apiClient';
+import ConfirmModal from './ConfirmModal';
 
 const SchoolManager: React.FC = () => {
   const { currentUser } = useAppContext();
@@ -10,6 +11,7 @@ const SchoolManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -55,14 +57,24 @@ const SchoolManager: React.FC = () => {
     setNewSchoolLocation(school.location || '');
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this school?')) return;
+  const handleDelete = (id: number) => {
+    setDeleteModal({ isOpen: true, id });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteModal.id === null) return;
     try {
-      await adminSchoolAPI.deleteSchool(id, String(currentUser?.id));
+      await adminSchoolAPI.deleteSchool(deleteModal.id, String(currentUser?.id));
+      setDeleteModal({ isOpen: false, id: null });
       fetchSchools();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete school.');
+      setDeleteModal({ isOpen: false, id: null });
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteModal({ isOpen: false, id: null });
   };
 
   const handleCancel = () => {
@@ -124,6 +136,17 @@ const SchoolManager: React.FC = () => {
           </li>
         ))}
       </ul>
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Delete School"
+        message="Are you sure you want to delete this school? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 };

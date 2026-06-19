@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { adminClassAPI, schoolAPI } from '../apiClient';
+import ConfirmModal from './ConfirmModal';
 
 const ClassManager: React.FC = () => {
   const { currentUser } = useAppContext();
@@ -11,6 +12,7 @@ const ClassManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -64,14 +66,24 @@ const ClassManager: React.FC = () => {
     setNewYear(String(classEntity.year));
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this class?')) return;
+  const handleDelete = (id: number) => {
+    setDeleteModal({ isOpen: true, id });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteModal.id === null) return;
     try {
-      await adminClassAPI.deleteClass(id, String(currentUser?.id));
+      await adminClassAPI.deleteClass(deleteModal.id, String(currentUser?.id));
+      setDeleteModal({ isOpen: false, id: null });
       fetchClasses();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete class.');
+      setDeleteModal({ isOpen: false, id: null });
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteModal({ isOpen: false, id: null });
   };
 
   const handleCancel = () => {
@@ -165,6 +177,17 @@ const ClassManager: React.FC = () => {
           </li>
         ))}
       </ul>
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Class"
+        message="Are you sure you want to delete this class? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 };
