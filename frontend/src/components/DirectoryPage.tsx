@@ -43,8 +43,10 @@ const DirectoryPage: React.FC = () => {
       const userClass = classResponse.data.class;
       setClassInfo(userClass);
 
-      // Get users in the same class
-      const usersResponse = await api.get(`/classes/${userClass.id}/directory`);
+      // Get users in the same class (pass userId for validation)
+      const usersResponse = await api.get(`/classes/${userClass.id}/directory`, {
+        params: { userId: currentUser.user_id }
+      });
       setUsers(usersResponse.data.users || []);
       setError(null);
     } catch (err: any) {

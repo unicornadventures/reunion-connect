@@ -91,8 +91,24 @@ router.get('/:id/members', async (req, res) => {
 // GET /api/classes/:id/directory - Get users by class with full profile (for directory)
 router.get('/:id/directory', async (req, res) => {
   const { id } = req.params;
+  const userId = req.query.userId; // Requires userId for validation
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
 
   try {
+    // Validate that the requesting user is in this class
+    const userClassCheck = await query(
+      'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
+      [userId, id]
+    );
+
+    if (userClassCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied. You are not in this class.' });
+    }
+
+    // Fetch directory only if user is authorized
     const result = await query(`
       SELECT
         u.id,

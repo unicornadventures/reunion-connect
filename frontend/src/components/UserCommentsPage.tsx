@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { Comment } from '../types';
 
@@ -18,6 +19,7 @@ interface UserProfile {
 
 const UserCommentsPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const { currentUser } = useAppContext();
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -25,18 +27,20 @@ const UserCommentsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && currentUser?.user_id) {
       fetchUserProfileAndComments();
     }
-  }, [userId]);
+  }, [userId, currentUser?.user_id]);
 
   const fetchUserProfileAndComments = async () => {
-    if (!userId) return;
+    if (!userId || !currentUser?.user_id) return;
 
     setLoading(true);
     try {
-      // Fetch user profile
-      const profileResponse = await api.get(`/users/${userId}`);
+      // Fetch user profile with access validation
+      const profileResponse = await api.get(`/users/${userId}`, {
+        params: { requesterId: currentUser.user_id }
+      });
       setUserProfile(profileResponse.data);
 
       // Fetch comments on this user's profile (only published)

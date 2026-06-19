@@ -5,6 +5,23 @@ import { query } from '../db.ts';
 const router = express.Router();
 const SALT_ROUNDS = 10;
 
+// Helper function to check if two users are in the same class
+async function areUsersInSameClass(userId1: number, userId2: number): Promise<boolean> {
+  try {
+    const result = await query(`
+      SELECT cu1.class_id
+      FROM class_user cu1
+      JOIN class_user cu2 ON cu1.class_id = cu2.class_id
+      WHERE cu1.user_id = $1 AND cu2.user_id = $2
+      LIMIT 1;
+    `, [userId1, userId2]);
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('Error checking class membership:', error);
+    return false;
+  }
+}
+
 // POST /api/users/register
 router.post('/register', async (req, res) => {
   const { email, first_name, last_name, password, class_id } = req.body;
@@ -70,10 +87,30 @@ router.post('/register', async (req, res) => {
 });
 
 // GET /api/users/:id
+// Optional query param: requesterId - if provided, validates that requester is in same class or is the user
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
+  const { requesterId } = req.query;
 
   try {
+    // If requesterId is provided, validate access
+    if (requesterId && requesterId !== id) {
+      const requesterId_num = parseInt(String(requesterId));
+      const id_num = parseInt(id);
+
+      // Check if requester is admin
+      const requesterResult = await query('SELECT is_admin FROM users WHERE id = $1', [requesterId_num]);
+      const isAdmin = requesterResult.rows.length > 0 && requesterResult.rows[0].is_admin;
+
+      // If not admin, check if in same class
+      if (!isAdmin) {
+        const inSameClass = await areUsersInSameClass(requesterId_num, id_num);
+        if (!inSameClass) {
+          return res.status(403).json({ error: 'Access denied. You can only view profiles from your class.' });
+        }
+      }
+    }
+
     const userResult = await query('SELECT id, email, is_admin, created_at, updated_at FROM users WHERE id = $1', [id]);
 
     if (userResult.rows.length === 0) {
