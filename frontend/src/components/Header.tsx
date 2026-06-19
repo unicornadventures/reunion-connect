@@ -34,6 +34,12 @@ const Header: React.FC = () => {
           >
             📖 Directory
           </Link>
+          <Link
+            to="/events"
+            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+          >
+            📅 Events
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">

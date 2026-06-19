@@ -10,6 +10,7 @@ import UserProfile from './UserProfile';
 import CommentSection from './CommentSection';
 import DirectoryPage from './DirectoryPage';
 import UserCommentsPage from './UserCommentsPage';
+import EventsPage from './EventsPage';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();
@@ -39,6 +40,7 @@ const AppRouter: React.FC = () => {
         <Routes>
           <Route path="/" element={<WelcomePage currentUser={currentUser} />} />
           <Route path="/directory" element={!isSuperAdmin ? <DirectoryPage /> : <Navigate to="/" replace />} />
+          <Route path="/events" element={!isSuperAdmin ? <EventsPage /> : <Navigate to="/" replace />} />
           <Route path="/user/:userId" element={!isSuperAdmin ? <UserCommentsPage /> : <Navigate to="/" replace />} />
           <Route path="/admin/schools" element={isSuperAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isSuperAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
