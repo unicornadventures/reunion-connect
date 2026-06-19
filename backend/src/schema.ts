@@ -75,11 +75,24 @@ export async function initializeDatabase() {
     console.log('✅ Table "profiles" ensured.');
 
     // 5. Junction Table: Class to User (Many-to-Many)
+    // Check if table exists and has the right schema
+    const checkClassUserTable = `
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'class_user' AND column_name = 'id'
+    `;
+    const hasIdColumn = await query(checkClassUserTable);
+
+    if (hasIdColumn.rows.length === 0) {
+      // Table doesn't exist or doesn't have id column - drop and recreate
+      await query('DROP TABLE IF EXISTS class_user CASCADE;');
+    }
+
     const createClassUserTable = `
       CREATE TABLE IF NOT EXISTS class_user (
+        id SERIAL PRIMARY KEY,
         class_id INT REFERENCES classes(id) ON DELETE CASCADE NOT NULL,
         user_id INT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-        PRIMARY KEY (class_id, user_id)
+        UNIQUE(class_id, user_id)
       );
     `;
     await query(createClassUserTable);

@@ -157,4 +157,49 @@ router.get('/:id/class', async (req, res) => {
   }
 });
 
+// POST /api/users/:userId/assign-class
+router.post('/:userId/assign-class', async (req: any, res) => {
+  const { userId } = req.params;
+  const { class_id } = req.body;
+
+  if (!class_id) {
+    return res.status(400).json({ error: 'class_id is required.' });
+  }
+
+  try {
+    // Check if user exists
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Check if class exists
+    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [class_id]);
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found.' });
+    }
+
+    // Check if already assigned
+    const existingAssignment = await query(
+      'SELECT id FROM class_user WHERE user_id = $1 AND class_id = $2',
+      [userId, class_id]
+    );
+
+    if (existingAssignment.rows.length > 0) {
+      return res.status(400).json({ error: 'User already assigned to this class.' });
+    }
+
+    // Assign user to class
+    await query(
+      'INSERT INTO class_user (class_id, user_id) VALUES ($1, $2)',
+      [class_id, userId]
+    );
+
+    res.status(200).json({ message: 'User assigned to class successfully.' });
+  } catch (error) {
+    console.error("Assign User to Class Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as userRoutes };
