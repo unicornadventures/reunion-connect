@@ -26,9 +26,13 @@ const AppRouter: React.FC = () => {
         <div style={styles.navContent}>
           <Link to="/" style={styles.navBrand}>🎓 Class Reunion</Link>
           <div style={styles.navLinks}>
-            <Link to="/directory" style={styles.navLink}>Directory</Link>
-            <Link to="/profile" style={styles.navLink}>Profile</Link>
-            <Link to="/comments" style={styles.navLink}>Comments</Link>
+            {!isSuperAdmin && (
+              <>
+                <Link to="/directory" style={styles.navLink}>Directory</Link>
+                <Link to="/profile" style={styles.navLink}>Profile</Link>
+                <Link to="/comments" style={styles.navLink}>Comments</Link>
+              </>
+            )}
             {isSuperAdmin && (
               <>
                 <Link to="/admin/schools" style={styles.navLink}>Schools</Link>
@@ -42,12 +46,12 @@ const AppRouter: React.FC = () => {
       <div style={styles.container}>
         <Routes>
           <Route path="/" element={<WelcomePage currentUser={currentUser} />} />
-          <Route path="/directory" element={<DirectoryPage />} />
-          <Route path="/user/:userId" element={<UserCommentsPage />} />
+          <Route path="/directory" element={!isSuperAdmin ? <DirectoryPage /> : <Navigate to="/" replace />} />
+          <Route path="/user/:userId" element={!isSuperAdmin ? <UserCommentsPage /> : <Navigate to="/" replace />} />
           <Route path="/admin/schools" element={isSuperAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isSuperAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
-          <Route path="/profile" element={<UserProfile />} />
-          <Route path="/comments" element={<CommentSection />} />
+          <Route path="/profile" element={!isSuperAdmin ? <UserProfile /> : <Navigate to="/" replace />} />
+          <Route path="/comments" element={!isSuperAdmin ? <CommentSection /> : <Navigate to="/" replace />} />
         </Routes>
       </div>
     </div>

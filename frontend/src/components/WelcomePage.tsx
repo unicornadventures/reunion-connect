@@ -4,13 +4,14 @@ import { CurrentUser } from '../types';
 
 const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) => {
   const { logout } = useAppContext();
+  const isSuperAdmin = currentUser?.is_admin || false;
 
   return (
     <div style={styles.pageContainer}>
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>🎓 Class Reunion</h1>
-          <p style={styles.subtitle}>Connect with Your Class</p>
+          <p style={styles.subtitle}>{isSuperAdmin ? 'Admin Panel' : 'Connect with Your Class'}</p>
         </div>
         <button onClick={logout} style={styles.logoutButton}>
           Logout ({currentUser.first_name})
@@ -21,7 +22,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         <section style={styles.welcomeSection}>
           <h2 style={styles.sectionTitle}>Welcome back, {currentUser.first_name}! 👋</h2>
           <p style={styles.sectionText}>
-            We're excited to see you here. Use the navigation menu to explore the Class Reunion platform.
+            {isSuperAdmin
+              ? 'You are logged in as a super administrator. Use the navigation menu to manage schools and classes.'
+              : 'We\'re excited to see you here. Use the navigation menu to explore the Class Reunion platform.'}
           </p>
         </section>
 
@@ -34,27 +37,38 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
               <small style={styles.statDetail}>Member since {new Date(currentUser.created_at).toLocaleDateString()}</small>
             </div>
 
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>👤</div>
-              <h3>Profile</h3>
-              <p>{currentUser.first_name} {currentUser.last_name}</p>
-              <small style={styles.statDetail}>View and edit your profile</small>
-            </div>
+            {isSuperAdmin ? (
+              <>
+                <div style={styles.statCard}>
+                  <div style={styles.statIcon}>🏫</div>
+                  <h3>Schools</h3>
+                  <p>Manage schools</p>
+                  <small style={styles.statDetail}>Create and edit schools</small>
+                </div>
 
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>💬</div>
-              <h3>Comments</h3>
-              <p>Share memories</p>
-              <small style={styles.statDetail}>Leave comments for classmates</small>
-            </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statIcon}>📚</div>
+                  <h3>Classes</h3>
+                  <p>Manage class years</p>
+                  <small style={styles.statDetail}>Create and edit class years</small>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={styles.statCard}>
+                  <div style={styles.statIcon}>👤</div>
+                  <h3>Profile</h3>
+                  <p>{currentUser.first_name} {currentUser.last_name}</p>
+                  <small style={styles.statDetail}>View and edit your profile</small>
+                </div>
 
-            {currentUser.is_admin && (
-              <div style={styles.statCard}>
-                <div style={styles.statIcon}>⚙️</div>
-                <h3>Admin</h3>
-                <p>Manage content</p>
-                <small style={styles.statDetail}>Schools, Classes, Users</small>
-              </div>
+                <div style={styles.statCard}>
+                  <div style={styles.statIcon}>💬</div>
+                  <h3>Comments</h3>
+                  <p>Share memories</p>
+                  <small style={styles.statDetail}>Leave comments for classmates</small>
+                </div>
+              </>
             )}
           </div>
         </section>
@@ -62,23 +76,30 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         <section style={styles.navigationSection}>
           <h3 style={styles.navigationTitle}>Quick Navigation</h3>
           <div style={styles.navigationGrid}>
-            <div style={styles.navItem}>
-              <h4 style={styles.navItemTitle}>👤 Profile</h4>
-              <p>View and edit your personal profile, upload photos, and update your information.</p>
-            </div>
-            <div style={styles.navItem}>
-              <h4 style={styles.navItemTitle}>💬 Comments</h4>
-              <p>Leave comments on your profile and see memories shared by classmates.</p>
-            </div>
-            {currentUser.is_admin && (
+            {isSuperAdmin ? (
               <>
                 <div style={styles.navItem}>
                   <h4 style={styles.navItemTitle}>🏫 Manage Schools</h4>
-                  <p>Create and manage schools in the system.</p>
+                  <p>Create, edit, and delete schools in the system.</p>
                 </div>
                 <div style={styles.navItem}>
                   <h4 style={styles.navItemTitle}>📚 Manage Classes</h4>
-                  <p>Create and manage class years for schools.</p>
+                  <p>Create, edit, and delete class years for schools.</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={styles.navItem}>
+                  <h4 style={styles.navItemTitle}>📖 Directory</h4>
+                  <p>Browse classmates from your school and class year.</p>
+                </div>
+                <div style={styles.navItem}>
+                  <h4 style={styles.navItemTitle}>👤 Profile</h4>
+                  <p>View and edit your personal profile, upload photos, and update your information.</p>
+                </div>
+                <div style={styles.navItem}>
+                  <h4 style={styles.navItemTitle}>💬 Comments</h4>
+                  <p>Leave comments on your profile and see memories shared by classmates.</p>
                 </div>
               </>
             )}
