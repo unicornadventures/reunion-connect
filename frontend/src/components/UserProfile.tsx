@@ -100,24 +100,26 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.spinner}>Loading profile...</div>
+      <div className="max-w-[1000px] mx-auto px-5 py-8">
+        <div className="text-center text-[#999999] text-base">Loading profile...</div>
       </div>
     );
   }
 
   if (error && !data) {
     return (
-      <div style={styles.container}>
-        <div style={styles.error}>Error: {error}</div>
+      <div className="max-w-[1000px] mx-auto px-5 py-8">
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3">
+          Error: {error}
+        </div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div style={styles.container}>
-        <div style={styles.info}>User not found.</div>
+      <div className="max-w-[1000px] mx-auto px-5 py-8">
+        <div className="text-center text-[#666666] text-base">User not found.</div>
       </div>
     );
   }
@@ -126,89 +128,102 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const displayName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}` : user.email;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>{displayName}'s Profile</h2>
+    <div className="max-w-[1000px] mx-auto px-5 py-8">
+      {/* Header */}
+      <div className="flex justify-between items-center border-b-2 border-[#4CAF50] pb-4 mb-8">
+        <h2 className="text-3xl font-bold text-[#333333]">{displayName}'s Profile</h2>
         {isOwnProfile && (
           <button
             onClick={() => setEditMode(!editMode)}
-            style={{
-              ...styles.button,
-              backgroundColor: editMode ? '#f44336' : '#2196F3',
-              cursor: 'pointer'
-            }}
+            className={`px-5 py-2 rounded font-bold text-white transition-opacity hover:opacity-90 ${
+              editMode ? 'bg-[#f44336]' : 'bg-[#2196F3]'
+            }`}
           >
-            {editMode ? 'Cancel' : 'Edit Profile'}
+            {editMode ? 'Cancel' : '✏️ Edit Profile'}
           </button>
         )}
       </div>
 
-      {error && <div style={styles.error}>{error}</div>}
+      {error && (
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 mb-5 text-sm">
+          {error}
+        </div>
+      )}
 
-      <div style={styles.content}>
+      <div className="space-y-8">
         {/* Personal Information Section */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>📋 Personal Information</h3>
-          <div style={styles.infoGrid}>
-            <div style={styles.infoItem}>
-              <label style={styles.label}>Email</label>
-              <p style={styles.value}>{user.email}</p>
+        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6">
+          <h3 className="text-lg font-bold text-[#333333] mb-6">📋 Personal Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-[#555555] mb-2">Email</label>
+              <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                {user.email}
+              </div>
             </div>
 
             {profile && (
               <>
-                <div style={styles.infoItem}>
-                  <label style={styles.label}>First Name</label>
+                <div>
+                  <label className="block text-sm font-semibold text-[#555555] mb-2">First Name</label>
                   {editMode && isOwnProfile ? (
                     <input
                       type="text"
                       value={editData.first_name || ''}
                       onChange={(e) => setEditData({ ...editData, first_name: e.target.value })}
-                      style={styles.input}
+                      className="w-full px-3 py-2 border border-[#4CAF50] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50]"
                     />
                   ) : (
-                    <p style={styles.value}>{profile.first_name || 'Not provided'}</p>
+                    <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                      {profile.first_name || 'Not provided'}
+                    </div>
                   )}
                 </div>
 
-                <div style={styles.infoItem}>
-                  <label style={styles.label}>Last Name</label>
+                <div>
+                  <label className="block text-sm font-semibold text-[#555555] mb-2">Last Name</label>
                   {editMode && isOwnProfile ? (
                     <input
                       type="text"
                       value={editData.last_name || ''}
                       onChange={(e) => setEditData({ ...editData, last_name: e.target.value })}
-                      style={styles.input}
+                      className="w-full px-3 py-2 border border-[#4CAF50] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50]"
                     />
                   ) : (
-                    <p style={styles.value}>{profile.last_name || 'Not provided'}</p>
+                    <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                      {profile.last_name || 'Not provided'}
+                    </div>
                   )}
                 </div>
 
-                <div style={styles.infoItem}>
-                  <label style={styles.label}>Nickname (School)</label>
+                <div>
+                  <label className="block text-sm font-semibold text-[#555555] mb-2">Nickname (School)</label>
                   {editMode && isOwnProfile ? (
                     <input
                       type="text"
                       value={editData.nickname_school || ''}
                       onChange={(e) => setEditData({ ...editData, nickname_school: e.target.value })}
-                      style={styles.input}
+                      className="w-full px-3 py-2 border border-[#4CAF50] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50]"
                     />
                   ) : (
-                    <p style={styles.value}>{profile.nickname_school || 'Not provided'}</p>
+                    <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                      {profile.nickname_school || 'Not provided'}
+                    </div>
                   )}
                 </div>
 
-                <div style={{ ...styles.infoItem, gridColumn: '1 / -1' }}>
-                  <label style={styles.label}>Bio</label>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-[#555555] mb-2">Bio</label>
                   {editMode && isOwnProfile ? (
                     <textarea
                       value={editData.bio || ''}
                       onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
-                      style={{ ...styles.input, minHeight: '100px', resize: 'vertical' }}
+                      className="w-full px-3 py-2 border border-[#4CAF50] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] min-h-[100px] resize-vertical"
                     />
                   ) : (
-                    <p style={styles.value}>{profile.bio || 'No bio provided.'}</p>
+                    <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                      {profile.bio || 'No bio provided.'}
+                    </div>
                   )}
                 </div>
               </>
@@ -219,12 +234,11 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
             <button
               onClick={handleProfileUpdate}
               disabled={loading}
-              style={{
-                ...styles.button,
-                backgroundColor: '#4CAF50',
-                marginTop: '15px',
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
+              className={`mt-6 px-5 py-2 rounded font-bold text-white transition-opacity ${
+                loading
+                  ? 'bg-[#CCCCCC] cursor-not-allowed'
+                  : 'bg-[#4CAF50] hover:opacity-90 cursor-pointer'
+              }`}
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
@@ -233,54 +247,66 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
 
         {/* Photo Section */}
         {profile && (
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>📸 Photos</h3>
-            <div style={styles.photosGrid}>
+          <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6">
+            <h3 className="text-lg font-bold text-[#333333] mb-6">📸 Then & Now</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Then Photo */}
-              <div style={styles.photoCard}>
-                <h4 style={styles.photoLabel}>School Photo (Then)</h4>
+              <div className="bg-white border border-[#E0E0E0] rounded-lg p-5 text-center">
+                <h4 className="text-base font-bold text-[#333333] mb-4">School Photo (Then)</h4>
                 {profile.then_photo_url ? (
-                  <div style={styles.photoPreview}>
-                    <img src={profile.then_photo_url} alt="Then" style={styles.photoImage} />
-                    <p style={styles.photoText}>Photo uploaded ✓</p>
+                  <div className="mb-4">
+                    <img
+                      src={profile.then_photo_url}
+                      alt="Then"
+                      className="max-w-full max-h-[250px] rounded-lg mx-auto mb-2"
+                    />
+                    <p className="text-[#4CAF50] text-xs font-bold">Photo uploaded ✓</p>
                   </div>
                 ) : (
-                  <div style={styles.photoPlaceholder}>No photo uploaded</div>
+                  <div className="h-[200px] flex items-center justify-center bg-[#F9F9F9] border-2 border-dashed border-[#DDDDDD] rounded-lg text-[#999999] text-sm mb-4">
+                    Add photo
+                  </div>
                 )}
-                <label style={styles.fileInputLabel}>
+                <label className="cursor-pointer inline-block">
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => e.target.files && handlePhotoUpload('then', e.target.files[0])}
-                    style={styles.fileInput}
                     disabled={uploadingPhoto === 'then'}
+                    className="hidden"
                   />
-                  <span style={styles.fileInputButton}>
+                  <span className="px-4 py-2 bg-[#2196F3] text-white rounded font-bold text-sm hover:opacity-90 transition-opacity inline-block cursor-pointer">
                     {uploadingPhoto === 'then' ? 'Uploading...' : 'Choose File'}
                   </span>
                 </label>
               </div>
 
               {/* Now Photo */}
-              <div style={styles.photoCard}>
-                <h4 style={styles.photoLabel}>Current Photo (Now)</h4>
+              <div className="bg-white border border-[#E0E0E0] rounded-lg p-5 text-center">
+                <h4 className="text-base font-bold text-[#333333] mb-4">Current Photo (Now)</h4>
                 {profile.now_photo_url ? (
-                  <div style={styles.photoPreview}>
-                    <img src={profile.now_photo_url} alt="Now" style={styles.photoImage} />
-                    <p style={styles.photoText}>Photo uploaded ✓</p>
+                  <div className="mb-4">
+                    <img
+                      src={profile.now_photo_url}
+                      alt="Now"
+                      className="max-w-full max-h-[250px] rounded-lg mx-auto mb-2"
+                    />
+                    <p className="text-[#4CAF50] text-xs font-bold">Photo uploaded ✓</p>
                   </div>
                 ) : (
-                  <div style={styles.photoPlaceholder}>No photo uploaded</div>
+                  <div className="h-[200px] flex items-center justify-center bg-[#F9F9F9] border-2 border-dashed border-[#DDDDDD] rounded-lg text-[#999999] text-sm mb-4">
+                    Add photo
+                  </div>
                 )}
-                <label style={styles.fileInputLabel}>
+                <label className="cursor-pointer inline-block">
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => e.target.files && handlePhotoUpload('now', e.target.files[0])}
-                    style={styles.fileInput}
                     disabled={uploadingPhoto === 'now'}
+                    className="hidden"
                   />
-                  <span style={styles.fileInputButton}>
+                  <span className="px-4 py-2 bg-[#2196F3] text-white rounded font-bold text-sm hover:opacity-90 transition-opacity inline-block cursor-pointer">
                     {uploadingPhoto === 'now' ? 'Uploading...' : 'Choose File'}
                   </span>
                 </label>
@@ -290,182 +316,26 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
         )}
 
         {/* Metadata Section */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>ℹ️ Account Info</h3>
-          <div style={styles.infoGrid}>
-            <div style={styles.infoItem}>
-              <label style={styles.label}>Account Created</label>
-              <p style={styles.value}>{new Date(user.created_at).toLocaleDateString()}</p>
+        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6">
+          <h3 className="text-lg font-bold text-[#333333] mb-6">ℹ️ Account Info</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-[#555555] mb-2">Account Created</label>
+              <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                {new Date(user.created_at).toLocaleDateString()}
+              </div>
             </div>
-            <div style={styles.infoItem}>
-              <label style={styles.label}>Admin Status</label>
-              <p style={styles.value}>{user.is_admin ? '✓ Admin' : 'Regular User'}</p>
+            <div>
+              <label className="block text-sm font-semibold text-[#555555] mb-2">Admin Status</label>
+              <div className="px-3 py-2 bg-white border border-[#DDDDDD] rounded-lg text-[#333333]">
+                {user.is_admin ? '✓ Admin' : 'Regular User'}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-// Comprehensive styling
-const styles = {
-  container: {
-    padding: '20px',
-    maxWidth: '1000px',
-    margin: '0 auto',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottom: '2px solid #4CAF50',
-    paddingBottom: '15px',
-    marginBottom: '30px'
-  },
-  title: {
-    color: '#333',
-    margin: 0,
-    fontSize: '24px'
-  },
-  button: {
-    padding: '10px 20px',
-    border: 'none',
-    borderRadius: '4px',
-    color: 'white',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s'
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '30px'
-  },
-  section: {
-    backgroundColor: '#f9f9f9',
-    padding: '20px',
-    borderRadius: '8px',
-    border: '1px solid #e0e0e0'
-  },
-  sectionTitle: {
-    color: '#333',
-    marginTop: 0,
-    marginBottom: '20px',
-    fontSize: '18px',
-    fontWeight: 'bold'
-  },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '20px'
-  },
-  infoItem: {
-    display: 'flex',
-    flexDirection: 'column' as const
-  },
-  label: {
-    fontWeight: 'bold',
-    color: '#555',
-    marginBottom: '8px',
-    fontSize: '14px'
-  },
-  value: {
-    color: '#333',
-    margin: 0,
-    padding: '10px',
-    backgroundColor: 'white',
-    borderRadius: '4px',
-    border: '1px solid #ddd'
-  },
-  input: {
-    padding: '10px',
-    border: '1px solid #4CAF50',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontFamily: 'inherit'
-  },
-  photosGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '20px'
-  },
-  photoCard: {
-    backgroundColor: 'white',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    padding: '20px',
-    textAlign: 'center' as const
-  },
-  photoLabel: {
-    margin: '0 0 15px 0',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  photoPreview: {
-    marginBottom: '15px'
-  },
-  photoImage: {
-    maxWidth: '100%',
-    maxHeight: '250px',
-    borderRadius: '4px',
-    marginBottom: '10px'
-  },
-  photoText: {
-    color: '#4CAF50',
-    margin: 0,
-    fontSize: '12px',
-    fontWeight: 'bold'
-  },
-  photoPlaceholder: {
-    height: '200px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: '4px',
-    color: '#999',
-    marginBottom: '15px',
-    border: '2px dashed #ddd'
-  },
-  fileInputLabel: {
-    cursor: 'pointer',
-    display: 'inline-block'
-  },
-  fileInput: {
-    display: 'none'
-  },
-  fileInputButton: {
-    padding: '10px 20px',
-    backgroundColor: '#2196F3',
-    color: 'white',
-    borderRadius: '4px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    display: 'inline-block',
-    transition: 'background-color 0.2s'
-  },
-  spinner: {
-    padding: '40px',
-    textAlign: 'center' as const,
-    color: '#999',
-    fontSize: '16px'
-  },
-  error: {
-    padding: '15px',
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    borderRadius: '4px',
-    marginBottom: '20px',
-    border: '1px solid #ef5350'
-  },
-  info: {
-    padding: '20px',
-    textAlign: 'center' as const,
-    color: '#666'
-  }
 };
 
 export default UserProfile;
