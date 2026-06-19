@@ -19,28 +19,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/classes/:id
-router.get('/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await query(`
-      SELECT c.id, c.year, c.school_id, s.name as school_name, c.created_at, c.updated_at
-      FROM classes c
-      JOIN schools s ON c.school_id = s.id
-      WHERE c.id = $1;
-    `, [id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Class not found.' });
-    }
-    res.status(200).json({ class: result.rows[0] });
-  } catch (error) {
-    console.error("Get Class Error:", error);
-    res.status(500).json({ error: 'Internal server error.' });
-  }
-});
-
 // POST /api/classes
 router.post('/', async (req, res) => {
   const { school_id, year } = req.body;
@@ -67,7 +45,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/classes/:id/members
+// GET /api/classes/:id/members - Must come before /:id
 router.get('/:id/members', async (req, res) => {
   const { id } = req.params;
 
@@ -202,6 +180,28 @@ router.get('/:id/message-count', async (req, res) => {
     res.status(200).json({ count });
   } catch (error) {
     console.error("Get Message Count Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// GET /api/classes/:id - Generic class fetch (must come last)
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await query(`
+      SELECT c.id, c.year, c.school_id, s.name as school_name, c.created_at, c.updated_at
+      FROM classes c
+      JOIN schools s ON c.school_id = s.id
+      WHERE c.id = $1;
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found.' });
+    }
+    res.status(200).json({ class: result.rows[0] });
+  } catch (error) {
+    console.error("Get Class Error:", error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
