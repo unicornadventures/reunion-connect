@@ -97,7 +97,11 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     setLoading(true);
     try {
       const response = await api.put(`/users/${profileUserId}/profile`, editData);
-      setData(prev => prev ? { ...prev, profile: response.data.profile } : null);
+      setData(prev => prev ? {
+        ...prev,
+        profile: response.data.profile,
+        user: { ...prev.user, email: editData.email || prev.user.email }
+      } : null);
       setEditMode(false);
       setError(null);
     } catch (err: any) {
@@ -215,7 +219,17 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
             <div className="p-5 space-y-3">
               <div>
                 <div className="text-xs font-semibold text-[#999999]">Email</div>
-                <div className="text-sm text-[#2196F3]">{user.email}</div>
+                {editMode ? (
+                  <input
+                    type="email"
+                    value={editData.email || user.email}
+                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                    className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50] mt-1"
+                    placeholder="your@email.com"
+                  />
+                ) : (
+                  <div className="text-sm text-[#2196F3]">{user.email}</div>
+                )}
               </div>
             </div>
           </div>

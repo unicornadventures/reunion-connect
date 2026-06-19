@@ -202,22 +202,40 @@ router.post('/:userId/assign-class', async (req: any, res) => {
   }
 });
 
-// PUT /api/users/:userId/profile - Update user profile
+// PUT /api/users/:userId/profile - Update user profile and email
 router.put('/:userId/profile', async (req: any, res) => {
   const { userId } = req.params;
-  const { bio, nickname_school } = req.body;
+  const { bio, nickname_school, email } = req.body;
 
   try {
     // Check if user exists
-    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
+    const userCheck = await query('SELECT id, email FROM users WHERE id = $1', [userId]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'User not found.' });
     }
+
+    const currentUser = userCheck.rows[0];
 
     // Check if profile exists
     const profileCheck = await query('SELECT id FROM profiles WHERE user_id = $1', [userId]);
     if (profileCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Profile not found.' });
+    }
+
+    // If email is being changed, validate and check for duplicates
+    if (email && email !== currentUser.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format.' });
+      }
+
+      const duplicateEmail = await query('SELECT id FROM users WHERE email = $1 AND id != $2', [email.toLowerCase().trim(), userId]);
+      if (duplicateEmail.rows.length > 0) {
+        return res.status(409).json({ error: 'Email already in use.' });
+      }
+
+      // Update user email
+      await query('UPDATE users SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [email.toLowerCase().trim(), userId]);
     }
 
     // Update profile with provided fields
@@ -237,14 +255,19 @@ router.put('/:userId/profile', async (req: any, res) => {
       paramCount++;
     }
 
-    if (updateFields.length === 0) {
+    if (updateFields.length === 0 && !email) {
       return res.status(400).json({ error: 'No fields to update.' });
     }
 
-    updateValues.push(userId);
-    const updateQuery = `UPDATE profiles SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE user_id = $${paramCount} RETURNING *`;
-
-    const result = await query(updateQuery, updateValues);
+    let result;
+    if (updateFields.length > 0) {
+      updateValues.push(userId);
+      const updateQuery = `UPDATE profiles SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE user_id = $${paramCount} RETURNING *`;
+      result = await query(updateQuery, updateValues);
+    } else {
+      // If only email was updated, fetch the profile
+      result = await query('SELECT * FROM profiles WHERE user_id = $1', [userId]);
+    }
 
     res.status(200).json({ profile: result.rows[0] });
   } catch (error) {
