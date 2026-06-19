@@ -1,14 +1,12 @@
-version: '3.8'
-
 services:
   # PostgreSQL service simulating AWS Aurora Serverless
   postgres:
     image: postgres:14-alpine
     container_name: aurora_local
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: class_reunion_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: class_reunion
     ports:
       - "5432:5432"
     volumes:
@@ -22,6 +20,7 @@ services:
       - "4566:4566" # Default Localstack API port
     environment:
       # Enable specific services required by the architecture
+      LOCALSTACK_AUTH_TOKEN: ls-siYoZehO-GErU-QetI-KusA-zAlE716339fb
       SERVICES: s3, sqs, sns, sms
     volumes:
       - localstack_data:/var/lib/localstack

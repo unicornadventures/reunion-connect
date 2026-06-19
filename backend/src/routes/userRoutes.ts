@@ -1,0 +1,97 @@
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import { query } from '../db.ts';
+
+const router = express.Router();
+const SALT_ROUNDS = 10;
+
+// POST /api/users/register
+router.post('/register', async (req, res) => {
+  const { email, first_name, last_name, password, class_id } = req.body;
+
+  if (!email || !first_name || !last_name || !password || !class_id) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+
+  try {
+    // Start a transaction to guarantee data integrity
+    await query('BEGIN');
+
+    // 1. Verify class exists
+    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [class_id]);
+    if (classCheck.rows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(400).json({ error: 'Provided class_id does not exist.' });
+    }
+
+    // 2. Hash password securely
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // 3. Insert user
+    const userResult = await query(
+      'INSERT INTO users (email, password, is_admin) VALUES ($1, $2, $3) RETURNING id, email, is_admin, created_at;',
+      [email.toLowerCase().trim(), hashedPassword, false]
+    );
+
+    const newUser = userResult.rows[0];
+
+    // 4. Create user profile
+    await query(
+      'INSERT INTO profiles (user_id, first_name, last_name) VALUES ($1, $2, $3);',
+      [newUser.id, first_name, last_name]
+    );
+
+    // 5. Link user to class
+    await query('INSERT INTO class_user (class_id, user_id) VALUES ($1, $2);', [class_id, newUser.id]);
+
+    // Commit transaction
+    await query('COMMIT');
+
+    res.status(201).json({
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        is_admin: newUser.is_admin,
+        created_at: newUser.created_at
+      }
+    });
+
+  } catch (error: any) {
+    await query('ROLLBACK');
+
+    // Handle duplicate email constraint (PostgreSQL error code 23505)
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'User already exists.' });
+    }
+
+    console.error("Registration Error:", error.message);
+    res.status(500).json({ error: 'Internal server error during registration.' });
+  }
+});
+
+// GET /api/users/:id
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const userResult = await query('SELECT id, email, is_admin, created_at, updated_at FROM users WHERE id = $1', [id]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Get user profile
+    const profileResult = await query('SELECT * FROM profiles WHERE user_id = $1', [id]);
+    const profile = profileResult.rows[0] || null;
+
+    res.status(200).json({ user, profile });
+
+  } catch (error) {
+    console.error("Get User Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+export { router as userRoutes };
