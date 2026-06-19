@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom'; // 🚨 Added Link import
+import { Routes, Route, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Login from './Login';
 import Dashboard from './Dashboard';
@@ -7,7 +7,7 @@ import SchoolManager from './SchoolManager';
 import ClassManager from './ClassManager';
 import UserProfile from './UserProfile';
 import CommentSection from './CommentSection';
-import { User } from '../backend/src/types';
+import { User } from '../types';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();

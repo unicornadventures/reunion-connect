@@ -11,6 +11,7 @@ import { photoRoutes } from './routes/photoRoutes.ts';
 import { schoolRoutes } from './routes/schoolRoutes.ts';
 import { classRoutes } from './routes/classRoutes.ts';
 import { adminRoutes } from './routes/adminRoutes.ts';
+import { commentRoutes } from './routes/commentRoutes.ts';
 
 // Load environment variables
 dotenv.config();
@@ -30,6 +31,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/users', photoRoutes);
+app.use('/api/users', commentRoutes);
+app.use('/api/comments', commentRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/admin', adminRoutes);

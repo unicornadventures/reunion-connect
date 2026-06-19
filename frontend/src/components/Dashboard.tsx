@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
-import { User } from '../backend/src/types';
+import { User } from '../types';
 import SchoolManager from './SchoolManager';
 import ClassManager from './ClassManager';
 import UserProfile from './UserProfile';
