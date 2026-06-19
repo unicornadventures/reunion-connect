@@ -51,7 +51,13 @@ const DirectoryPage: React.FC = () => {
       setError(null);
     } catch (err: any) {
       console.error('Error fetching directory:', err);
-      setError(err.response?.data?.error || 'Failed to load directory.');
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to load directory.';
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: errorMsg
+      });
+      setError(errorMsg);
       setUsers([]);
     } finally {
       setLoading(false);
