@@ -87,20 +87,22 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
   if (isSuperAdmin) {
     return (
-      <div style={styles.adminContainer}>
-        <header style={styles.header}>
-          <div>
-            <h1 style={styles.title}>🎓 Class Reunion Admin Panel</h1>
-            <p style={styles.subtitle}>Manage schools and classes</p>
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <header className="sticky top-0 z-[100] bg-white border-b-2 border-[#4CAF50] shadow-[0_2px_4px_rgba(0,0,0,0.1)] px-5 py-5">
+          <div className="max-w-[1200px] mx-auto flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-[#4CAF50] m-0">🎓 Class Reunion Admin Panel</h1>
+              <p className="text-sm text-[#666666] m-0 mt-1">Manage schools and classes</p>
+            </div>
+            <button onClick={logout} className="px-5 py-2 bg-[#f44336] text-white rounded font-bold text-sm hover:opacity-90 transition-opacity">
+              Logout ({currentUser.first_name})
+            </button>
           </div>
-          <button onClick={logout} style={styles.logoutButton}>
-            Logout ({currentUser.first_name})
-          </button>
         </header>
-        <div style={styles.contentContainer}>
-          <section style={styles.welcomeSection}>
-            <h2 style={styles.sectionTitle}>Welcome back, {currentUser.first_name}! 👋</h2>
-            <p style={styles.sectionText}>
+        <div className="max-w-[1200px] mx-auto px-5 py-8">
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-[#333333] mb-2">Welcome back, {currentUser.first_name}! 👋</h2>
+            <p className="text-sm text-[#666666] leading-relaxed">
               You are logged in as a super administrator. Use the navigation menu to manage schools and classes.
             </p>
           </section>
@@ -245,60 +247,6 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
       </div>
     </div>
   );
-};
-
-const styles = {
-  adminContainer: {
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: 'white',
-    padding: '20px 40px',
-    borderBottom: '2px solid #4CAF50',
-    display: 'flex' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  title: {
-    margin: 0,
-    color: '#4CAF50',
-    fontSize: '24px',
-  },
-  subtitle: {
-    margin: '5px 0 0 0',
-    color: '#666',
-    fontSize: '14px',
-  },
-  logoutButton: {
-    padding: '10px 20px',
-    backgroundColor: '#f44336',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  contentContainer: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '20px 40px',
-  },
-  welcomeSection: {
-    marginBottom: '30px',
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold' as const,
-    marginBottom: '10px',
-    color: '#333',
-  },
-  sectionText: {
-    fontSize: '14px',
-    color: '#666',
-    lineHeight: '1.6',
-  },
 };
 
 export default WelcomePage;
