@@ -98,7 +98,24 @@ export async function initializeDatabase() {
     await query(createClassUserTable);
     console.log('✅ Table "class_user" ensured.');
 
-    // 6. Create Comment Table
+    // 6. Create Events Table
+    const createEventsTable = `
+      CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        class_id INT REFERENCES classes(id) ON DELETE CASCADE NOT NULL,
+        event_name VARCHAR(255) NOT NULL,
+        event_date DATE NOT NULL,
+        event_time TIME NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+    await query(createEventsTable);
+    console.log('✅ Table "events" ensured.');
+
+    // 7. Create Comment Table
     const createCommentTable = `
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
