@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../db.ts';
+import { generatePresignedUrl } from '../s3Service.ts';
 
 const router = express.Router();
 
@@ -23,8 +24,7 @@ router.post('/:userId/photo/upload/:photoType', async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // TODO: Replace with actual AWS S3 presigned URL generation
-    const presignedUrl = `https://s3.aws.com/presigned/${userId}/${fileName}`;
+    const presignedUrl = await generatePresignedUrl(parseInt(userId), fileName);
     res.status(200).json({ presignedUrl });
   } catch (error) {
     console.error("Generate URL Error:", error);
