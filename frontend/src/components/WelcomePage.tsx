@@ -54,7 +54,6 @@ const Avatar: React.FC<{ initials: string; size?: number }> = ({ initials, size 
 
 const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) => {
   const navigate = useNavigate();
-  const { logout } = useAppContext();
   const isSuperAdmin = currentUser?.is_admin || false;
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [recentlyJoined, setRecentlyJoined] = useState<DirectoryUser[]>([]);
@@ -104,26 +103,13 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
   if (isSuperAdmin) {
     return (
-      <div className="min-h-screen bg-[#F5F5F5]">
-        <header className="sticky top-0 z-[100] bg-white border-b-2 border-[#4CAF50] shadow-[0_2px_4px_rgba(0,0,0,0.1)] px-5 py-5">
-          <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-[#4CAF50] m-0">🎓 Class Reunion Admin Panel</h1>
-              <p className="text-sm text-[#666666] m-0 mt-1">Manage schools and classes</p>
-            </div>
-            <button onClick={logout} className="px-5 py-2 bg-[#f44336] text-white rounded font-bold text-sm hover:opacity-90 transition-opacity">
-              Logout ({currentUser.first_name})
-            </button>
-          </div>
-        </header>
-        <div className="max-w-[1200px] mx-auto px-5 py-8">
-          <section className="mb-8">
-            <h2 className="text-2xl font-bold text-[#333333] mb-2">Welcome back, {currentUser.first_name}! 👋</h2>
-            <p className="text-sm text-[#666666] leading-relaxed">
-              You are logged in as a super administrator. Use the navigation menu to manage schools and classes.
-            </p>
-          </section>
-        </div>
+      <div className="max-w-[1200px] mx-auto px-5 py-8">
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-[#333333] mb-2">Welcome back, {currentUser.first_name}! 👋</h2>
+          <p className="text-sm text-[#666666] leading-relaxed">
+            You are logged in as a super administrator. Use the navigation menu to manage schools and classes.
+          </p>
+        </section>
       </div>
     );
   }
