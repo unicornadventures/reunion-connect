@@ -38,27 +38,73 @@ export const userAPI = {
     api.put<{ profile: Profile }>(`/users/${userId}/photo/${photoType}`, { photoUrl }),
 };
 
-// School endpoints
+// School endpoints (public read-only)
 export const schoolAPI = {
   getSchools: () => api.get<{ schools: School[] }>('/schools'),
 
   getSchool: (schoolId: number) => api.get<{ school: School }>(`/schools/${schoolId}`),
-
-  createSchool: (name: string, location?: string) =>
-    api.post<{ school: School }>('/schools', { name, location }),
 };
 
-// Class endpoints
+// Admin school endpoints (requires admin token)
+export const adminSchoolAPI = {
+  getSchools: (token: string) => api.get<{ schools: School[] }>('/admin/schools', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+
+  getSchool: (schoolId: number, token: string) => api.get<{ school: School }>(`/admin/schools/${schoolId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+
+  createSchool: (name: string, token: string, location?: string) =>
+    api.post<{ school: School }>('/admin/schools', { name, location }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+
+  updateSchool: (schoolId: number, name: string, token: string, location?: string) =>
+    api.put<{ school: School }>(`/admin/schools/${schoolId}`, { name, location }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+
+  deleteSchool: (schoolId: number, token: string) =>
+    api.delete(`/admin/schools/${schoolId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+};
+
+// Class endpoints (public read-only)
 export const classAPI = {
   getClasses: () => api.get<{ classes: Class[] }>('/classes'),
 
   getClass: (classId: number) => api.get<{ class: Class }>(`/classes/${classId}`),
 
-  createClass: (school_id: number, year: number) =>
-    api.post<{ class: Class }>('/classes', { school_id, year }),
-
   getClassMembers: (classId: number) =>
     api.get<{ members: (User & { profile: Profile | null })[] }>(`/classes/${classId}/members`),
+};
+
+// Admin class endpoints (requires admin token)
+export const adminClassAPI = {
+  getClasses: (token: string) => api.get<{ classes: Class[] }>('/admin/classes', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+
+  getClass: (classId: number, token: string) => api.get<{ class: Class }>(`/admin/classes/${classId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
+
+  createClass: (school_id: number, year: number, token: string) =>
+    api.post<{ class: Class }>('/admin/classes', { school_id, year }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+
+  updateClass: (classId: number, school_id: number, year: number, token: string) =>
+    api.put<{ class: Class }>(`/admin/classes/${classId}`, { school_id, year }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+
+  deleteClass: (classId: number, token: string) =>
+    api.delete(`/admin/classes/${classId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
 };
 
 // Admin endpoints

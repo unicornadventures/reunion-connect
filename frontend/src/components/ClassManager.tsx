@@ -1,39 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import api from '@/api';
-
+import { useAppContext } from '../context/AppContext';
+import { adminClassAPI, schoolAPI } from '../apiClient';
 
 const ClassManager: React.FC = () => {
+  const { user } = useAppContext();
   const [classes, setClasses] = useState<any[]>([]);
-  const [schools, setSchools] = useState<any[]>([]); // 🚨 Added separate state for schools
+  const [schools, setSchools] = useState<any[]>([]);
   const [newYear, setNewYear] = useState('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Fetch both datasets on initialization
-    Promise.all([fetchClasses(), fetchSchools()])
-      .finally(() => setLoading(false));
-  }, []);
+    if (user?.id) {
+      Promise.all([fetchClasses(), fetchSchools()]).finally(() => setLoading(false));
+    }
+  }, [user?.id]);
 
   const fetchClasses = async () => {
     try {
-      const response = await api.get(`/classes`);
-      // Defensive handling: check if wrapped or default to empty array
-      const data = Array.isArray(response.data) ? response.data : (response.data?.classes || []);
-      setClasses(data);
+      const response = await adminClassAPI.getClasses(String(user?.id));
+      setClasses(response.data.classes);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch classes.');
     }
   };
 
-  // 🚨 Added to fetch available schools for the form dropdown selection
   const fetchSchools = async () => {
     try {
-      const response = await api.get(`/schools`);
-      const data = Array.isArray(response.data) ? response.data : (response.data?.schools || []);
-      setSchools(data);
+      const response = await schoolAPI.getSchools();
+      setSchools(response.data.schools);
     } catch (err: any) {
       console.error('Failed to fetch schools:', err);
     }
@@ -46,29 +44,53 @@ const ClassManager: React.FC = () => {
       return;
     }
     try {
-      await api.post(`/classes`, {
-        school_id: selectedSchoolId,
-        year: parseInt(newYear),
-      });
-      // Success: Clear form and refresh classes layout list
+      if (editingId) {
+        await adminClassAPI.updateClass(editingId, selectedSchoolId, parseInt(newYear), String(user?.id));
+        setEditingId(null);
+      } else {
+        await adminClassAPI.createClass(selectedSchoolId, parseInt(newYear), String(user?.id));
+      }
       setNewYear('');
+      setSelectedSchoolId(null);
       fetchClasses();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create class.');
+      setError(err.response?.data?.error || 'Failed to save class.');
     }
   };
 
+  const handleEdit = (classEntity: any) => {
+    setEditingId(classEntity.id);
+    setSelectedSchoolId(classEntity.school_id);
+    setNewYear(String(classEntity.year));
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this class?')) return;
+    try {
+      await adminClassAPI.deleteClass(id, String(user?.id));
+      fetchClasses();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete class.');
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setNewYear('');
+    setSelectedSchoolId(null);
+  };
+
   if (loading) return <div style={{ padding: '20px' }}>Loading application data...</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>;
 
   return (
     <div style={{ padding: '20px' }}>
       <h2 style={{ marginBottom: '30px' }}>Class Management</h2>
-      
-      {/* Creation Form */}
+
+      {error && <div style={{ padding: '12px', backgroundColor: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '20px' }}>{error}</div>}
+
       <form onSubmit={handleSubmit} style={{ marginBottom: '30px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
-        <h3 style={{ marginBottom: '15px' }}>Add New Class</h3>
-        
+        <h3 style={{ marginBottom: '15px' }}>{editingId ? 'Edit Class' : 'Add New Class'}</h3>
+
         <label style={{ display: 'block', marginBottom: '10px' }}>Select School:</label>
         <select
           value={selectedSchoolId || ''}
@@ -77,10 +99,9 @@ const ClassManager: React.FC = () => {
           style={{ padding: '8px', marginRight: '10px' }}
         >
           <option value="" disabled>-- Select School --</option>
-          {/* 🚨 FIXED: Now mapping over the safe schools array */}
           {Array.isArray(schools) && schools.map((school) => (
-            <option key={school.school_id} value={school.school_id}>
-              {school.school_name}
+            <option key={school.id} value={school.id}>
+              {school.name}
             </option>
           ))}
         </select>
@@ -94,18 +115,31 @@ const ClassManager: React.FC = () => {
           required
           style={{ padding: '8px', marginRight: '10px', width: '150px' }}
         />
-        <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer' }}>
-          Add Class
+        <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer', marginRight: '10px' }}>
+          {editingId ? 'Update' : 'Add'} Class
         </button>
+        {editingId && (
+          <button type="button" onClick={handleCancel} style={{ padding: '8px 15px', backgroundColor: '#666', color: 'white', border: 'none', cursor: 'pointer' }}>
+            Cancel
+          </button>
+        )}
       </form>
 
-      {/* Class List */}
       <h3 style={{ marginTop: '30px' }}>Registered Classes ({classes.length})</h3>
       <ul style={{ listStyle: 'none', padding: 0 }}>
-        {/* 🚨 FIXED: Safe array verification fallback */}
         {Array.isArray(classes) && classes.map((classEntity) => (
-          <li key={classEntity.class_id} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-            {classEntity.school_name} - Year {classEntity.year}
+          <li key={classEntity.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              {classEntity.school_name} - Year {classEntity.year}
+            </div>
+            <div>
+              <button onClick={() => handleEdit(classEntity)} style={{ padding: '5px 10px', marginRight: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', cursor: 'pointer' }}>
+                Edit
+              </button>
+              <button onClick={() => handleDelete(classEntity.id)} style={{ padding: '5px 10px', backgroundColor: '#f44336', color: 'white', border: 'none', cursor: 'pointer' }}>
+                Delete
+              </button>
+            </div>
           </li>
         ))}
       </ul>

@@ -12,6 +12,8 @@ import { schoolRoutes } from './routes/schoolRoutes.ts';
 import { classRoutes } from './routes/classRoutes.ts';
 import { adminRoutes } from './routes/adminRoutes.ts';
 import { commentRoutes } from './routes/commentRoutes.ts';
+import { adminSchoolRoutes } from './routes/adminSchoolRoutes.ts';
+import { adminClassRoutes } from './routes/adminClassRoutes.ts';
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +38,8 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/schools', adminSchoolRoutes);
+app.use('/api/admin/classes', adminClassRoutes);
 
 // 3. Database Connection & Server Initialization
 (async () => {

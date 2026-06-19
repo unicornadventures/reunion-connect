@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Login from './Login';
 import Dashboard from './Dashboard';
@@ -7,31 +7,34 @@ import SchoolManager from './SchoolManager';
 import ClassManager from './ClassManager';
 import UserProfile from './UserProfile';
 import CommentSection from './CommentSection';
-import { User } from '../types';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();
 
-  // If not authenticated, show the login page
   if (!isAuthenticated) {
     return <Login />;
   }
 
+  const isAdmin = currentUser?.is_admin || false;
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      {/* 🚨 FIXED: Changed all <a> tags to <Link to="..."> components */}
       <nav style={{ display: 'flex', gap: '20px', borderBottom: '1px solid #ddd', paddingBottom: '10px', marginBottom: '20px' }}>
         <Link to="/" style={{ fontWeight: 'bold', color: '#4CAF50', textDecoration: 'none' }}>Dashboard</Link>
-        <Link to="/schools" style={{ textDecoration: 'none', color: '#333' }}>Schools</Link>
-        <Link to="/classes" style={{ textDecoration: 'none', color: '#333' }}>Classes</Link>
+        {isAdmin && (
+          <>
+            <Link to="/admin/schools" style={{ textDecoration: 'none', color: '#333' }}>Schools</Link>
+            <Link to="/admin/classes" style={{ textDecoration: 'none', color: '#333' }}>Classes</Link>
+          </>
+        )}
         <Link to="/profile" style={{ textDecoration: 'none', color: '#333' }}>Profile</Link>
         <Link to="/comments" style={{ textDecoration: 'none', color: '#333' }}>Comments</Link>
       </nav>
-      
+
       <Routes>
         <Route path="/" element={<Dashboard currentUser={currentUser} />} />
-        <Route path="/schools" element={<SchoolManager />} />
-        <Route path="/classes" element={<ClassManager />} />
+        <Route path="/admin/schools" element={isAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
+        <Route path="/admin/classes" element={isAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
         <Route path="/profile" element={<UserProfile userId={currentUser.user_id} />} />
         <Route path="/comments" element={<CommentSection targetUserId={currentUser.user_id} commenterId={currentUser.user_id} />} />
       </Routes>
