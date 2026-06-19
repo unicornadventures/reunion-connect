@@ -20,10 +20,13 @@ dotenv.config();
 
 const app = express();
 const port = process.env.BACKEND_PORT || 5001;
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+console.log('🔧 CORS Origin:', corsOrigin);
 
 // 1. Global Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true
 }));
 
