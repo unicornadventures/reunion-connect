@@ -3,7 +3,7 @@ import { query } from '../db.ts';
 
 const router = express.Router();
 
-// GET /api/classes/:classId/events - Get all events for a class
+// GET /api/classes/:classId/events - Get upcoming events for a class
 router.get('/class/:classId/events', async (req, res) => {
   const { classId } = req.params;
 
@@ -17,7 +17,7 @@ router.get('/class/:classId/events', async (req, res) => {
     const result = await query(
       `SELECT id, event_name, event_date, event_time, location, description
        FROM events
-       WHERE class_id = $1
+       WHERE class_id = $1 AND event_date >= CURRENT_DATE
        ORDER BY event_date ASC, event_time ASC`,
       [classId]
     );
