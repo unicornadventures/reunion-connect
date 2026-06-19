@@ -244,26 +244,6 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div>
-            <h2 className="text-xl font-bold text-[#333333] mb-3">Quick Links</h2>
-            <div className="space-y-2">
-              <button className="w-full bg-[#4CAF50] text-white font-bold py-[10px] px-5 rounded text-sm hover:opacity-90 transition-opacity text-left flex items-center gap-2">
-                <span>📸</span> Submit Your Photos
-              </button>
-              <button
-                onClick={() => navigate('/directory')}
-                className="w-full bg-[#2196F3] text-white font-bold py-[10px] px-5 rounded text-sm hover:opacity-90 transition-opacity text-left flex items-center gap-2"
-              >
-                <span>📖</span> Browse Directory
-              </button>
-              <button
-                className="w-full border border-[#DDDDDD] text-[#333333] font-bold py-[10px] px-5 rounded text-sm hover:bg-[#F9F9F9] transition-colors text-left flex items-center gap-2"
-              >
-                <span>💬</span> Message Board
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
