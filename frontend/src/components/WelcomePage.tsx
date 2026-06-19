@@ -181,15 +181,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
       {/* Recently joined */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-[#333333]">Recently Joined</h2>
-          <button
-            onClick={() => navigate('/directory')}
-            className="text-[#2196F3] text-xs font-bold hover:opacity-80 transition-opacity"
-          >
-            View all →
-          </button>
-        </div>
+        <h2 className="text-2xl font-bold text-[#333333] mb-4">Recently Joined</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {recentlyJoined.map((user) => (
             <button
