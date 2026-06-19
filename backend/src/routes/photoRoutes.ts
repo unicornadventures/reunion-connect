@@ -1,8 +1,51 @@
 import express from 'express';
+import multer from 'multer';
 import { query } from '../db.ts';
-import { generatePresignedUrl } from '../s3Service.ts';
+import { generatePresignedUrl, uploadFileToS3 } from '../s3Service.ts';
 
 const router = express.Router();
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+// POST /api/users/:userId/photo/:photoType - Upload file directly
+router.post('/:userId/photo/:photoType', upload.single('file'), async (req, res) => {
+  const { photoType, userId } = req.params;
+
+  if (!photoType || !userId || !req.file) {
+    return res.status(400).json({ error: 'Missing required parameters or file.' });
+  }
+
+  if (photoType !== 'then' && photoType !== 'now') {
+    return res.status(400).json({ error: 'photoType must be "then" or "now".' });
+  }
+
+  try {
+    // Verify user exists
+    const userCheck = await query('SELECT id FROM users WHERE id = $1;', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Upload file to S3
+    const photoUrl = await uploadFileToS3(parseInt(userId), req.file.originalname, req.file.buffer);
+
+    // Update profile with photo URL
+    const column = photoType === 'then' ? 'then_photo_url' : 'now_photo_url';
+    const result = await query(
+      `UPDATE profiles SET ${column} = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 RETURNING *;`,
+      [photoUrl, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found.' });
+    }
+
+    res.status(200).json({ profile: result.rows[0] });
+  } catch (error) {
+    console.error("Photo Upload Error:", error);
+    res.status(500).json({ error: 'Could not upload photo.' });
+  }
+});
 
 // POST /api/users/:userId/photo/upload/:photoType
 router.post('/:userId/photo/upload/:photoType', async (req, res) => {

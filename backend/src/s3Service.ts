@@ -1,6 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
@@ -35,6 +35,29 @@ export async function generatePresignedUrl(userId: number, fileName: string): Pr
   } catch (error) {
     console.error(`[S3] Failed to generate presigned URL for ${key}:`, error);
     throw new Error('Failed to generate presigned URL.');
+  }
+}
+
+export async function uploadFileToS3(userId: number, fileName: string, fileBuffer: Buffer): Promise<string> {
+  console.log(`[S3] Uploading file ${fileName} for user ${userId}.`);
+
+  const key = `photos/${userId}/${fileName}`;
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: fileBuffer,
+  });
+
+  try {
+    await s3Client.send(command);
+    console.log(`[S3] Successfully uploaded ${key} to S3.`);
+
+    // Generate a public URL for the file
+    const publicUrl = `${S3_ENDPOINT}/${BUCKET_NAME}/${key}`;
+    return publicUrl;
+  } catch (error) {
+    console.error(`[S3] Failed to upload file ${key}:`, error);
+    throw new Error('Failed to upload file to S3.');
   }
 }
 

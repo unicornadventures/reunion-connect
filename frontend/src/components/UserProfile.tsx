@@ -62,27 +62,15 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
 
     setUploadingPhoto(photoType);
     try {
-      // 1. Get presigned URL
-      const presignedResponse = await api.post(`/users/${profileUserId}/photo/upload/${photoType}`, {
-        fileName: file.name
+      // Upload file directly to backend, which handles S3 upload
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post(`/users/${profileUserId}/photo/${photoType}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const presignedUrl = presignedResponse.data.presignedUrl;
-
-      // 2. Upload to S3 using presigned URL
-      await fetch(presignedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file
-      });
-
-      // 3. Update the profile with the photo URL
-      const photoUrl = presignedUrl.split('?')[0]; // Get URL without query params
-      const updateResponse = await api.put(`/users/${profileUserId}/photo/${photoType}`, {
-        photoUrl
-      });
-
-      setData(prev => prev ? { ...prev, profile: updateResponse.data.profile } : null);
+      setData(prev => prev ? { ...prev, profile: response.data.profile } : null);
       setError(null);
     } catch (err: any) {
       setError(`Photo upload failed: ${err.response?.data?.error || err.message}`);
