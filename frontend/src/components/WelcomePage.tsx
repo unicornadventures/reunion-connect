@@ -20,6 +20,15 @@ interface ClassInfo {
   school_name: string;
 }
 
+interface Event {
+  id: number;
+  event_name: string;
+  event_date: string;
+  event_time: string;
+  location: string;
+  description?: string;
+}
+
 const getColorForInitials = (initials: string): string => {
   const colors = ['#E91E63', '#3F51B5', '#009688', '#FF5722', '#9C27B0', '#4CAF50', '#FF9800', '#607D8B', '#795548', '#00BCD4', '#F06292', '#7986CB'];
   let hash = 0;
@@ -57,6 +66,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   const isSuperAdmin = currentUser?.is_admin || false;
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -78,6 +88,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         params: { userId: currentUser.user_id }
       });
       setUsers(usersResponse.data.users || []);
+
+      const eventsResponse = await api.get(`/events/class/${userClass.id}/events`);
+      setEvents(eventsResponse.data.events || []);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -204,22 +217,30 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         <div className="space-y-4">
           {/* Event Details */}
           <div>
-            <h2 className="text-2xl font-bold text-[#333333] mb-4">Event Details</h2>
+            <h2 className="text-2xl font-bold text-[#333333] mb-4">Upcoming Events</h2>
             <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 space-y-3">
-              {[
-                { icon: "📅", label: "Date", val: "Aug 15–17, 2024" },
-                { icon: "📍", label: "Location", val: "Westbrook High School" },
-                { icon: "🍽️", label: "Dinner", val: "Sat, Aug 16 at 7pm" },
-                { icon: "🏫", label: "Campus Tour", val: "Fri, Aug 15 at 2pm" },
-              ].map(item => (
-                <div key={item.label} className="flex items-start gap-3 pb-3 border-b border-[#EEEEEE] last:border-0 last:pb-0">
-                  <span className="text-base">{item.icon}</span>
-                  <div>
-                    <div className="text-xs font-semibold text-[#999999]">{item.label}</div>
-                    <div className="text-sm text-[#333333] font-medium">{item.val}</div>
-                  </div>
-                </div>
-              ))}
+              {events.length > 0 ? (
+                events.map((event, index) => {
+                  const eventDate = new Date(event.event_date);
+                  const dateStr = eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  const timeStr = event.event_time.slice(0, 5); // Get HH:MM from HH:MM:SS
+
+                  return (
+                    <div key={event.id} className={`pb-3 ${index !== events.length - 1 ? 'border-b border-[#EEEEEE]' : ''}`}>
+                      <div className="flex items-start gap-3">
+                        <span className="text-base">📅</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-[#333333] text-sm">{event.event_name}</div>
+                          <div className="text-xs text-[#999999] mt-0.5">{dateStr} at {timeStr}</div>
+                          <div className="text-xs text-[#666666] mt-1">📍 {event.location}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-sm text-[#999999]">No events scheduled</div>
+              )}
             </div>
           </div>
 
