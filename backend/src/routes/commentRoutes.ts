@@ -3,6 +3,28 @@ import { query } from '../db.ts';
 
 const router = express.Router();
 
+// GET /api/comments/my-comments/:commenterId - Get comments posted by a user
+router.get('/my-comments/:commenterId', async (req, res) => {
+  const { commenterId } = req.params;
+
+  try {
+    const result = await query(`
+      SELECT
+        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+        p.first_name, p.last_name
+      FROM comments c
+      LEFT JOIN profiles p ON c.commenter_id = p.user_id
+      WHERE c.commenter_id = $1
+      ORDER BY c.created_at DESC;
+    `, [commenterId]);
+
+    res.status(200).json({ comments: result.rows });
+  } catch (error) {
+    console.error('Get My Comments Error:', error);
+    res.status(500).json({ error: 'Could not fetch comments.' });
+  }
+});
+
 // GET /api/users/:targetUserId/comments
 router.get('/:targetUserId/comments', async (req, res) => {
   const { targetUserId } = req.params;

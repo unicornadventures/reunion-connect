@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { Comment } from '../types';
 
-interface CommentSectionProps {
-  targetUserId: number | string;
-  commenterId: number | string;
-}
-
-const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenterId }) => {
+const CommentSection: React.FC = () => {
+  const { currentUser } = useAppContext();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,9 +14,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
   const [editingText, setEditingText] = useState('');
 
   const fetchComments = async () => {
+    if (!currentUser?.user_id) return;
+
     setLoading(true);
     try {
-      const response = await api.get(`/users/${targetUserId}/comments`);
+      const response = await api.get(`/comments/my-comments/${currentUser.user_id}`);
       setComments(response.data.comments || []);
       setError(null);
     } catch (err: any) {
@@ -31,8 +30,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
   };
 
   useEffect(() => {
-    fetchComments();
-  }, [targetUserId]);
+    if (currentUser?.user_id) {
+      fetchComments();
+    }
+  }, [currentUser?.user_id]);
 
   const handleAddComment = async () => {
     if (!newCommentText.trim()) {
@@ -40,10 +41,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
       return;
     }
 
+    if (!currentUser?.user_id) {
+      setError('User not authenticated.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const response = await api.post(`/users/${targetUserId}/comments`, {
-        commenterId,
+      const response = await api.post(`/users/${currentUser.user_id}/comments`, {
+        commenterId: currentUser.user_id,
         content: newCommentText
       });
 
@@ -96,13 +102,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
 
   return (
     <div style={styles.container}>
-      <h3 style={styles.title}>💬 Comments ({comments.length})</h3>
+      <h3 style={styles.title}>💬 My Comments ({comments.length})</h3>
 
       {error && <div style={styles.error}>{error}</div>}
 
       {/* New Comment Form */}
       <div style={styles.newCommentSection}>
-        <h4 style={styles.formTitle}>Leave a Comment</h4>
+        <h4 style={styles.formTitle}>Add a Comment to Your Profile</h4>
         <textarea
           value={newCommentText}
           onChange={(e) => setNewCommentText(e.target.value)}
@@ -129,7 +135,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
           <div style={styles.spinner}>Loading comments...</div>
         ) : comments.length === 0 ? (
           <div style={styles.emptyState}>
-            <p style={styles.emptyText}>No comments yet. Be the first to comment!</p>
+            <p style={styles.emptyText}>You haven't posted any comments yet. Add one to get started!</p>
           </div>
         ) : (
           comments.map(comment => (
@@ -189,9 +195,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
                 <>
                   <p style={styles.commentContent}>{comment.content}</p>
 
-                  {/* Only show edit/delete if this is the commenter's comment */}
-                  {parseInt(String(commenterId)) === comment.commenter_id && (
-                    <div style={styles.commentActions}>
+                  {/* All comments are the current user's, so always show edit/delete */}
+                  <div style={styles.commentActions}>
                       <button
                         onClick={() => {
                           setEditingId(comment.id);
@@ -214,7 +219,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ targetUserId, commenter
                         Delete
                       </button>
                     </div>
-                  )}
                 </>
               )}
             </div>

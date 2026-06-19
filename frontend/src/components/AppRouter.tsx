@@ -41,7 +41,7 @@ const AppRouter: React.FC = () => {
           <Route path="/admin/schools" element={isAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
           <Route path="/profile" element={<UserProfile />} />
-          <Route path="/comments" element={<CommentSection targetUserId={currentUser.user_id} commenterId={currentUser.user_id} />} />
+          <Route path="/comments" element={<CommentSection />} />
         </Routes>
       </div>
     </div>
