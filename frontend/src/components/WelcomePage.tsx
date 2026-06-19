@@ -65,6 +65,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   const { logout } = useAppContext();
   const isSuperAdmin = currentUser?.is_admin || false;
   const [users, setUsers] = useState<DirectoryUser[]>([]);
+  const [recentlyJoined, setRecentlyJoined] = useState<DirectoryUser[]>([]);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [alumniCount, setAlumniCount] = useState(0);
@@ -91,6 +92,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         params: { userId: currentUser.user_id }
       });
       setUsers(usersResponse.data.users || []);
+
+      const recentlyJoinedResponse = await api.get(`/classes/${userClass.id}/recently-joined`);
+      setRecentlyJoined(recentlyJoinedResponse.data.users || []);
 
       const eventsResponse = await api.get(`/events/class/${userClass.id}/events`);
       setEvents(eventsResponse.data.events || []);
@@ -137,7 +141,6 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   }
 
   // Regular user dashboard
-  const recent = users.slice(0, 6);
 
   return (
     <div className="max-w-[1200px] mx-auto px-5 py-8">
@@ -201,7 +204,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
             </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {recent.map((user) => (
+            {recentlyJoined.map((user) => (
               <button
                 key={user.id}
                 onClick={() => navigate(`/user/${user.id}`)}

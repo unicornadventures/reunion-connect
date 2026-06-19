@@ -150,6 +150,37 @@ router.get('/:id/alumni-count', async (req, res) => {
   }
 });
 
+// GET /api/classes/:id/recently-joined
+router.get('/:id/recently-joined', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Get the last 3 users who joined this class, ordered by registration date (newest first)
+    const result = await query(`
+      SELECT
+        u.id,
+        u.email,
+        u.created_at,
+        p.first_name,
+        p.last_name,
+        p.nickname_school,
+        p.now_photo_url,
+        p.then_photo_url
+      FROM class_user cu
+      JOIN users u ON cu.user_id = u.id
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE cu.class_id = $1
+      ORDER BY u.created_at DESC
+      LIMIT 3;
+    `, [id]);
+
+    res.status(200).json({ users: result.rows });
+  } catch (error) {
+    console.error("Get Recently Joined Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // GET /api/classes/:id/message-count
 router.get('/:id/message-count', async (req, res) => {
   const { id } = req.params;
