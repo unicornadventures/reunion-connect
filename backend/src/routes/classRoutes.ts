@@ -155,10 +155,11 @@ router.get('/:id/message-count', async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Count all comments where the target_user_id belongs to this class
+    // Count published comments where the target_user_id belongs to this class
     const result = await query(
       `SELECT COUNT(*) as count FROM comments c
-       WHERE c.target_user_id IN (
+       WHERE c.published = true
+       AND c.target_user_id IN (
          SELECT u.id FROM users u
          JOIN class_user cu ON u.id = cu.user_id
          WHERE cu.class_id = $1
