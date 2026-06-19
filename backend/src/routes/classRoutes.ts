@@ -88,4 +88,32 @@ router.get('/:id/members', async (req, res) => {
   }
 });
 
+// GET /api/classes/:id/directory - Get users by class with full profile (for directory)
+router.get('/:id/directory', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await query(`
+      SELECT
+        u.id,
+        u.email,
+        p.first_name,
+        p.last_name,
+        p.nickname_school,
+        p.now_photo_url,
+        p.then_photo_url
+      FROM class_user cu
+      JOIN users u ON cu.user_id = u.id
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE cu.class_id = $1
+      ORDER BY p.last_name, p.first_name;
+    `, [id]);
+
+    res.status(200).json({ users: result.rows });
+  } catch (error) {
+    console.error("Get Class Directory Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as classRoutes };

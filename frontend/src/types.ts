@@ -53,6 +53,8 @@ export interface Comment {
   published: boolean;
   created_at: string;
   updated_at: string;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface CurrentUser extends User {

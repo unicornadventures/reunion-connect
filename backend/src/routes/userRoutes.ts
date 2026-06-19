@@ -94,4 +94,30 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/users/:id/class - Get user's class information
+router.get('/:id/class', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await query(`
+      SELECT c.id, c.year, c.school_id, s.name as school_name
+      FROM class_user cu
+      JOIN classes c ON cu.class_id = c.id
+      JOIN schools s ON c.school_id = s.id
+      WHERE cu.user_id = $1
+      LIMIT 1;
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User class not found.' });
+    }
+
+    res.status(200).json({ class: result.rows[0] });
+
+  } catch (error) {
+    console.error("Get User Class Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as userRoutes };

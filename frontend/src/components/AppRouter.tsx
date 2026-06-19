@@ -7,6 +7,8 @@ import SchoolManager from './SchoolManager';
 import ClassManager from './ClassManager';
 import UserProfile from './UserProfile';
 import CommentSection from './CommentSection';
+import DirectoryPage from './DirectoryPage';
+import UserCommentsPage from './UserCommentsPage';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();
@@ -23,6 +25,7 @@ const AppRouter: React.FC = () => {
         <div style={styles.navContent}>
           <Link to="/" style={styles.navBrand}>🎓 Class Reunion</Link>
           <div style={styles.navLinks}>
+            <Link to="/directory" style={styles.navLink}>Directory</Link>
             <Link to="/profile" style={styles.navLink}>Profile</Link>
             <Link to="/comments" style={styles.navLink}>Comments</Link>
             {isAdmin && (
@@ -38,6 +41,8 @@ const AppRouter: React.FC = () => {
       <div style={styles.container}>
         <Routes>
           <Route path="/" element={<WelcomePage currentUser={currentUser} />} />
+          <Route path="/directory" element={<DirectoryPage />} />
+          <Route path="/user/:userId" element={<UserCommentsPage />} />
           <Route path="/admin/schools" element={isAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
           <Route path="/profile" element={<UserProfile />} />
