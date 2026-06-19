@@ -13,6 +13,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const navigate = useNavigate();
   const { currentUser } = useAppContext();
   const [data, setData] = useState<UserWithProfile | null>(null);
+  const [classYear, setClassYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState<'then' | 'now' | null>(null);
@@ -37,6 +38,11 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       if (response.data.profile) {
         setEditData(response.data.profile);
       }
+
+      // Fetch class year
+      const classResponse = await api.get(`/users/${profileUserId}/class`);
+      setClassYear(classResponse.data.class.year);
+
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load profile.');
@@ -258,8 +264,8 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
             <h3 className="text-lg font-bold text-[#333333] mb-4">📸 Then & Now</h3>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { key: 'then', label: 'Then (2004)', url: profile?.then_photo_url },
-                { key: 'now', label: 'Now (2024)', url: profile?.now_photo_url }
+                { key: 'then', label: `Then (${classYear || 'Class Year'})`, url: profile?.then_photo_url },
+                { key: 'now', label: `Now (${new Date().getFullYear()})`, url: profile?.now_photo_url }
               ].map((photo) => (
                 <div key={photo.key}>
                   <input
