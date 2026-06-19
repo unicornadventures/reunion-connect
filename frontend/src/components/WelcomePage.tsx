@@ -67,6 +67,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
+  const [alumniCount, setAlumniCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -91,6 +92,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
       const eventsResponse = await api.get(`/events/class/${userClass.id}/events`);
       setEvents(eventsResponse.data.events || []);
+
+      const countResponse = await api.get(`/classes/${userClass.id}/alumni-count`);
+      setAlumniCount(countResponse.data.count || 0);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -152,7 +156,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
         <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
           <div className="text-3xl mb-2">👤</div>
-          <div className="text-2xl font-bold text-[#4CAF50]">{users.length}</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">{alumniCount}</div>
           <div className="text-xs font-semibold text-[#333333] mt-1">Alumni Registered</div>
           <div className="text-xs text-[#999999] mt-0.5">This week</div>
         </div>

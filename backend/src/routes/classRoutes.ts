@@ -132,4 +132,22 @@ router.get('/:id/directory', async (req, res) => {
   }
 });
 
+// GET /api/classes/:id/alumni-count
+router.get('/:id/alumni-count', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await query(
+      'SELECT COUNT(*) as count FROM class_user WHERE class_id = $1',
+      [id]
+    );
+
+    const count = parseInt(result.rows[0].count, 10);
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error("Get Alumni Count Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as classRoutes };
