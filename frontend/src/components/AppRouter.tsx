@@ -1,7 +1,8 @@
 import React from 'react';
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Login from './Login';
+import Header from './Header';
 import WelcomePage from './WelcomePage';
 import SchoolManager from './SchoolManager';
 import ClassManager from './ClassManager';
@@ -21,29 +22,20 @@ const AppRouter: React.FC = () => {
   const isClassAdmin = currentUser?.is_class_admin || false;
 
   return (
-    <div>
-      <nav style={styles.nav}>
-        <div style={styles.navContent}>
-          <Link to="/" style={styles.navBrand}>🎓 Class Reunion</Link>
-          <div style={styles.navLinks}>
-            {!isSuperAdmin && (
-              <>
-                <Link to="/directory" style={styles.navLink}>Directory</Link>
-                <Link to="/profile" style={styles.navLink}>Profile</Link>
-                <Link to="/comments" style={styles.navLink}>Comments</Link>
-              </>
-            )}
-            {isSuperAdmin && (
-              <>
-                <Link to="/admin/schools" style={styles.navLink}>Schools</Link>
-                <Link to="/admin/classes" style={styles.navLink}>Classes</Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#F5F5F5]">
+      {!isSuperAdmin && <Header />}
 
-      <div style={styles.container}>
+      <div className="max-w-[1200px] mx-auto">{isSuperAdmin && (
+        <nav className="sticky top-0 z-[100] bg-white border-b-2 border-[#4CAF50] shadow-[0_2px_4px_rgba(0,0,0,0.1)] h-[60px] flex items-center px-5 mb-6">
+          <div className="flex items-center gap-8">
+            <span className="text-xl font-bold text-[#4CAF50]">🎓 Class Reunion - Admin</span>
+            <div className="flex gap-6">
+              <a href="/admin/schools" className="text-sm font-medium text-[#333333] hover:text-[#4CAF50]">Schools</a>
+              <a href="/admin/classes" className="text-sm font-medium text-[#333333] hover:text-[#4CAF50]">Classes</a>
+            </div>
+          </div>
+        </nav>
+      )}
         <Routes>
           <Route path="/" element={<WelcomePage currentUser={currentUser} />} />
           <Route path="/directory" element={!isSuperAdmin ? <DirectoryPage /> : <Navigate to="/" replace />} />

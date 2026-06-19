@@ -1,127 +1,242 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import api from '../api';
 import { CurrentUser } from '../types';
 
+interface DirectoryUser {
+  id: number;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  nickname_school: string | null;
+  now_photo_url: string | null;
+}
+
+interface ClassInfo {
+  id: number;
+  year: number;
+  school_id: number;
+  school_name: string;
+}
+
+const getColorForInitials = (initials: string): string => {
+  const colors = ['#E91E63', '#3F51B5', '#009688', '#FF5722', '#9C27B0', '#4CAF50', '#FF9800', '#607D8B', '#795548', '#00BCD4', '#F06292', '#7986CB'];
+  let hash = 0;
+  for (let i = 0; i < initials.length; i++) {
+    hash = initials.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
+const getInitials = (firstName?: string | null, lastName?: string | null): string => {
+  const first = (firstName || '').charAt(0).toUpperCase();
+  const last = (lastName || '').charAt(0).toUpperCase();
+  return (first + last) || '?';
+};
+
+const Avatar: React.FC<{ initials: string; size?: number }> = ({ initials, size = 48 }) => {
+  return (
+    <div
+      className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
+      style={{
+        width: size,
+        height: size,
+        background: getColorForInitials(initials),
+        fontSize: size * 0.35,
+      }}
+    >
+      {initials}
+    </div>
+  );
+};
+
 const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) => {
+  const navigate = useNavigate();
   const { logout } = useAppContext();
   const isSuperAdmin = currentUser?.is_admin || false;
+  const [users, setUsers] = useState<DirectoryUser[]>([]);
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isSuperAdmin && currentUser?.user_id) {
+      fetchClassAndUsers();
+    } else {
+      setLoading(false);
+    }
+  }, [currentUser?.user_id, isSuperAdmin]);
+
+  const fetchClassAndUsers = async () => {
+    if (!currentUser?.user_id) return;
+    try {
+      const classResponse = await api.get(`/users/${currentUser.user_id}/class`);
+      const userClass = classResponse.data.class;
+      setClassInfo(userClass);
+
+      const usersResponse = await api.get(`/classes/${userClass.id}/directory`, {
+        params: { userId: currentUser.user_id }
+      });
+      setUsers(usersResponse.data.users || []);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isSuperAdmin) {
+    return (
+      <div style={styles.adminContainer}>
+        <header style={styles.header}>
+          <div>
+            <h1 style={styles.title}>🎓 Class Reunion Admin Panel</h1>
+            <p style={styles.subtitle}>Manage schools and classes</p>
+          </div>
+          <button onClick={logout} style={styles.logoutButton}>
+            Logout ({currentUser.first_name})
+          </button>
+        </header>
+        <div style={styles.contentContainer}>
+          <section style={styles.welcomeSection}>
+            <h2 style={styles.sectionTitle}>Welcome back, {currentUser.first_name}! 👋</h2>
+            <p style={styles.sectionText}>
+              You are logged in as a super administrator. Use the navigation menu to manage schools and classes.
+            </p>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular user dashboard
+  const recent = users.slice(0, 6);
 
   return (
-    <div style={styles.pageContainer}>
-      <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>🎓 Class Reunion</h1>
-          <p style={styles.subtitle}>{isSuperAdmin ? 'Admin Panel' : 'Connect with Your Class'}</p>
+    <div className="max-w-[1200px] mx-auto px-5 py-8">
+      {/* Welcome banner */}
+      <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-8 mb-8">
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-[32px] font-bold text-[#333333] leading-tight mb-2">
+              Welcome to the Reunion! 🎉
+            </h1>
+            <p className="text-[#555555] text-base leading-relaxed max-w-2xl">
+              {classInfo && (
+                <>
+                  Can you believe it has been years since graduation? Reconnect with your classmates from{' '}
+                  <strong>{classInfo.school_name} — Class of {classInfo.year}</strong>, share memories, and stay in touch.
+                </>
+              )}
+            </p>
+          </div>
+          <div className="bg-[#E8F5E9] border border-[#4CAF50] rounded-lg px-5 py-4 text-center flex-shrink-0">
+            <div className="text-2xl font-bold text-[#4CAF50]">{users.length}</div>
+            <div className="text-xs text-[#2E7D32] font-semibold mt-0.5">Classmates</div>
+          </div>
         </div>
-        <button onClick={logout} style={styles.logoutButton}>
-          Logout ({currentUser.first_name})
-        </button>
-      </header>
+      </div>
 
-      <div style={styles.contentContainer}>
-        <section style={styles.welcomeSection}>
-          <h2 style={styles.sectionTitle}>Welcome back, {currentUser.first_name}! 👋</h2>
-          <p style={styles.sectionText}>
-            {isSuperAdmin
-              ? 'You are logged in as a super administrator. Use the navigation menu to manage schools and classes.'
-              : 'We\'re excited to see you here. Use the navigation menu to explore the Class Reunion platform.'}
-          </p>
-        </section>
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
+        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
+          <div className="text-3xl mb-2">👤</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">{users.length}</div>
+          <div className="text-xs font-semibold text-[#333333] mt-1">Registered</div>
+          <div className="text-xs text-[#999999] mt-0.5">Alumni joined</div>
+        </div>
 
-        <section style={styles.quickStatsSection}>
-          <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>📧</div>
-              <h3>Account</h3>
-              <p>{currentUser.email}</p>
-              <small style={styles.statDetail}>Member since {new Date(currentUser.created_at).toLocaleDateString()}</small>
+        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
+          <div className="text-3xl mb-2">🎓</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">{classInfo?.year || 'N/A'}</div>
+          <div className="text-xs font-semibold text-[#333333] mt-1">Class Year</div>
+          <div className="text-xs text-[#999999] mt-0.5">Your graduation year</div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
+          <div className="text-3xl mb-2">🏫</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">1</div>
+          <div className="text-xs font-semibold text-[#333333] mt-1">School</div>
+          <div className="text-xs text-[#999999] mt-0.5">Schools joined</div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
+          <div className="text-3xl mb-2">💬</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">0</div>
+          <div className="text-xs font-semibold text-[#333333] mt-1">Comments</div>
+          <div className="text-xs text-[#999999] mt-0.5">Keep it going!</div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-5">
+        {/* Recently joined */}
+        <div className="md:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-[#333333]">Classmates</h2>
+            <button
+              onClick={() => navigate('/directory')}
+              className="text-[#2196F3] text-xs font-bold hover:opacity-80 transition-opacity"
+            >
+              View all →
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {recent.map((user) => (
+              <button
+                key={user.id}
+                onClick={() => navigate(`/user/${user.id}`)}
+                className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] hover:scale-[1.02] transition-all duration-200 cursor-pointer"
+              >
+                <div className="flex justify-center mb-3">
+                  <Avatar
+                    initials={getInitials(user.first_name, user.last_name)}
+                    size={48}
+                  />
+                </div>
+                <div className="text-sm font-semibold text-[#333333] leading-tight">
+                  {user.first_name} {user.last_name}
+                </div>
+                <div className="text-xs text-[#999999] mt-1">{user.email}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick info panel */}
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-bold text-[#333333] mb-4">Quick Links</h2>
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate('/profile')}
+                className="w-full bg-[#4CAF50] text-white font-bold py-[10px] px-5 rounded text-sm hover:opacity-90 transition-opacity text-left flex items-center gap-2"
+              >
+                <span>👤</span> My Profile
+              </button>
+              <button
+                onClick={() => navigate('/directory')}
+                className="w-full bg-[#2196F3] text-white font-bold py-[10px] px-5 rounded text-sm hover:opacity-90 transition-opacity text-left flex items-center gap-2"
+              >
+                <span>📖</span> Browse Directory
+              </button>
+              <button
+                onClick={() => navigate('/comments')}
+                className="w-full border border-[#DDDDDD] text-[#333333] font-bold py-[10px] px-5 rounded text-sm hover:bg-[#F9F9F9] transition-colors text-left flex items-center gap-2"
+              >
+                <span>💬</span> Comments
+              </button>
             </div>
-
-            {isSuperAdmin ? (
-              <>
-                <div style={styles.statCard}>
-                  <div style={styles.statIcon}>🏫</div>
-                  <h3>Schools</h3>
-                  <p>Manage schools</p>
-                  <small style={styles.statDetail}>Create and edit schools</small>
-                </div>
-
-                <div style={styles.statCard}>
-                  <div style={styles.statIcon}>📚</div>
-                  <h3>Classes</h3>
-                  <p>Manage class years</p>
-                  <small style={styles.statDetail}>Create and edit class years</small>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={styles.statCard}>
-                  <div style={styles.statIcon}>👤</div>
-                  <h3>Profile</h3>
-                  <p>{currentUser.first_name} {currentUser.last_name}</p>
-                  <small style={styles.statDetail}>View and edit your profile</small>
-                </div>
-
-                <div style={styles.statCard}>
-                  <div style={styles.statIcon}>💬</div>
-                  <h3>Comments</h3>
-                  <p>Share memories</p>
-                  <small style={styles.statDetail}>Leave comments for classmates</small>
-                </div>
-              </>
-            )}
           </div>
-        </section>
-
-        <section style={styles.navigationSection}>
-          <h3 style={styles.navigationTitle}>Quick Navigation</h3>
-          <div style={styles.navigationGrid}>
-            {isSuperAdmin ? (
-              <>
-                <div style={styles.navItem}>
-                  <h4 style={styles.navItemTitle}>🏫 Manage Schools</h4>
-                  <p>Create, edit, and delete schools in the system.</p>
-                </div>
-                <div style={styles.navItem}>
-                  <h4 style={styles.navItemTitle}>📚 Manage Classes</h4>
-                  <p>Create, edit, and delete class years for schools.</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={styles.navItem}>
-                  <h4 style={styles.navItemTitle}>📖 Directory</h4>
-                  <p>Browse classmates from your school and class year.</p>
-                </div>
-                <div style={styles.navItem}>
-                  <h4 style={styles.navItemTitle}>👤 Profile</h4>
-                  <p>View and edit your personal profile, upload photos, and update your information.</p>
-                </div>
-                <div style={styles.navItem}>
-                  <h4 style={styles.navItemTitle}>💬 Comments</h4>
-                  <p>Leave comments on your profile and see memories shared by classmates.</p>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        <section style={styles.infoSection}>
-          <h3 style={styles.infoTitle}>About Class Reunion</h3>
-          <p style={styles.infoText}>
-            Class Reunion is a platform to reconnect with your classmates, share memories, and stay in touch.
-            Upload photos from different years, leave comments, and explore who's on the platform from your class.
-          </p>
-        </section>
+        </div>
       </div>
     </div>
   );
 };
 
 const styles = {
-  pageContainer: {
+  adminContainer: {
     minHeight: '100vh',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f5f5f5',
   },
   header: {
     backgroundColor: 'white',
@@ -135,7 +250,7 @@ const styles = {
   title: {
     margin: 0,
     color: '#4CAF50',
-    fontSize: '32px',
+    fontSize: '24px',
   },
   subtitle: {
     margin: '5px 0 0 0',
@@ -150,97 +265,24 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: 'bold' as const,
   },
   contentContainer: {
     maxWidth: '1200px',
-    margin: '40px auto',
-    padding: '0 20px',
+    margin: '0 auto',
+    padding: '20px 40px',
   },
   welcomeSection: {
-    backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '8px',
     marginBottom: '30px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
   },
   sectionTitle: {
+    fontSize: '20px',
+    fontWeight: 'bold' as const,
+    marginBottom: '10px',
     color: '#333',
-    margin: '0 0 15px 0',
-    fontSize: '24px',
   },
   sectionText: {
+    fontSize: '14px',
     color: '#666',
-    margin: 0,
-    lineHeight: '1.6',
-  },
-  quickStatsSection: {
-    marginBottom: '30px',
-  },
-  statsGrid: {
-    display: 'grid' as const,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' as const,
-    gap: '20px',
-  },
-  statCard: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    textAlign: 'center' as const,
-  },
-  statIcon: {
-    fontSize: '32px',
-    marginBottom: '10px',
-  },
-  statDetail: {
-    color: '#999',
-    display: 'block' as const,
-    marginTop: '8px',
-  },
-  navigationSection: {
-    backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '8px',
-    marginBottom: '30px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  },
-  navigationTitle: {
-    color: '#333',
-    margin: '0 0 20px 0',
-    fontSize: '20px',
-  },
-  navigationGrid: {
-    display: 'grid' as const,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' as const,
-    gap: '20px',
-  },
-  navItem: {
-    padding: '15px',
-    backgroundColor: '#f5f5f5',
-    borderRadius: '4px',
-    borderLeft: '4px solid #4CAF50',
-  },
-  navItemTitle: {
-    margin: '0 0 8px 0',
-    color: '#333',
-    fontSize: '16px',
-  },
-  infoSection: {
-    backgroundColor: '#e8f5e9',
-    padding: '30px',
-    borderRadius: '8px',
-    marginBottom: '30px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  },
-  infoTitle: {
-    color: '#2e7d32',
-    margin: '0 0 15px 0',
-    fontSize: '20px',
-  },
-  infoText: {
-    color: '#555',
-    margin: 0,
     lineHeight: '1.6',
   },
 };
