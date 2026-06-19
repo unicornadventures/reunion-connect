@@ -41,152 +41,88 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>🎓 Class Reunion</h1>
-          <p style={styles.subtitle}>Connect with Your Class</p>
+    <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-5">
+      <div className="w-full max-w-[600px] flex flex-col items-center gap-10">
+        {/* Header */}
+        <div className="text-center mt-10">
+          <div className="text-6xl mb-4">🎓</div>
+          <h1 className="text-5xl font-bold text-[#4CAF50] mb-2">ReunionConnect</h1>
+          <p className="text-[#666666] text-base">Westbrook High School — Class of 2004</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {error && <div style={styles.error}>{error}</div>}
+        {/* Login Card */}
+        <div className="w-full bg-white rounded-2xl px-12 py-14 shadow-md border border-[#E0E0E0]">
+          <h2 className="text-3xl font-bold text-[#333333] mb-8">Welcome Back</h2>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-              placeholder="Enter your email"
-              style={styles.input}
-            />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="block text-base font-semibold text-[#333333]">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                placeholder="your@email.com"
+                className="w-full border border-[#DDDDDD] rounded-lg px-4 py-3 text-base focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-base font-semibold text-[#333333]">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                placeholder="••••••••"
+                className="w-full border border-[#DDDDDD] rounded-lg px-4 py-3 text-base focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className={`w-full font-bold py-3 rounded-lg text-lg transition-opacity mt-2 ${
+                loading || !email || !password
+                  ? 'bg-[#CCCCCC] text-gray-700 cursor-not-allowed'
+                  : 'bg-[#4CAF50] text-white hover:opacity-90 cursor-pointer'
+              }`}
+            >
+              {loading ? 'Signing In...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <a href="#" className="text-[#2196F3] text-sm font-semibold hover:opacity-80 transition-opacity">
+              Forgot your password?
+            </a>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-              placeholder="Enter your password"
-              style={styles.input}
-            />
+          <div className="mt-5 pt-5 border-t border-[#EEEEEE] text-center">
+            <p className="text-sm text-[#999999]">
+              Not registered yet?{' '}
+              <a href="#" className="text-[#2196F3] font-semibold hover:opacity-80 transition-opacity">
+                Request access
+              </a>
+            </p>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading || !email || !password}
-            style={{
-              ...styles.button,
-              backgroundColor: loading || !email || !password ? '#ccc' : '#4CAF50',
-              cursor: loading || !email || !password ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {loading ? 'Logging In...' : 'Log In'}
-          </button>
-        </form>
-
-        <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Demo Credentials:
-            <br />
-            Email: test@example.com
-            <br />
-            Password: password123
-          </p>
+        {/* Footer */}
+        <div className="text-center text-sm text-[#999999] mb-10">
+          🔒 Secure access for alumni only
         </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  pageContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-  },
-  container: {
-    width: '100%',
-    maxWidth: '400px',
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e0e0e0'
-  },
-  header: {
-    textAlign: 'center' as const,
-    marginBottom: '30px'
-  },
-  title: {
-    fontSize: '32px',
-    color: '#4CAF50',
-    margin: '0 0 10px 0'
-  },
-  subtitle: {
-    fontSize: '16px',
-    color: '#666',
-    margin: 0
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '20px'
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px'
-  },
-  label: {
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  input: {
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontFamily: 'inherit'
-  },
-  button: {
-    padding: '12px 20px',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontWeight: 'bold',
-    fontSize: '16px',
-    transition: 'opacity 0.2s'
-  },
-  footer: {
-    marginTop: '30px',
-    paddingTop: '20px',
-    borderTop: '1px solid #eee',
-    textAlign: 'center' as const
-  },
-  footerText: {
-    fontSize: '12px',
-    color: '#666',
-    margin: 0,
-    lineHeight: '1.6'
-  },
-  error: {
-    padding: '12px',
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    borderRadius: '4px',
-    border: '1px solid #ef5350',
-    fontSize: '14px'
-  }
 };
 
 export default Login;
