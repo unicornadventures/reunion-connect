@@ -93,7 +93,8 @@ const DirectoryPage: React.FC = () => {
 
   return (
     <div className="max-w-[1200px] mx-auto px-5 py-8">
-      <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+      {/* Header with search */}
+      <div className="flex items-center justify-between flex-wrap gap-6 mb-8">
         <div>
           <h1 className="text-[32px] font-bold text-[#333333]">Alumni Directory</h1>
           <p className="text-[#555555] text-sm mt-1">{users.length} classmates registered</p>
@@ -102,8 +103,8 @@ const DirectoryPage: React.FC = () => {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name or email..."
-          className="border border-[#DDDDDD] rounded-lg px-4 py-3 text-sm w-96 focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
+          placeholder="Search by name, city, or job..."
+          className="border border-[#DDDDDD] rounded-lg px-4 py-3 text-sm w-72 focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
         />
       </div>
 
@@ -133,22 +134,23 @@ const DirectoryPage: React.FC = () => {
                 />
               ) : (
                 <div
-                  className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0 text-sm"
+                  className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
                   style={{
                     width: 64,
                     height: 64,
+                    fontSize: 24,
                     background: getColorForInitials(getInitials(user.first_name, user.last_name)),
                   }}
                 >
                   {getInitials(user.first_name, user.last_name)}
                 </div>
               )}
-              <div>
+              <div className="w-full">
                 <div className="text-sm font-semibold text-[#333333] leading-tight">
                   {user.first_name} {user.last_name}
                 </div>
                 {user.nickname_school && (
-                  <div className="text-xs text-[#666666] mt-1">"{user.nickname_school}"</div>
+                  <div className="text-xs text-[#666666] mt-1">{user.nickname_school}</div>
                 )}
                 <div className="text-xs text-[#999999] mt-0.5">{user.email}</div>
               </div>
