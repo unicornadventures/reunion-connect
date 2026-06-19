@@ -80,6 +80,23 @@ const ClassManager: React.FC = () => {
     setSelectedSchoolId(null);
   };
 
+  // Generate available years (current year back to 1950)
+  const generateAvailableYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years: number[] = [];
+    for (let year = currentYear; year >= 1950; year--) {
+      years.push(year);
+    }
+    return years;
+  };
+
+  // Filter out years that already exist in the classes list
+  const getFilteredYears = () => {
+    const availableYears = generateAvailableYears();
+    const usedYears = new Set(classes.map((c) => c.year));
+    return availableYears.filter((year) => !usedYears.has(year));
+  };
+
   if (loading) return <div style={{ padding: '20px' }}>Loading application data...</div>;
 
   return (
@@ -107,14 +124,19 @@ const ClassManager: React.FC = () => {
         </select>
 
         <label style={{ display: 'block', marginBottom: '10px', marginTop: '15px' }}>Year:</label>
-        <input
-          type="number"
-          placeholder="Year (e.g., 2025)"
+        <select
           value={newYear}
           onChange={(e) => setNewYear(e.target.value)}
           required
           style={{ padding: '8px', marginRight: '10px', width: '150px' }}
-        />
+        >
+          <option value="" disabled>-- Select Year --</option>
+          {getFilteredYears().map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
         <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer', marginRight: '10px' }}>
           {editingId ? 'Update' : 'Add'} Class
         </button>
