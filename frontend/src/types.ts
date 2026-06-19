@@ -4,6 +4,7 @@ export interface User {
   id: number;
   email: string;
   is_admin: boolean;
+  is_class_admin?: boolean;
   created_at: string;
 }
 

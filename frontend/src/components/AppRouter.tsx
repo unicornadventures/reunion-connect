@@ -17,7 +17,8 @@ const AppRouter: React.FC = () => {
     return <Login />;
   }
 
-  const isAdmin = currentUser?.is_admin || false;
+  const isSuperAdmin = currentUser?.is_admin || false;
+  const isClassAdmin = currentUser?.is_class_admin || false;
 
   return (
     <div>
@@ -28,7 +29,7 @@ const AppRouter: React.FC = () => {
             <Link to="/directory" style={styles.navLink}>Directory</Link>
             <Link to="/profile" style={styles.navLink}>Profile</Link>
             <Link to="/comments" style={styles.navLink}>Comments</Link>
-            {isAdmin && (
+            {isSuperAdmin && (
               <>
                 <Link to="/admin/schools" style={styles.navLink}>Schools</Link>
                 <Link to="/admin/classes" style={styles.navLink}>Classes</Link>
@@ -43,8 +44,8 @@ const AppRouter: React.FC = () => {
           <Route path="/" element={<WelcomePage currentUser={currentUser} />} />
           <Route path="/directory" element={<DirectoryPage />} />
           <Route path="/user/:userId" element={<UserCommentsPage />} />
-          <Route path="/admin/schools" element={isAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
-          <Route path="/admin/classes" element={isAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
+          <Route path="/admin/schools" element={isSuperAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
+          <Route path="/admin/classes" element={isSuperAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/comments" element={<CommentSection />} />
         </Routes>

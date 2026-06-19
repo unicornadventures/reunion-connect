@@ -1,11 +1,11 @@
 import express from 'express';
 import { query } from '../db.ts';
-import { requireAdmin } from '../middleware/adminAuth.ts';
+import { requireSuperAdmin } from '../middleware/adminAuth.ts';
 
 const router = express.Router();
 
 // GET /api/admin/classes - Read all classes
-router.get('/', requireAdmin, async (req: any, res) => {
+router.get('/', requireSuperAdmin, async (req: any, res) => {
   try {
     const result = await query(`
       SELECT c.id, c.year, c.school_id, s.name as school_name, c.created_at, c.updated_at
@@ -21,7 +21,7 @@ router.get('/', requireAdmin, async (req: any, res) => {
 });
 
 // GET /api/admin/classes/:id - Read single class
-router.get('/:id', requireAdmin, async (req: any, res) => {
+router.get('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
 
   try {
@@ -43,7 +43,7 @@ router.get('/:id', requireAdmin, async (req: any, res) => {
 });
 
 // POST /api/admin/classes - Create class
-router.post('/', requireAdmin, async (req: any, res) => {
+router.post('/', requireSuperAdmin, async (req: any, res) => {
   const { school_id, year } = req.body;
 
   if (!school_id || !year) {
@@ -69,7 +69,7 @@ router.post('/', requireAdmin, async (req: any, res) => {
 });
 
 // PUT /api/admin/classes/:id - Update class
-router.put('/:id', requireAdmin, async (req: any, res) => {
+router.put('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
   const { school_id, year } = req.body;
 
@@ -101,7 +101,7 @@ router.put('/:id', requireAdmin, async (req: any, res) => {
 });
 
 // DELETE /api/admin/classes/:id - Delete class
-router.delete('/:id', requireAdmin, async (req: any, res) => {
+router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
 
   try {
