@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3001/api';
+import { schoolAPI } from '../apiClient';
 
 const SchoolManager: React.FC = () => {
   const [schools, setSchools] = useState<any[]>([]);
@@ -16,8 +14,8 @@ const SchoolManager: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/schools`);
-      setSchools(response.data);
+      const response = await schoolAPI.getSchools();
+      setSchools(response.data.schools);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch schools.');
@@ -29,10 +27,7 @@ const SchoolManager: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE_URL}/schools`, {
-        name: newSchoolName,
-        location: newSchoolLocation,
-      });
+      await schoolAPI.createSchool(newSchoolName, newSchoolLocation);
       // Success: Clear form and refresh list
       setNewSchoolName('');
       setNewSchoolLocation('');
