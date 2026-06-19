@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { adminSchoolAPI } from '../apiClient';
 
 const SchoolManager: React.FC = () => {
-  const { user } = useAppContext();
+  const { currentUser } = useAppContext();
   const [schools, setSchools] = useState<any[]>([]);
   const [newSchoolName, setNewSchoolName] = useState('');
   const [newSchoolLocation, setNewSchoolLocation] = useState('');
@@ -12,18 +12,21 @@ const SchoolManager: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (user?.id) {
+    if (currentUser?.id) {
       fetchSchools();
     }
-  }, [user?.id]);
+  }, [currentUser?.id]);
 
   const fetchSchools = async () => {
+    if (!currentUser?.id) return;
+    setLoading(true);
     try {
-      const response = await adminSchoolAPI.getSchools(String(user?.id));
+      const response = await adminSchoolAPI.getSchools(String(currentUser.id));
       setSchools(response.data.schools);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch schools.');
+      console.error('Error fetching schools:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to fetch schools.');
     } finally {
       setLoading(false);
     }
@@ -33,10 +36,10 @@ const SchoolManager: React.FC = () => {
     e.preventDefault();
     try {
       if (editingId) {
-        await adminSchoolAPI.updateSchool(editingId, newSchoolName, String(user?.id), newSchoolLocation);
+        await adminSchoolAPI.updateSchool(editingId, newSchoolName, String(currentUser?.id), newSchoolLocation);
         setEditingId(null);
       } else {
-        await adminSchoolAPI.createSchool(newSchoolName, String(user?.id), newSchoolLocation);
+        await adminSchoolAPI.createSchool(newSchoolName, String(currentUser?.id), newSchoolLocation);
       }
       setNewSchoolName('');
       setNewSchoolLocation('');
@@ -55,7 +58,7 @@ const SchoolManager: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this school?')) return;
     try {
-      await adminSchoolAPI.deleteSchool(id, String(user?.id));
+      await adminSchoolAPI.deleteSchool(id, String(currentUser?.id));
       fetchSchools();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete school.');

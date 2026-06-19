@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { adminClassAPI, schoolAPI } from '../apiClient';
 
 const ClassManager: React.FC = () => {
-  const { user } = useAppContext();
+  const { currentUser } = useAppContext();
   const [classes, setClasses] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [newYear, setNewYear] = useState('');
@@ -13,14 +13,14 @@ const ClassManager: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (user?.id) {
+    if (currentUser?.id) {
       Promise.all([fetchClasses(), fetchSchools()]).finally(() => setLoading(false));
     }
-  }, [user?.id]);
+  }, [currentUser?.id]);
 
   const fetchClasses = async () => {
     try {
-      const response = await adminClassAPI.getClasses(String(user?.id));
+      const response = await adminClassAPI.getClasses(String(currentUser?.id));
       setClasses(response.data.classes);
       setError(null);
     } catch (err: any) {
@@ -45,10 +45,10 @@ const ClassManager: React.FC = () => {
     }
     try {
       if (editingId) {
-        await adminClassAPI.updateClass(editingId, selectedSchoolId, parseInt(newYear), String(user?.id));
+        await adminClassAPI.updateClass(editingId, selectedSchoolId, parseInt(newYear), String(currentUser?.id));
         setEditingId(null);
       } else {
-        await adminClassAPI.createClass(selectedSchoolId, parseInt(newYear), String(user?.id));
+        await adminClassAPI.createClass(selectedSchoolId, parseInt(newYear), String(currentUser?.id));
       }
       setNewYear('');
       setSelectedSchoolId(null);
@@ -67,7 +67,7 @@ const ClassManager: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this class?')) return;
     try {
-      await adminClassAPI.deleteClass(id, String(user?.id));
+      await adminClassAPI.deleteClass(id, String(currentUser?.id));
       fetchClasses();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete class.');
