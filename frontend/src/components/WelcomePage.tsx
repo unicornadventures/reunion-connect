@@ -68,6 +68,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [alumniCount, setAlumniCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -95,6 +96,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
       const countResponse = await api.get(`/classes/${userClass.id}/alumni-count`);
       setAlumniCount(countResponse.data.count || 0);
+
+      const messageResponse = await api.get(`/classes/${userClass.id}/message-count`);
+      setMessageCount(messageResponse.data.count || 0);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -170,7 +174,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
         <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
           <div className="text-3xl mb-2">💬</div>
-          <div className="text-2xl font-bold text-[#4CAF50]">248</div>
+          <div className="text-2xl font-bold text-[#4CAF50]">{messageCount}</div>
           <div className="text-xs font-semibold text-[#333333] mt-1">Messages Posted</div>
           <div className="text-xs text-[#999999] mt-0.5">Keep it going!</div>
         </div>

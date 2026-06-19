@@ -150,4 +150,28 @@ router.get('/:id/alumni-count', async (req, res) => {
   }
 });
 
+// GET /api/classes/:id/message-count
+router.get('/:id/message-count', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Count all comments where the target_user_id belongs to this class
+    const result = await query(
+      `SELECT COUNT(*) as count FROM comments c
+       WHERE c.target_user_id IN (
+         SELECT u.id FROM users u
+         JOIN class_user cu ON u.id = cu.user_id
+         WHERE cu.class_id = $1
+       )`,
+      [id]
+    );
+
+    const count = parseInt(result.rows[0].count, 10);
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error("Get Message Count Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as classRoutes };
