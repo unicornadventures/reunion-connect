@@ -380,3 +380,5 @@ const styles = {
     fontSize: '14px'
   }
 };
+
+export default CommentSection;
