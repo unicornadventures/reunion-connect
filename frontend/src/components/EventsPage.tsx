@@ -43,7 +43,27 @@ const EventsPage: React.FC = () => {
       setClassInfo(userClass);
 
       const eventsResponse = await api.get(`/events/class/${userClass.id}/events`);
-      setEvents(eventsResponse.data.events || []);
+      const allEvents = eventsResponse.data.events || [];
+
+      // Filter for upcoming events only and sort by date/time
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const upcomingEvents = allEvents
+        .filter((event: Event) => {
+          const eventDate = new Date(event.event_date);
+          return eventDate >= today;
+        })
+        .sort((a: Event, b: Event) => {
+          const dateA = new Date(a.event_date);
+          const dateB = new Date(b.event_date);
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateA.getTime() - dateB.getTime();
+          }
+          return a.event_time.localeCompare(b.event_time);
+        });
+
+      setEvents(upcomingEvents);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching events:', err);
