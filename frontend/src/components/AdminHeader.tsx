@@ -48,6 +48,12 @@ const AdminHeader: React.FC = () => {
           >
             👥 Users
           </Link>
+          <Link
+            to="/admin/comments"
+            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+          >
+            💬 Comments
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">

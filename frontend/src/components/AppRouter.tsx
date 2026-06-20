@@ -14,6 +14,7 @@ import SchoolManager from './SchoolManager';
 import ClassManager from './ClassManager';
 import UsersManager from './UsersManager';
 import AdminUserProfile from './AdminUserProfile';
+import AdminCommentsPage from './AdminCommentsPage';
 import UserProfile from './UserProfile';
 import CommentSection from './CommentSection';
 import DirectoryPage from './DirectoryPage';
@@ -53,6 +54,7 @@ const AppRouter: React.FC = () => {
           <Route path="/events" element={!isSuperAdmin ? <EventsPage /> : <Navigate to="/" replace />} />
           <Route path="/user/:userId" element={!isSuperAdmin ? <UserCommentsPage /> : <Navigate to="/" replace />} />
           <Route path="/admin/user/:userId" element={isSuperAdmin ? <AdminUserProfile /> : <Navigate to="/" replace />} />
+          <Route path="/admin/comments" element={isSuperAdmin ? <AdminCommentsPage /> : <Navigate to="/" replace />} />
           <Route path="/admin/schools" element={isSuperAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isSuperAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/users" element={isSuperAdmin ? <UsersManager /> : <Navigate to="/" replace />} />
