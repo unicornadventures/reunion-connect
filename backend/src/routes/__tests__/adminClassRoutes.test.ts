@@ -361,4 +361,85 @@ describe('Admin Class Routes', () => {
       expect(response.body).toHaveProperty('message');
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in GET all classes', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/admin/classes');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in GET single class', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/admin/classes/1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in POST after validation', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      const mockQuery = jest.fn();
+      query.mockImplementation(mockQuery);
+
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // school exists check passes
+      mockQuery.mockRejectedValueOnce(new Error('Database error')); // INSERT fails
+
+      const response = await request(app)
+        .post('/api/admin/classes')
+        .send({
+          school_id: 1,
+          year: 2024
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in PUT after validation', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      const mockQuery = jest.fn();
+      query.mockImplementation(mockQuery);
+
+      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // school exists check passes
+      mockQuery.mockRejectedValueOnce(new Error('Database error')); // UPDATE fails
+
+      const response = await request(app)
+        .put('/api/admin/classes/1')
+        .send({
+          school_id: 1,
+          year: 2024
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in DELETE', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .delete('/api/admin/classes/1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });
