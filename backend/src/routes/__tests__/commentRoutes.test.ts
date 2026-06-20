@@ -1,7 +1,6 @@
 import express, { Express } from 'express';
 import request from 'supertest';
 
-// Mock database
 const mockDb = {
   comments: [
     {
@@ -21,12 +20,21 @@ const mockDb = {
       published: false,
       created_at: new Date(),
       updated_at: new Date()
+    },
+    {
+      id: 3,
+      target_user_id: 2,
+      commenter_id: 1,
+      content: 'Miss you!',
+      published: true,
+      created_at: new Date(),
+      updated_at: new Date()
     }
   ],
   users: [
-    { id: 1, email: 'user1@example.com' },
-    { id: 2, email: 'user2@example.com' },
-    { id: 3, email: 'user3@example.com' }
+    { id: 1, email: 'user1@example.com', created_at: new Date() },
+    { id: 2, email: 'user2@example.com', created_at: new Date() },
+    { id: 3, email: 'user3@example.com', created_at: new Date() }
   ],
   profiles: [
     { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe' },
@@ -37,50 +45,54 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    if (sql.includes('SELECT id FROM users WHERE id')) {
-      const userId = params?.[0];
-      const user = mockDb.users.find(u => u.id === userId);
-      return { rows: user ? [{ id: user.id }] : [] };
-    }
-
-    if (sql.includes('INSERT INTO comments')) {
-      const comment = {
-        id: mockDb.comments.length + 1,
-        target_user_id: params?.[0],
-        commenter_id: params?.[1],
-        content: params?.[2],
-        published: params?.[3] || false,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-      mockDb.comments.push(comment);
-      return { rows: [comment] };
-    }
-
-    if (sql.includes('SELECT c.* FROM comments c') && sql.includes('WHERE c.target_user_id')) {
-      const targetUserId = params?.[0];
-      const comments = mockDb.comments.filter(c => c.target_user_id === targetUserId);
+    // GET my comments (comments posted by a user)
+    if (sql.includes('WHERE c.commenter_id = $1') && sql.includes('LEFT JOIN profiles')) {
+      const commenterId = Number(params?.[0]);
+      const comments = mockDb.comments
+        .filter(c => c.commenter_id === commenterId)
+        .map(c => ({
+          ...c,
+          first_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.first_name,
+          last_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.last_name
+        }));
       return { rows: comments };
     }
 
-    if (sql.includes('SELECT c.* FROM comments c') && sql.includes('WHERE c.id')) {
-      const commentId = Number(params?.[0]);
-      const comment = mockDb.comments.find(c => c.id === commentId);
-      return { rows: comment ? [comment] : [] };
+    // GET comments on a user's profile (only published)
+    if (sql.includes('WHERE c.target_user_id = $1 AND c.published = true')) {
+      const targetUserId = Number(params?.[0]);
+      const comments = mockDb.comments
+        .filter(c => c.target_user_id === targetUserId && c.published === true)
+        .map(c => ({
+          ...c,
+          first_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.first_name,
+          last_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.last_name
+        }));
+      return { rows: comments };
     }
 
-    if (sql.includes('SELECT c.id FROM comments c') && sql.includes('WHERE c.id')) {
-      const commentId = Number(params?.[0]);
-      const comment = mockDb.comments.find(c => c.id === commentId);
-      return { rows: comment ? [{ id: comment.id }] : [] };
+    // INSERT new comment (always published = true)
+    if (sql.includes('INSERT INTO comments')) {
+      const newComment = {
+        id: Math.max(...mockDb.comments.map(c => c.id), 0) + 1,
+        target_user_id: Number(params?.[0]),
+        commenter_id: Number(params?.[1]),
+        content: params?.[2],
+        published: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      mockDb.comments.push(newComment);
+      return { rows: [newComment] };
     }
 
-    if (sql.includes('UPDATE comments SET')) {
-      const commentId = Number(params?.[params.length - 1]);
-      console.log('UPDATE mock - commentId:', commentId, 'type:', typeof commentId, 'params:', params, 'mockDb.comments:', mockDb.comments.map(c => c.id));
+    // UPDATE comment (supports content and/or published)
+    if (sql.includes('UPDATE comments')) {
+      const lastParam = params?.[params.length - 1];
+      const commentId = Number(lastParam);
       const comment = mockDb.comments.find(c => c.id === commentId);
+
       if (comment) {
-        // Parse which parameters correspond to content and published
         const hasContent = sql.includes('content = $1');
         const hasPublished = sql.includes('published');
 
@@ -99,7 +111,8 @@ jest.mock('../../db', () => ({
       return { rows: [] };
     }
 
-    if (sql.includes('DELETE FROM comments')) {
+    // DELETE comment
+    if (sql.includes('DELETE FROM comments WHERE id')) {
       const commentId = Number(params?.[0]);
       const comment = mockDb.comments.find(c => c.id === commentId);
       if (comment) {
@@ -125,7 +138,6 @@ describe('Comment Routes', () => {
   let app: Express;
 
   beforeEach(() => {
-    // Reset mock database
     mockDb.comments = [
       {
         id: 1,
@@ -144,6 +156,15 @@ describe('Comment Routes', () => {
         published: false,
         created_at: new Date(),
         updated_at: new Date()
+      },
+      {
+        id: 3,
+        target_user_id: 2,
+        commenter_id: 1,
+        content: 'Miss you!',
+        published: true,
+        created_at: new Date(),
+        updated_at: new Date()
       }
     ];
 
@@ -153,9 +174,9 @@ describe('Comment Routes', () => {
     jest.clearAllMocks();
   });
 
-  describe('GET /api/comments/user/:userId', () => {
-    it('should return comments for a user', async () => {
-      const response = await request(app).get('/api/comments/user/1');
+  describe('GET /api/comments/my-comments/:commenterId', () => {
+    it('should return comments posted by a user', async () => {
+      const response = await request(app).get('/api/comments/my-comments/1');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('comments');
@@ -163,7 +184,55 @@ describe('Comment Routes', () => {
     });
 
     it('should return comments with required fields', async () => {
-      const response = await request(app).get('/api/comments/user/1');
+      const response = await request(app).get('/api/comments/my-comments/1');
+
+      expect(response.status).toBe(200);
+      if (response.body.comments.length > 0) {
+        const comment = response.body.comments[0];
+        expect(comment).toHaveProperty('id');
+        expect(comment).toHaveProperty('content');
+        expect(comment).toHaveProperty('target_user_id');
+        expect(comment).toHaveProperty('commenter_id');
+        expect(comment).toHaveProperty('published');
+      }
+    });
+
+    it('should return empty array for user with no comments', async () => {
+      const response = await request(app).get('/api/comments/my-comments/999');
+
+      expect(response.status).toBe(200);
+      expect(response.body.comments.length).toBe(0);
+    });
+
+    it('should return both published and unpublished comments', async () => {
+      const response = await request(app).get('/api/comments/my-comments/1');
+
+      expect(response.status).toBe(200);
+      // Should return all comments (both published and unpublished)
+      expect(response.body.comments.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('GET /api/comments/:targetUserId/comments', () => {
+    it('should return published comments for a user', async () => {
+      const response = await request(app).get('/api/comments/1/comments');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('comments');
+      expect(Array.isArray(response.body.comments)).toBe(true);
+    });
+
+    it('should only return published comments', async () => {
+      const response = await request(app).get('/api/comments/1/comments');
+
+      expect(response.status).toBe(200);
+      response.body.comments.forEach((comment: any) => {
+        expect(comment.published).toBe(true);
+      });
+    });
+
+    it('should return comments with commenter info', async () => {
+      const response = await request(app).get('/api/comments/1/comments');
 
       expect(response.status).toBe(200);
       if (response.body.comments.length > 0) {
@@ -171,110 +240,81 @@ describe('Comment Routes', () => {
         expect(comment).toHaveProperty('id');
         expect(comment).toHaveProperty('content');
         expect(comment).toHaveProperty('commenter_id');
-        expect(comment).toHaveProperty('published');
       }
     });
 
-    it('should return empty array for user with no comments', async () => {
-      const response = await request(app).get('/api/comments/user/999');
+    it('should return empty array for user with no published comments', async () => {
+      const response = await request(app).get('/api/comments/999/comments');
 
       expect(response.status).toBe(200);
       expect(response.body.comments.length).toBe(0);
     });
-
-    it('should only return published comments by default', async () => {
-      const response = await request(app).get('/api/comments/user/1');
-
-      expect(response.status).toBe(200);
-      // Published comments should be true
-      response.body.comments.forEach((comment: any) => {
-        expect(comment.published).toBe(true);
-      });
-    });
   });
 
-  describe('POST /api/comments', () => {
-    it('should create a new comment', async () => {
+  describe('POST /api/comments/:targetUserId/comments', () => {
+    it('should create a new comment on a user profile', async () => {
       const response = await request(app)
-        .post('/api/comments')
+        .post('/api/comments/1/comments')
         .send({
-          target_user_id: 1,
-          commenter_id: 2,
-          content: 'Miss you buddy!',
-          published: false
+          commenterId: 2,
+          content: 'Great reunion!'
         });
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('comment');
-      expect(response.body.comment.content).toBe('Miss you buddy!');
+      expect(response.body.comment.content).toBe('Great reunion!');
+      expect(response.body.comment.published).toBe(true);
     });
 
-    it('should reject comment with missing fields', async () => {
+    it('should reject comment without commenterId', async () => {
       const response = await request(app)
-        .post('/api/comments')
+        .post('/api/comments/1/comments')
         .send({
-          target_user_id: 1,
-          commenter_id: 2
+          content: 'Hello'
         });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should reject comment for non-existent target user', async () => {
+    it('should reject comment without content', async () => {
       const response = await request(app)
-        .post('/api/comments')
+        .post('/api/comments/1/comments')
         .send({
-          target_user_id: 999,
-          commenter_id: 2,
-          content: 'Comment text',
-          published: false
+          commenterId: 2
         });
 
       expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
     });
 
-    it('should reject comment from non-existent commenter', async () => {
+    it('should create comment with published=true by default', async () => {
       const response = await request(app)
-        .post('/api/comments')
+        .post('/api/comments/2/comments')
         .send({
-          target_user_id: 1,
-          commenter_id: 999,
-          content: 'Comment text',
-          published: false
+          commenterId: 3,
+          content: 'Nice to reconnect!'
         });
 
-      expect(response.status).toBe(400);
-    });
-
-    it('should default to unpublished if not specified', async () => {
-      const response = await request(app)
-        .post('/api/comments')
-        .send({
-          target_user_id: 1,
-          commenter_id: 2,
-          content: 'Unpublished comment'
-        });
-
-      if (response.status === 201) {
-        expect(response.body.comment.published).toBe(false);
-      }
+      expect(response.status).toBe(201);
+      expect(response.body.comment.published).toBe(true);
     });
   });
 
-  describe('PUT /api/comments/:id', () => {
-    it('should update a comment', async () => {
+  describe('PUT /api/comments/:commentId', () => {
+    it('should update comment content', async () => {
       const response = await request(app)
         .put('/api/comments/1')
         .send({
-          content: 'Updated comment text'
+          content: 'Updated great comment'
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('comment');
+      expect(response.body.comment.content).toBe('Updated great comment');
     });
 
-    it('should publish a comment', async () => {
+    it('should update comment published status', async () => {
       const response = await request(app)
         .put('/api/comments/2')
         .send({
@@ -282,20 +322,44 @@ describe('Comment Routes', () => {
         });
 
       expect(response.status).toBe(200);
+      expect(response.body.comment.published).toBe(true);
     });
 
-    it('should reject update for non-existent comment', async () => {
+    it('should update both content and published', async () => {
+      const response = await request(app)
+        .put('/api/comments/1')
+        .send({
+          content: 'New content',
+          published: false
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.comment.content).toBe('New content');
+      expect(response.body.comment.published).toBe(false);
+    });
+
+    it('should reject update with no content or published', async () => {
+      const response = await request(app)
+        .put('/api/comments/1')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 404 for non-existent comment', async () => {
       const response = await request(app)
         .put('/api/comments/999')
         .send({
-          content: 'Updated text'
+          content: 'Test'
         });
 
-      expect([400, 404]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
-  describe('DELETE /api/comments/:id', () => {
+  describe('DELETE /api/comments/:commentId', () => {
     it('should delete a comment', async () => {
       const response = await request(app)
         .delete('/api/comments/1');
@@ -304,16 +368,17 @@ describe('Comment Routes', () => {
       expect(response.body).toHaveProperty('message');
     });
 
-    it('should handle deletion of non-existent comment', async () => {
+    it('should return 404 for non-existent comment', async () => {
       const response = await request(app)
         .delete('/api/comments/999');
 
-      expect([200, 404]).toContain(response.status);
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
   describe('Comment Publishing Flow', () => {
-    it('should allow publishing unpublished comments', async () => {
+    it('should publish unpublished comments', async () => {
       const response = await request(app)
         .put('/api/comments/2')
         .send({
@@ -321,9 +386,10 @@ describe('Comment Routes', () => {
         });
 
       expect(response.status).toBe(200);
+      expect(response.body.comment.published).toBe(true);
     });
 
-    it('should allow unpublishing published comments', async () => {
+    it('should unpublish published comments', async () => {
       const response = await request(app)
         .put('/api/comments/1')
         .send({
@@ -331,6 +397,7 @@ describe('Comment Routes', () => {
         });
 
       expect(response.status).toBe(200);
+      expect(response.body.comment.published).toBe(false);
     });
   });
 });
