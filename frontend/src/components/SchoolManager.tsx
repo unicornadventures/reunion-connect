@@ -61,10 +61,12 @@ const SchoolManager: React.FC = () => {
     setDeleteModal({ isOpen: true, id });
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (cascadeUsers?: boolean) => {
     if (deleteModal.id === null) return;
     try {
-      await adminSchoolAPI.deleteSchool(deleteModal.id, String(currentUser?.id));
+      // If cascadeUsers is true, pass it as a query parameter
+      const url = `/admin/schools/${deleteModal.id}${cascadeUsers ? '?cascadeUsers=true' : ''}`;
+      await adminSchoolAPI.deleteSchool(deleteModal.id, String(currentUser?.id), cascadeUsers);
       setDeleteModal({ isOpen: false, id: null });
       fetchSchools();
     } catch (err: any) {
@@ -141,9 +143,15 @@ const SchoolManager: React.FC = () => {
         isOpen={deleteModal.isOpen}
         title="Delete School"
         message="Are you sure you want to delete this school? This action cannot be undone."
+        details={[
+          'All classes associated with this school',
+          'All user-class assignments for those classes'
+        ]}
         confirmText="Delete"
         cancelText="Cancel"
         isDangerous={true}
+        showCheckbox={true}
+        checkboxLabel="Also delete all users assigned to this school"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />

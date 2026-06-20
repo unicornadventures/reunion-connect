@@ -65,8 +65,8 @@ export const adminSchoolAPI = {
       headers: { Authorization: `Bearer ${token}` }
     }),
 
-  deleteSchool: (schoolId: number, token: string) =>
-    api.delete(`/admin/schools/${schoolId}`, {
+  deleteSchool: (schoolId: number, token: string, cascadeUsers?: boolean) =>
+    api.delete(`/admin/schools/${schoolId}${cascadeUsers ? '?cascadeUsers=true' : ''}`, {
       headers: { Authorization: `Bearer ${token}` }
     }),
 };

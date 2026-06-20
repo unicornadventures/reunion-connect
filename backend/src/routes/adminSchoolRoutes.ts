@@ -80,16 +80,37 @@ router.put('/:id', requireSuperAdmin, async (req: any, res) => {
 // DELETE /api/admin/schools/:id - Delete school
 router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
+  const cascadeUsers = req.query.cascadeUsers === 'true';
 
   try {
+    await query('BEGIN;');
+
+    // If cascadeUsers is true, delete all users in classes for this school
+    if (cascadeUsers) {
+      await query(`
+        DELETE FROM users
+        WHERE id IN (
+          SELECT DISTINCT u.id
+          FROM users u
+          JOIN class_user cu ON u.id = cu.user_id
+          JOIN classes c ON cu.class_id = c.id
+          WHERE c.school_id = $1
+        );
+      `, [id]);
+    }
+
+    // Delete the school (which cascades to classes and class_user via foreign keys)
     const result = await query('DELETE FROM schools WHERE id = $1 RETURNING *;', [id]);
 
     if (result.rows.length === 0) {
+      await query('ROLLBACK;');
       return res.status(404).json({ error: 'School not found.' });
     }
 
+    await query('COMMIT;');
     res.status(200).json({ message: 'School deleted successfully.' });
   } catch (error) {
+    await query('ROLLBACK;');
     console.error("Admin Delete School Error:", error);
     res.status(500).json({ error: 'Internal server error.' });
   }
