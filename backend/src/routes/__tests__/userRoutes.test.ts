@@ -331,4 +331,61 @@ describe('User Routes', () => {
       expect([200, 400]).toContain(response.status);
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in GET user', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/users/1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in GET class', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/users/1/class');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in POST assign-class', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/users/1/assign-class')
+        .send({ class_id: 2 });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in PUT profile', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .put('/api/users/1/profile')
+        .send({ bio: 'Test' });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });
