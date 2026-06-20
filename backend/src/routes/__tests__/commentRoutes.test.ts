@@ -51,15 +51,10 @@ const mockDb = {
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
     // GET my comments (comments posted by a user)
-    if (sql.includes('WHERE c.commenter_id = $1') && sql.includes('LEFT JOIN profiles')) {
+    if (sql.includes('WHERE c.commenter_id = $1') && !sql.includes('LEFT JOIN profiles')) {
       const commenterId = Number(params?.[0]);
       const comments = mockDb.comments
-        .filter(c => c.commenter_id === commenterId)
-        .map(c => ({
-          ...c,
-          first_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.first_name,
-          last_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.last_name
-        }));
+        .filter(c => c.commenter_id === commenterId);
       return { rows: comments };
     }
 
@@ -67,12 +62,7 @@ jest.mock('../../db', () => ({
     if (sql.includes('WHERE c.target_user_id = $1 AND c.published = true')) {
       const targetUserId = Number(params?.[0]);
       const comments = mockDb.comments
-        .filter(c => c.target_user_id === targetUserId && c.published === true)
-        .map(c => ({
-          ...c,
-          first_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.first_name,
-          last_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.last_name
-        }));
+        .filter(c => c.target_user_id === targetUserId && c.published === true);
       return { rows: comments };
     }
 
@@ -81,12 +71,7 @@ jest.mock('../../db', () => ({
       const targetUserId = Number(params?.[0]);
       const comments = mockDb.comments
         .filter(c => c.target_user_id === targetUserId)
-        .sort((a, b) => (a.published === b.published ? 0 : a.published ? 1 : -1))
-        .map(c => ({
-          ...c,
-          first_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.first_name,
-          last_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.last_name
-        }));
+        .sort((a, b) => (a.published === b.published ? 0 : a.published ? 1 : -1));
       return { rows: comments };
     }
 

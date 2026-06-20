@@ -150,20 +150,13 @@ const CommentSection: React.FC = () => {
               className="bg-white p-4 rounded-lg border border-[#e0e0e0] transition-shadow hover:shadow-md"
             >
               <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h5 className="m-0 mb-1 text-[#333] text-sm font-bold">
-                    {comment.first_name && comment.last_name
-                      ? `${comment.first_name} ${comment.last_name}`
-                      : 'Anonymous'}
-                  </h5>
-                  <span className="text-xs text-[#999]">
-                    {new Date(comment.created_at).toLocaleDateString()} at{' '}
-                    {new Date(comment.created_at).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
+                <span className="text-xs text-[#999]">
+                  {new Date(comment.created_at).toLocaleDateString()} at{' '}
+                  {new Date(comment.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
               </div>
 
               {editingId === comment.id ? (

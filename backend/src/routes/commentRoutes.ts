@@ -42,10 +42,8 @@ router.get('/my-comments/:commenterId', async (req, res) => {
   try {
     const result = await query(`
       SELECT
-        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
-        p.first_name, p.last_name
+        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at
       FROM comments c
-      LEFT JOIN profiles p ON c.commenter_id = p.user_id
       WHERE c.commenter_id = $1
       ORDER BY c.created_at DESC;
     `, [commenterId]);
@@ -64,10 +62,8 @@ router.get('/:targetUserId/comments', async (req, res) => {
   try {
     const result = await query(`
       SELECT
-        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
-        p.first_name, p.last_name
+        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at
       FROM comments c
-      LEFT JOIN profiles p ON c.commenter_id = p.user_id
       WHERE c.target_user_id = $1 AND c.published = true
       ORDER BY c.created_at DESC;
     `, [targetUserId]);
@@ -97,13 +93,11 @@ router.get('/:targetUserId/comments/pending', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to moderate comments.' });
     }
 
-    // Get all comments (published and unpublished)
+    // Get all comments (published and unpublished) - anonymous, no commenter names
     const result = await query(`
       SELECT
-        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
-        p.first_name, p.last_name
+        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at
       FROM comments c
-      LEFT JOIN profiles p ON c.commenter_id = p.user_id
       WHERE c.target_user_id = $1
       ORDER BY c.published ASC, c.created_at DESC;
     `, [targetUserId]);
