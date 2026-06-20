@@ -149,7 +149,11 @@ jest.mock('../../services/emailService', () => ({
 ## Code Quality Standards
 
 - **Coverage Target:** 98%+ for all route modules (currently achieved)
-- **Type Safety:** TypeScript with mostly disabled strict mode (see tsconfig.json)
+- **Type Safety:** TypeScript with `"strict": false` in tsconfig.json
+  - Allows implicit `any` types (parameters without explicit type annotations)
+  - Allows looser null/undefined handling
+  - This is intentional for development velocity; not a limitation to work around
+  - If stricter typing is needed in the future, enable `"strict": true` and add type annotations incrementally
 - **Error Handling:** Consistent try-catch with appropriate HTTP status codes
 - **Parameter Normalization:** email.toLowerCase().trim() before DB operations
 - **Database Queries:** Parameterized queries with $1, $2, etc. for SQL injection prevention
