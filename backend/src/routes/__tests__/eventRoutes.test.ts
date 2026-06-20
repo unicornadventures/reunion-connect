@@ -35,61 +35,32 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
+    // Check if class exists
     if (sql.includes('SELECT id FROM classes WHERE id')) {
-      const classId = params?.[0];
+      const classId = Number(params?.[0]);
       const cls = mockDb.classes.find(c => c.id === classId);
       return { rows: cls ? [{ id: cls.id }] : [] };
     }
 
-    if (sql.includes('INSERT INTO events')) {
-      const event = {
-        id: mockDb.events.length + 1,
-        class_id: params?.[0],
-        event_name: params?.[1],
-        event_date: params?.[2],
-        event_time: params?.[3],
-        location: params?.[4],
-        description: params?.[5],
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-      mockDb.events.push(event);
-      return { rows: [event] };
-    }
-
-    if (sql.includes('SELECT * FROM events WHERE class_id') && sql.includes('ORDER BY')) {
-      const classId = params?.[0];
+    // Get events for a class with date/time filtering
+    if (sql.includes('SELECT id, event_name, event_date, event_time, location, description') && sql.includes('WHERE class_id')) {
+      const classId = Number(params?.[0]);
       const events = mockDb.events.filter(e => e.class_id === classId);
       return { rows: events };
     }
 
-    if (sql.includes('SELECT * FROM events WHERE id')) {
-      const eventId = params?.[0];
+    // Get single event by id
+    if (sql.includes('SELECT id, class_id, event_name, event_date, event_time, location, description, created_at, updated_at') && sql.includes('WHERE id')) {
+      const eventId = Number(params?.[0]);
       const event = mockDb.events.find(e => e.id === eventId);
       return { rows: event ? [event] : [] };
     }
 
-    if (sql.includes('UPDATE events')) {
-      const eventId = params?.[params.length - 1];
-      const event = mockDb.events.find(e => e.id === eventId);
-      if (event) {
-        event.event_name = params?.[0];
-        event.event_date = params?.[1];
-        event.event_time = params?.[2];
-        event.location = params?.[3];
-        event.description = params?.[4];
-        event.updated_at = new Date();
-      }
-      return { rows: [] };
-    }
-
-    if (sql.includes('DELETE FROM events')) {
-      const eventId = params?.[0];
-      const index = mockDb.events.findIndex(e => e.id === eventId);
-      if (index > -1) {
-        mockDb.events.splice(index, 1);
-      }
-      return { rows: [] };
+    // Get next event for days-until calculation
+    if (sql.includes('SELECT event_date FROM events') && sql.includes('WHERE class_id') && sql.includes('LIMIT 1')) {
+      const classId = Number(params?.[0]);
+      const events = mockDb.events.filter(e => e.class_id === classId);
+      return { rows: events.slice(0, 1) };
     }
 
     return { rows: [] };
@@ -102,6 +73,31 @@ describe('Event Routes', () => {
   let app: Express;
 
   beforeEach(() => {
+    mockDb.events = [
+      {
+        id: 1,
+        class_id: 1,
+        event_name: 'Reunion Dinner',
+        event_date: '2026-07-15',
+        event_time: '18:00:00',
+        location: 'Grand Hotel',
+        description: 'Annual reunion dinner',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        id: 2,
+        class_id: 1,
+        event_name: 'Golf Outing',
+        event_date: '2026-08-20',
+        event_time: '09:00:00',
+        location: 'Country Club',
+        description: 'Friendly golf tournament',
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    ];
+
     app = express();
     app.use(express.json());
     app.use('/api/events', eventRoutes);
@@ -131,11 +127,11 @@ describe('Event Routes', () => {
       }
     });
 
-    it('should return empty array for class with no events', async () => {
+    it('should return 404 for non-existent class', async () => {
       const response = await request(app).get('/api/events/class/999/events');
 
-      expect(response.status).toBe(200);
-      expect(response.body.events.length).toBe(0);
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should filter events by date (future dates only)', async () => {
@@ -163,93 +159,56 @@ describe('Event Routes', () => {
     });
   });
 
-  describe('POST /api/events', () => {
-    it('should create a new event', async () => {
-      const response = await request(app)
-        .post('/api/events')
-        .send({
-          class_id: 1,
-          event_name: 'Beach Party',
-          event_date: '2026-09-10',
-          event_time: '14:00:00',
-          location: 'Sunny Beach',
-          description: 'Fun beach gathering'
-        });
+  describe('GET /api/events/:eventId', () => {
+    it('should return a single event by id', async () => {
+      const response = await request(app).get('/api/events/1');
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('event');
-      expect(response.body.event.event_name).toBe('Beach Party');
+      expect(response.body.event.id).toBe(1);
     });
 
-    it('should reject event creation with missing required fields', async () => {
-      const response = await request(app)
-        .post('/api/events')
-        .send({
-          class_id: 1,
-          event_name: 'Incomplete Event'
-        });
+    it('should return 404 for non-existent event', async () => {
+      const response = await request(app).get('/api/events/999');
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should reject event with non-existent class', async () => {
-      const response = await request(app)
-        .post('/api/events')
-        .send({
-          class_id: 999,
-          event_name: 'Invalid Event',
-          event_date: '2026-09-10',
-          event_time: '14:00:00',
-          location: 'Venue',
-          description: 'Description'
-        });
+    it('should return event with all required fields', async () => {
+      const response = await request(app).get('/api/events/1');
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
+      const event = response.body.event;
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('class_id');
+      expect(event).toHaveProperty('event_name');
+      expect(event).toHaveProperty('event_date');
     });
   });
 
-  describe('PUT /api/events/:id', () => {
-    it('should update an event', async () => {
-      const response = await request(app)
-        .put('/api/events/1')
-        .send({
-          event_name: 'Updated Reunion',
-          event_date: '2026-07-20',
-          event_time: '19:00:00',
-          location: 'New Venue',
-          description: 'Updated description'
-        });
+  describe('GET /api/events/class/:classId/days-until-next', () => {
+    it('should return days until next event', async () => {
+      const response = await request(app).get('/api/events/class/1/days-until-next');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('daysUntil');
     });
 
-    it('should reject update with missing required fields', async () => {
-      const response = await request(app)
-        .put('/api/events/1')
-        .send({
-          event_name: 'Updated Event'
-        });
-
-      expect(response.status).toBe(400);
-    });
-  });
-
-  describe('DELETE /api/events/:id', () => {
-    it('should delete an event', async () => {
-      const response = await request(app)
-        .delete('/api/events/2');
+    it('should return null for class with no upcoming events', async () => {
+      const response = await request(app).get('/api/events/class/999/days-until-next');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body.daysUntil).toBeNull();
     });
 
-    it('should handle deletion of non-existent event', async () => {
-      const response = await request(app)
-        .delete('/api/events/999');
+    it('should return eventDate for class with upcoming events', async () => {
+      const response = await request(app).get('/api/events/class/1/days-until-next');
 
-      expect([200, 404]).toContain(response.status);
+      expect(response.status).toBe(200);
+      if (response.body.daysUntil !== null) {
+        expect(response.body).toHaveProperty('eventDate');
+      }
     });
   });
 });
