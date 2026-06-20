@@ -64,37 +64,48 @@ jest.mock('../../db', () => ({
     }
 
     if (sql.includes('SELECT c.* FROM comments c') && sql.includes('WHERE c.id')) {
-      const commentId = params?.[0];
+      const commentId = Number(params?.[0]);
       const comment = mockDb.comments.find(c => c.id === commentId);
       return { rows: comment ? [comment] : [] };
     }
 
     if (sql.includes('SELECT c.id FROM comments c') && sql.includes('WHERE c.id')) {
-      const commentId = params?.[0];
+      const commentId = Number(params?.[0]);
       const comment = mockDb.comments.find(c => c.id === commentId);
       return { rows: comment ? [{ id: comment.id }] : [] };
     }
 
     if (sql.includes('UPDATE comments SET')) {
-      const commentId = params?.[params.length - 1];
+      const commentId = Number(params?.[params.length - 1]);
+      console.log('UPDATE mock - commentId:', commentId, 'type:', typeof commentId, 'params:', params, 'mockDb.comments:', mockDb.comments.map(c => c.id));
       const comment = mockDb.comments.find(c => c.id === commentId);
       if (comment) {
-        if (sql.includes('content')) {
+        // Parse which parameters correspond to content and published
+        const hasContent = sql.includes('content = $1');
+        const hasPublished = sql.includes('published');
+
+        if (hasContent && hasPublished) {
           comment.content = params?.[0];
-        }
-        if (sql.includes('published')) {
+          comment.published = params?.[1];
+        } else if (hasContent) {
+          comment.content = params?.[0];
+        } else if (hasPublished) {
           comment.published = params?.[0];
         }
+
         comment.updated_at = new Date();
+        return { rows: [{ ...comment }] };
       }
       return { rows: [] };
     }
 
     if (sql.includes('DELETE FROM comments')) {
-      const commentId = params?.[0];
-      const index = mockDb.comments.findIndex(c => c.id === commentId);
-      if (index > -1) {
+      const commentId = Number(params?.[0]);
+      const comment = mockDb.comments.find(c => c.id === commentId);
+      if (comment) {
+        const index = mockDb.comments.findIndex(c => c.id === commentId);
         mockDb.comments.splice(index, 1);
+        return { rows: [{ id: comment.id }] };
       }
       return { rows: [] };
     }
@@ -114,6 +125,28 @@ describe('Comment Routes', () => {
   let app: Express;
 
   beforeEach(() => {
+    // Reset mock database
+    mockDb.comments = [
+      {
+        id: 1,
+        target_user_id: 1,
+        commenter_id: 2,
+        content: 'Great to see you!',
+        published: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        id: 2,
+        target_user_id: 1,
+        commenter_id: 3,
+        content: 'How have you been?',
+        published: false,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    ];
+
     app = express();
     app.use(express.json());
     app.use('/api/comments', commentRoutes);

@@ -73,19 +73,36 @@ router.post('/:targetUserId/comments', async (req, res) => {
 // PUT /api/comments/:commentId
 router.put('/:commentId', async (req, res) => {
   const { commentId } = req.params;
-  const { content } = req.body;
+  const { content, published } = req.body;
 
-  if (!content) {
-    return res.status(400).json({ error: 'Content is required.' });
+  if (content === undefined && published === undefined) {
+    return res.status(400).json({ error: 'At least one of content or published is required.' });
   }
 
   try {
+    let updateFields = [];
+    let params: any[] = [];
+    let paramCount = 1;
+
+    if (content !== undefined) {
+      updateFields.push(`content = $${paramCount++}`);
+      params.push(content);
+    }
+
+    if (published !== undefined) {
+      updateFields.push(`published = $${paramCount++}`);
+      params.push(published);
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    params.push(commentId);
+
     const result = await query(`
       UPDATE comments
-      SET content = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
       RETURNING id, target_user_id, commenter_id, content, published, created_at, updated_at;
-    `, [content, commentId]);
+    `, params);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Comment not found.' });

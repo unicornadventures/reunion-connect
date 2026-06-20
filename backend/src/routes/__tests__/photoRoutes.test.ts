@@ -1,11 +1,10 @@
 import express, { Express } from 'express';
 import request from 'supertest';
 
-// Mock database
 const mockDb = {
   users: [
-    { id: 1, email: 'user1@example.com' },
-    { id: 2, email: 'user2@example.com' }
+    { id: 1, email: 'user1@example.com', created_at: new Date(), updated_at: new Date() },
+    { id: 2, email: 'user2@example.com', created_at: new Date(), updated_at: new Date() }
   ],
   profiles: [
     {
@@ -13,8 +12,23 @@ const mockDb = {
       user_id: 1,
       first_name: 'John',
       last_name: 'Doe',
-      then_photo_url: 'http://example.com/then.jpg',
-      now_photo_url: 'http://example.com/now.jpg',
+      then_photo_url: 'https://example.com/john_then.jpg',
+      now_photo_url: 'https://example.com/john_now.jpg',
+      bio: '',
+      nickname_school: '',
+      created_at: new Date(),
+      updated_at: new Date()
+    },
+    {
+      id: 2,
+      user_id: 2,
+      first_name: 'Jane',
+      last_name: 'Smith',
+      then_photo_url: null,
+      now_photo_url: null,
+      bio: '',
+      nickname_school: '',
+      created_at: new Date(),
       updated_at: new Date()
     }
   ]
@@ -23,47 +37,37 @@ const mockDb = {
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
     if (sql.includes('SELECT id FROM users WHERE id')) {
-      const userId = params?.[0];
+      const userId = Number(params?.[0]);
       const user = mockDb.users.find(u => u.id === userId);
       return { rows: user ? [{ id: user.id }] : [] };
     }
 
-    if (sql.includes('SELECT * FROM profiles WHERE user_id')) {
-      const userId = params?.[0];
-      const profile = mockDb.profiles.find(p => p.user_id === userId);
-      return { rows: profile ? [profile] : [] };
-    }
-
-    if (sql.includes('INSERT INTO profiles')) {
-      const profile = {
-        id: mockDb.profiles.length + 1,
-        user_id: params?.[0],
-        first_name: params?.[1],
-        last_name: params?.[2],
-        then_photo_url: '',
-        now_photo_url: '',
-        updated_at: new Date()
-      };
-      mockDb.profiles.push(profile);
-      return { rows: [profile] };
-    }
-
     if (sql.includes('UPDATE profiles SET')) {
-      const userId = params?.[params.length - 1];
+      const photoUrl = params?.[0];
+      const userId = Number(params?.[1]);
       const profile = mockDb.profiles.find(p => p.user_id === userId);
       if (profile) {
         if (sql.includes('then_photo_url')) {
-          profile.then_photo_url = params?.[0];
-        }
-        if (sql.includes('now_photo_url')) {
-          profile.now_photo_url = params?.[0];
+          profile.then_photo_url = photoUrl;
+        } else if (sql.includes('now_photo_url')) {
+          profile.now_photo_url = photoUrl;
         }
         profile.updated_at = new Date();
+        return { rows: [{ ...profile }] };
       }
-      return { rows: [profile] };
+      return { rows: [] };
     }
 
     return { rows: [] };
+  })
+}));
+
+jest.mock('../../s3Service', () => ({
+  uploadFileToS3: jest.fn(async (userId: number, fileName: string, buffer: Buffer) => {
+    return `https://example.com/uploads/user${userId}/${fileName}`;
+  }),
+  generatePresignedUrl: jest.fn(async (userId: number, fileName: string) => {
+    return `https://example.com/presigned/${userId}/${fileName}?token=abc123`;
   })
 }));
 
@@ -72,27 +76,23 @@ jest.mock('../../services/emailService', () => ({
   sendVerificationEmail: jest.fn()
 }));
 
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn(),
-  PutObjectCommand: jest.fn(),
-  DeleteObjectCommand: jest.fn()
-}));
-
 jest.mock('multer', () => {
-  return {
-    __esModule: true,
-    default: () => ({
-      single: () => (req: any, res: any, next: any) => {
+  const mockMulter = (options: any) => ({
+    single: () => (req: any, res: any, next: any) => {
+      // Only add file if the request has file data (mock for attach behavior)
+      if (req.headers['content-type']?.includes('multipart/form-data')) {
         req.file = {
-          filename: 'test.jpg',
-          path: '/tmp/test.jpg',
+          originalname: 'test.jpg',
+          buffer: Buffer.from('fake image data'),
           mimetype: 'image/jpeg',
           size: 1024
         };
-        next();
       }
-    })
-  };
+      next();
+    }
+  });
+  mockMulter.memoryStorage = () => ({});
+  return mockMulter;
 });
 
 import { photoRoutes } from '../photoRoutes';
@@ -101,6 +101,33 @@ describe('Photo Routes', () => {
   let app: Express;
 
   beforeEach(() => {
+    mockDb.profiles = [
+      {
+        id: 1,
+        user_id: 1,
+        first_name: 'John',
+        last_name: 'Doe',
+        then_photo_url: 'https://example.com/john_then.jpg',
+        now_photo_url: 'https://example.com/john_now.jpg',
+        bio: '',
+        nickname_school: '',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        id: 2,
+        user_id: 2,
+        first_name: 'Jane',
+        last_name: 'Smith',
+        then_photo_url: null,
+        now_photo_url: null,
+        bio: '',
+        nickname_school: '',
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    ];
+
     app = express();
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
@@ -114,8 +141,8 @@ describe('Photo Routes', () => {
         .post('/api/users/1/photo/then')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
-      // May fail due to missing multer config, but should attempt to handle
-      expect([200, 400, 500]).toContain(response.status);
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
     });
 
     it('should handle now photo upload', async () => {
@@ -123,8 +150,8 @@ describe('Photo Routes', () => {
         .post('/api/users/1/photo/now')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
-      // May fail due to missing multer config, but should attempt to handle
-      expect([200, 400, 500]).toContain(response.status);
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
     });
 
     it('should reject upload for non-existent user', async () => {
@@ -132,37 +159,111 @@ describe('Photo Routes', () => {
         .post('/api/users/999/photo/then')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
-      expect([400, 404, 500]).toContain(response.status);
+      expect(response.status).toBe(404);
     });
 
-    it('should validate photo type (then or now)', async () => {
+    it('should reject invalid photoType', async () => {
       const response = await request(app)
         .post('/api/users/1/photo/invalid')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
-      // Should either process or reject invalid photo type
-      expect([200, 400, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
     });
 
-    it('should require file upload', async () => {
+    it('should reject without file', async () => {
       const response = await request(app)
         .post('/api/users/1/photo/then')
         .send({});
 
-      expect([200, 400, 500]).toContain(response.status);
+      expect(response.status).toBe(400);
     });
   });
 
-  describe('Photo upload response', () => {
-    it('should return updated profile on successful upload', async () => {
+  describe('POST /api/users/:userId/photo/upload/:photoType', () => {
+    it('should generate presigned URL for then photo', async () => {
       const response = await request(app)
-        .post('/api/users/1/photo/now')
-        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+        .post('/api/users/1/photo/upload/then')
+        .send({ fileName: 'my_photo.jpg' });
 
-      // If successful, should return profile
-      if (response.status === 200) {
-        expect(response.body).toHaveProperty('profile');
-      }
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('presignedUrl');
+    });
+
+    it('should generate presigned URL for now photo', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/now')
+        .send({ fileName: 'my_photo.jpg' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('presignedUrl');
+    });
+
+    it('should reject without fileName', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/then')
+        .send({});
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject invalid photoType', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/invalid')
+        .send({ fileName: 'my_photo.jpg' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject for non-existent user', async () => {
+      const response = await request(app)
+        .post('/api/users/999/photo/upload/then')
+        .send({ fileName: 'my_photo.jpg' });
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('PUT /api/users/:userId/photo/:photoType', () => {
+    it('should update then photo URL', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({ photoUrl: 'https://example.com/new_then.jpg' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
+    });
+
+    it('should update now photo URL', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/now')
+        .send({ photoUrl: 'https://example.com/new_now.jpg' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
+    });
+
+    it('should reject without photoUrl', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({});
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject invalid photoType', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/invalid')
+        .send({ photoUrl: 'https://example.com/photo.jpg' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should handle profile not found', async () => {
+      const response = await request(app)
+        .put('/api/users/999/photo/then')
+        .send({ photoUrl: 'https://example.com/photo.jpg' });
+
+      expect(response.status).toBe(404);
     });
   });
 });
