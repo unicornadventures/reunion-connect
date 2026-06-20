@@ -101,8 +101,8 @@ export const adminClassAPI = {
       headers: { Authorization: `Bearer ${token}` }
     }),
 
-  deleteClass: (classId: number, token: string) =>
-    api.delete(`/admin/classes/${classId}`, {
+  deleteClass: (classId: number, token: string, cascadeUsers?: boolean) =>
+    api.delete(`/admin/classes/${classId}${cascadeUsers ? '?cascadeUsers=true' : ''}`, {
       headers: { Authorization: `Bearer ${token}` }
     }),
 };

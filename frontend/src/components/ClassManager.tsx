@@ -70,10 +70,10 @@ const ClassManager: React.FC = () => {
     setDeleteModal({ isOpen: true, id });
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (cascadeUsers?: boolean) => {
     if (deleteModal.id === null) return;
     try {
-      await adminClassAPI.deleteClass(deleteModal.id, String(currentUser?.id));
+      await adminClassAPI.deleteClass(deleteModal.id, String(currentUser?.id), cascadeUsers);
       setDeleteModal({ isOpen: false, id: null });
       fetchClasses();
     } catch (err: any) {
@@ -182,9 +182,15 @@ const ClassManager: React.FC = () => {
         isOpen={deleteModal.isOpen}
         title="Delete Class"
         message="Are you sure you want to delete this class? This action cannot be undone."
+        details={[
+          'All user assignments to this class',
+          'All comments and data associated with class members'
+        ]}
         confirmText="Delete"
         cancelText="Cancel"
         isDangerous={true}
+        showCheckbox={true}
+        checkboxLabel="Also delete all users assigned to this class"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />

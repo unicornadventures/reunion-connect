@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.ts';
 import { requireSuperAdmin } from '../middleware/adminAuth.ts';
+import { deleteUserPhotosFromS3 } from '../s3Service.ts';
 
 const router = express.Router();
 
@@ -103,16 +104,48 @@ router.put('/:id', requireSuperAdmin, async (req: any, res) => {
 // DELETE /api/admin/classes/:id - Delete class
 router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
+  const cascadeUsers = req.query.cascadeUsers === 'true';
 
   try {
+    await query('BEGIN;');
+
+    // If cascadeUsers is true, delete all users in this class
+    if (cascadeUsers) {
+      // First, get all user IDs so we can clean up their S3 photos
+      const usersResult = await query(`
+        SELECT DISTINCT user_id as id
+        FROM class_user
+        WHERE class_id = $1
+      `, [id]);
+
+      // Clean up S3 photos for each user
+      for (const user of usersResult.rows) {
+        await deleteUserPhotosFromS3(user.id);
+      }
+
+      // Now delete the users
+      await query(`
+        DELETE FROM users
+        WHERE id IN (
+          SELECT user_id
+          FROM class_user
+          WHERE class_id = $1
+        );
+      `, [id]);
+    }
+
+    // Delete the class (which cascades to class_user via foreign key)
     const result = await query('DELETE FROM classes WHERE id = $1 RETURNING *;', [id]);
 
     if (result.rows.length === 0) {
+      await query('ROLLBACK;');
       return res.status(404).json({ error: 'Class not found.' });
     }
 
+    await query('COMMIT;');
     res.status(200).json({ message: 'Class deleted successfully.' });
   } catch (error) {
+    await query('ROLLBACK;');
     console.error("Admin Delete Class Error:", error);
     res.status(500).json({ error: 'Internal server error.' });
   }
