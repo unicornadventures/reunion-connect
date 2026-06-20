@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">54.07% </span>
+                <span class="strong">60.74% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>73/135</span>
+                <span class='fraction'>82/135</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">46.15% </span>
+                <span class="strong">55.55% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>6/13</span>
+                <span class='fraction'>10/18</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">54.07% </span>
+                <span class="strong">60.74% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>73/135</span>
+                <span class='fraction'>82/135</span>
             </div>
         
             
@@ -237,15 +237,15 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -258,21 +258,21 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -319,13 +319,13 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -371,14 +371,14 @@ router.get('/:id', requireSuperAdmin, async (req: any, res) =&gt; {
 router.post('/', requireSuperAdmin, async (req: any, res) =&gt; {
   const { name, location } = req.body;
 &nbsp;
-  if (!name) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
-<span class="cstat-no" title="statement not covered" >    return res.status(400).json({ error: 'School name is required.' });</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
+  if (!name) {
+    return res.status(400).json({ error: 'School name is required.' });
+  }
 &nbsp;
   try {
     const result = await query(
       'INSERT INTO schools (name, location) VALUES ($1, $2) RETURNING *;',
-      [name, location || null]
+      [name, location<span class="branch-0 cbranch-no" title="branch not covered" > || null]</span>
     );
     res.status(201).json({ school: result.rows[0] });
   } <span class="branch-0 cbranch-no" title="branch not covered" >catch (error) {</span>
@@ -392,22 +392,22 @@ router.put('/:id', requireSuperAdmin, async (req: any, res) =&gt; {
   const { id } = req.params;
   const { name, location } = req.body;
 &nbsp;
-  if (!name) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
-<span class="cstat-no" title="statement not covered" >    return res.status(400).json({ error: 'School name is required.' });</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
+  if (!name) {
+    return res.status(400).json({ error: 'School name is required.' });
+  }
 &nbsp;
   try {
     const result = await query(
       'UPDATE schools SET name = $1, location = $2, updated_at = NOW() WHERE id = $3 RETURNING *;',
-      [name, location || null, id]
+      [name, location<span class="branch-0 cbranch-no" title="branch not covered" > || null,</span> id]
     );
 &nbsp;
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'School not found.' });
-    }
-<span class="cstat-no" title="statement not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span>
-<span class="cstat-no" title="statement not covered" >    res.status(200).json({ school: result.rows[0] });</span>
-<span class="cstat-no" title="statement not covered" >  } catch (error) {</span>
+    if (result.rows.length === 0) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
+<span class="cstat-no" title="statement not covered" >      return res.status(404).json({ error: 'School not found.' });</span>
+<span class="cstat-no" title="statement not covered" >    }</span>
+&nbsp;
+    res.status(200).json({ school: result.rows[0] });
+  } <span class="branch-0 cbranch-no" title="branch not covered" >catch (error) {</span>
 <span class="cstat-no" title="statement not covered" >    console.error("Admin Update School Error:", error);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: 'Internal server error.' });</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
@@ -457,10 +457,10 @@ router.delete('/:id', requireSuperAdmin, async (req: any, res) =&gt; {
       await query('ROLLBACK;');
       return res.status(404).json({ error: 'School not found.' });
     }
-<span class="cstat-no" title="statement not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span>
-<span class="cstat-no" title="statement not covered" >    await query('COMMIT;');</span>
-<span class="cstat-no" title="statement not covered" >    res.status(200).json({ message: 'School deleted successfully.' });</span>
-<span class="cstat-no" title="statement not covered" >  } catch (error) {</span>
+&nbsp;
+    await query('COMMIT;');
+    res.status(200).json({ message: 'School deleted successfully.' });
+  } <span class="branch-0 cbranch-no" title="branch not covered" >catch (error) {</span>
 <span class="cstat-no" title="statement not covered" >    await query('ROLLBACK;');</span>
 <span class="cstat-no" title="statement not covered" >    console.error("Admin Delete School Error:", error);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: 'Internal server error.' });</span>
@@ -475,7 +475,7 @@ export { router as adminSchoolRoutes };
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-20T13:33:22.985Z
+                at 2026-06-20T13:43:19.671Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

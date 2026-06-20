@@ -1,38 +1,34 @@
 import express, { Express } from 'express';
 import request from 'supertest';
 
-// Mock database
 const mockDb = {
   schools: [
     { id: 1, name: 'Test School', location: 'Test City', created_at: new Date(), updated_at: new Date() },
     { id: 2, name: 'Another School', location: 'Another City', created_at: new Date(), updated_at: new Date() }
-  ],
-  classes: [
-    { id: 1, school_id: 1, year: 2020 },
-    { id: 2, school_id: 1, year: 2021 }
-  ],
-  users: [
-    { id: 1, email: 'user1@example.com', school_id: 1 }
   ]
 };
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    if (sql.includes('SELECT') && sql.includes('schools') && !sql.includes('WHERE')) {
-      return { rows: mockDb.schools };
+    // Handle all SELECT queries
+    if (sql.includes('SELECT') && sql.includes('schools')) {
+      if (!sql.includes('WHERE')) {
+        // SELECT all
+        return { rows: mockDb.schools };
+      } else {
+        // SELECT by id
+        const schoolId = parseInt(params?.[0]);
+        const school = mockDb.schools.find(s => s.id === schoolId);
+        return { rows: school ? [school] : [] };
+      }
     }
 
-    if (sql.includes('SELECT') && sql.includes('schools') && sql.includes('WHERE id')) {
-      const schoolId = params?.[0];
-      const school = mockDb.schools.find(s => s.id === schoolId);
-      return { rows: school ? [school] : [] };
-    }
-
+    // INSERT school
     if (sql.includes('INSERT INTO schools')) {
       const school = {
         id: mockDb.schools.length + 1,
         name: params?.[0],
-        location: params?.[1],
+        location: params?.[1] || null,
         created_at: new Date(),
         updated_at: new Date()
       };
@@ -40,50 +36,34 @@ jest.mock('../../db', () => ({
       return { rows: [school] };
     }
 
+    // UPDATE school
     if (sql.includes('UPDATE schools')) {
-      const schoolId = params?.[2];
+      const schoolId = parseInt(params?.[params.length - 1]);
       const school = mockDb.schools.find(s => s.id === schoolId);
       if (school) {
         school.name = params?.[0];
-        school.location = params?.[1];
+        school.location = params?.[1] || null;
         school.updated_at = new Date();
         return { rows: [school] };
       }
       return { rows: [] };
     }
 
-    if (sql.includes('DELETE FROM schools WHERE')) {
-      const schoolId = params?.[0];
+    // DELETE school
+    if (sql.includes('DELETE FROM schools')) {
+      const schoolId = parseInt(params?.[0]);
       const index = mockDb.schools.findIndex(s => s.id === schoolId);
       if (index > -1) {
-        mockDb.schools.splice(index, 1);
+        const deleted = mockDb.schools.splice(index, 1);
+        // Return the deleted row if RETURNING is in the query
+        if (sql.includes('RETURNING')) {
+          return { rows: deleted };
+        }
       }
       return { rows: [] };
     }
 
-    // Handle SELECT queries that might be part of delete logic
-    if (sql.includes('SELECT DISTINCT u.id') || sql.includes('SELECT u.id FROM users')) {
-      return { rows: [] };
-    }
-
-    if (sql.includes('DELETE FROM classes') && sql.includes('school_id')) {
-      const schoolId = params?.[0];
-      mockDb.classes = mockDb.classes.filter(c => c.school_id !== schoolId);
-      return { rows: [] };
-    }
-
-    if (sql.includes('DELETE FROM users') && sql.includes('school_id')) {
-      const schoolId = params?.[0];
-      mockDb.users = mockDb.users.filter(u => u.school_id !== schoolId);
-      return { rows: [] };
-    }
-
-    // Handle BEGIN, COMMIT, ROLLBACK for transactions
-    if (sql.includes('BEGIN') || sql.includes('COMMIT') || sql.includes('ROLLBACK')) {
-      return { rows: [] };
-    }
-
-    // Catch-all for unmatched queries
+    // All other queries
     return { rows: [] };
   })
 }));
@@ -94,11 +74,11 @@ jest.mock('../../services/emailService', () => ({
 }));
 
 jest.mock('../../middleware/adminAuth.ts', () => ({
-  requireAdmin: async (req: any, res: any, next: any) => {
+  requireAdmin: (req: any, res: any, next: any) => {
     req.user = { id: 1, is_admin: true, is_class_admin: false };
     next();
   },
-  requireSuperAdmin: async (req: any, res: any, next: any) => {
+  requireSuperAdmin: (req: any, res: any, next: any) => {
     req.user = { id: 1, is_admin: true, is_class_admin: false };
     next();
   }
@@ -112,21 +92,7 @@ describe('Admin School Routes', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
-    // Set user before any routes to bypass auth
-    app.use((req: any, res: any, next: any) => {
-      req.user = { id: 1, is_admin: true, is_class_admin: false };
-      next();
-    });
-    // Mount routes - this should use mocked middleware
     app.use('/api/admin', adminSchoolRoutes);
-    // Detailed 404 handler to see unmatched routes
-    app.use((req: any, res: any) => {
-      res.status(404).json({ error: 'Route not found', path: req.path, method: req.method });
-    });
-    app.use((err: any, req: any, res: any, next: any) => {
-      console.error('Error:', err.message);
-      res.status(500).json({ error: err.message });
-    });
     jest.clearAllMocks();
   });
 
@@ -165,11 +131,11 @@ describe('Admin School Routes', () => {
       expect(response.body.school.name).toBe('New School');
     });
 
-    it('should reject school creation with missing fields', async () => {
+    it('should reject school creation with missing name', async () => {
       const response = await request(app)
         .post('/api/admin')
         .send({
-          name: 'Incomplete School'
+          location: 'Some City'
         });
 
       expect(response.status).toBe(400);
@@ -181,7 +147,6 @@ describe('Admin School Routes', () => {
     it('should update a school', async () => {
       const response = await request(app)
         .put('/api/admin/1')
-        .set('Authorization', 'Bearer 1')
         .send({
           name: 'Updated School',
           location: 'Updated City'
@@ -189,16 +154,18 @@ describe('Admin School Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('school');
+      expect(response.body.school.name).toBe('Updated School');
     });
 
-    it('should reject update with missing fields', async () => {
+    it('should reject update with missing name', async () => {
       const response = await request(app)
         .put('/api/admin/1')
         .send({
-          name: 'Updated'
+          location: 'Updated City'
         });
 
       expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
