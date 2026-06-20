@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">89.47% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>187/209</span>
+                <span class='fraction'>209/209</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>24/24</span>
+                <span class='fraction'>32/32</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">89.47% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>187/209</span>
+                <span class='fraction'>209/209</span>
             </div>
         
             
@@ -294,28 +294,28 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -502,28 +502,28 @@ router.get('/', async (req, res) =&gt; {
 &nbsp;
 // POST /api/classes
 router.post('/', async (req, res) =&gt; {
-<span class="cstat-no" title="statement not covered" >  const { school_id, year } = req.body;</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  if (!school_id || !year) {</span>
-<span class="cstat-no" title="statement not covered" >    return res.status(400).json({ error: 'school_id and year are required.' });</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    // Verify school exists</span>
-<span class="cstat-no" title="statement not covered" >    const schoolCheck = await query('SELECT id FROM schools WHERE id = $1;', [school_id]);</span>
-<span class="cstat-no" title="statement not covered" >    if (schoolCheck.rows.length === 0) {</span>
-<span class="cstat-no" title="statement not covered" >      return res.status(400).json({ error: 'School not found.' });</span>
-<span class="cstat-no" title="statement not covered" >    }</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    const result = await query(</span>
-<span class="cstat-no" title="statement not covered" >      'INSERT INTO classes (school_id, year) VALUES ($1, $2) RETURNING *;',</span>
-<span class="cstat-no" title="statement not covered" >      [school_id, year]</span>
-<span class="cstat-no" title="statement not covered" >    );</span>
-<span class="cstat-no" title="statement not covered" >    res.status(201).json({ class: result.rows[0] });</span>
-<span class="cstat-no" title="statement not covered" >  } catch (error) {</span>
-<span class="cstat-no" title="statement not covered" >    console.error("Create Class Error:", error);</span>
-<span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: 'Internal server error.' });</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
+  const { school_id, year } = req.body;
+&nbsp;
+  if (!school_id || !year) {
+    return res.status(400).json({ error: 'school_id and year are required.' });
+  }
+&nbsp;
+  try {
+    // Verify school exists
+    const schoolCheck = await query('SELECT id FROM schools WHERE id = $1;', [school_id]);
+    if (schoolCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'School not found.' });
+    }
+&nbsp;
+    const result = await query(
+      'INSERT INTO classes (school_id, year) VALUES ($1, $2) RETURNING *;',
+      [school_id, year]
+    );
+    res.status(201).json({ class: result.rows[0] });
+  } catch (error) {
+    console.error("Create Class Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
 });
 &nbsp;
 // GET /api/classes/:id/members - Must come before /:id
@@ -694,7 +694,7 @@ export { router as classRoutes };</pre></td></tr></table></pre>
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-20T15:46:55.653Z
+                at 2026-06-20T15:49:24.705Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

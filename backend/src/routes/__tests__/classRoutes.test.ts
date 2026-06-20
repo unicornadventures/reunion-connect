@@ -154,6 +154,29 @@ jest.mock('../../db', () => ({
       return { rows: [{ count }] };
     }
 
+    // Check if school exists
+    if (sql.includes('SELECT id FROM schools WHERE id')) {
+      const schoolId = Number(params?.[0]);
+      const school = mockDb.schools.find(s => s.id === schoolId);
+      return school ? { rows: [{ id: school.id }] } : { rows: [] };
+    }
+
+    // INSERT new class
+    if (sql.includes('INSERT INTO classes')) {
+      const schoolId = Number(params?.[0]);
+      const year = Number(params?.[1]);
+      const newClass = {
+        id: Math.max(...mockDb.classes.map(c => c.id), 0) + 1,
+        school_id: schoolId,
+        year: year,
+        school_name: mockDb.schools.find(s => s.id === schoolId)?.name || 'Unknown',
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      mockDb.classes.push(newClass);
+      return { rows: [newClass] };
+    }
+
     return { rows: [] };
   })
 }));
@@ -194,6 +217,94 @@ describe('Class Routes', () => {
       expect(firstClass).toHaveProperty('year');
       expect(firstClass).toHaveProperty('school_id');
       expect(firstClass).toHaveProperty('school_name');
+    });
+  });
+
+  describe('POST /api/classes', () => {
+    it('should create a new class', async () => {
+      const response = await request(app)
+        .post('/api/classes')
+        .send({
+          school_id: 1,
+          year: 2025
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('class');
+      expect(response.body.class.school_id).toBe(1);
+      expect(response.body.class.year).toBe(2025);
+    });
+
+    it('should return created class with all fields', async () => {
+      const response = await request(app)
+        .post('/api/classes')
+        .send({
+          school_id: 1,
+          year: 2026
+        });
+
+      expect(response.status).toBe(201);
+      const createdClass = response.body.class;
+      expect(createdClass).toHaveProperty('id');
+      expect(createdClass).toHaveProperty('school_id');
+      expect(createdClass).toHaveProperty('year');
+      expect(createdClass).toHaveProperty('created_at');
+      expect(createdClass).toHaveProperty('updated_at');
+    });
+
+    it('should reject missing school_id', async () => {
+      const response = await request(app)
+        .post('/api/classes')
+        .send({
+          year: 2025
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('school_id');
+    });
+
+    it('should reject missing year', async () => {
+      const response = await request(app)
+        .post('/api/classes')
+        .send({
+          school_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('year');
+    });
+
+    it('should reject non-existent school_id', async () => {
+      const response = await request(app)
+        .post('/api/classes')
+        .send({
+          school_id: 999,
+          year: 2025
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('School not found');
+    });
+
+    it('should handle database error during creation', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/classes')
+        .send({
+          school_id: 1,
+          year: 2025
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
