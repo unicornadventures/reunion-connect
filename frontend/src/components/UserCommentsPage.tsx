@@ -25,6 +25,8 @@ const UserCommentsPage: React.FC = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (userId && currentUser?.user_id) {
@@ -60,21 +62,55 @@ const UserCommentsPage: React.FC = () => {
     }
   };
 
+  const handleAddComment = async () => {
+    if (!newCommentText.trim()) {
+      setError('Comment cannot be empty.');
+      return;
+    }
+
+    if (!currentUser?.user_id || !userId) {
+      setError('User not authenticated.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await api.post(`/users/${userId}/comments`, {
+        commenterId: currentUser.user_id,
+        content: newCommentText
+      });
+
+      // Add comment to the list (it will be published after admin approval)
+      setComments([...comments, response.data.comment]);
+      setNewCommentText('');
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to post comment.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.spinner}>Loading profile...</div>
+      <div className="max-w-[900px] mx-auto px-5 py-8">
+        <div className="py-10 text-center text-[#999] text-base">Loading profile...</div>
       </div>
     );
   }
 
   if (error || !userProfile) {
     return (
-      <div style={styles.container}>
-        <button onClick={() => navigate('/directory')} style={styles.backButton}>
+      <div className="max-w-[900px] mx-auto px-5 py-8">
+        <button
+          onClick={() => navigate('/directory')}
+          className="mb-5 px-5 py-2 bg-[#2196F3] text-white border-none rounded text-sm font-bold cursor-pointer hover:opacity-90"
+        >
           ← Back to Directory
         </button>
-        <div style={styles.error}>{error || 'User not found.'}</div>
+        <div className="px-3 py-3 bg-[#FFEBEE] text-[#C62828] rounded border border-[#EF5350] text-sm">
+          {error || 'User not found.'}
+        </div>
       </div>
     );
   }
@@ -85,67 +121,99 @@ const UserCommentsPage: React.FC = () => {
     : user.email;
 
   return (
-    <div style={styles.container}>
-      <button onClick={() => navigate('/directory')} style={styles.backButton}>
+    <div className="max-w-[900px] mx-auto px-5 py-8">
+      <button
+        onClick={() => navigate('/directory')}
+        className="mb-5 px-5 py-2 bg-[#2196F3] text-white border-none rounded text-sm font-bold cursor-pointer hover:opacity-90"
+      >
         ← Back to Directory
       </button>
 
       {/* User Profile Header */}
-      <div style={styles.profileHeader}>
-        <h2 style={styles.title}>{displayName}</h2>
+      <div className="bg-white p-8 rounded-lg mb-8 shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[#e0e0e0]">
+        <h2 className="m-0 mb-5 text-[#333] text-3xl font-bold">{displayName}</h2>
 
         {/* Photos Section */}
-        <div style={styles.photosSection}>
-          <div style={styles.photoCard}>
-            <h4 style={styles.photoLabel}>Then</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="bg-[#f9f9f9] border border-[#ddd] rounded-lg p-4 text-center">
+            <h4 className="m-0 mb-4 text-base font-bold text-[#333]">Then</h4>
             {profile?.then_photo_url ? (
               <img
                 src={profile.then_photo_url}
                 alt="Then"
-                style={styles.profilePhoto}
+                className="max-w-full max-h-80 rounded"
               />
             ) : (
-              <div style={styles.photoPlaceholder}>No photo</div>
+              <div className="h-80 flex items-center justify-center bg-[#e0e0e0] rounded text-[#999]">
+                No photo
+              </div>
             )}
           </div>
 
-          <div style={styles.photoCard}>
-            <h4 style={styles.photoLabel}>Now</h4>
+          <div className="bg-[#f9f9f9] border border-[#ddd] rounded-lg p-4 text-center">
+            <h4 className="m-0 mb-4 text-base font-bold text-[#333]">Now</h4>
             {profile?.now_photo_url ? (
               <img
                 src={profile.now_photo_url}
                 alt="Now"
-                style={styles.profilePhoto}
+                className="max-w-full max-h-80 rounded"
               />
             ) : (
-              <div style={styles.photoPlaceholder}>No photo</div>
+              <div className="h-80 flex items-center justify-center bg-[#e0e0e0] rounded text-[#999]">
+                No photo
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* Comments Section */}
-      <div style={styles.commentsSection}>
-        <h3 style={styles.commentsTitle}>💬 Comments ({comments.length})</h3>
+      <div className="bg-white p-5 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[#e0e0e0]">
+        <h3 className="m-0 mb-5 text-[#333] text-lg font-bold">💬 Comments ({comments.length})</h3>
 
+        {/* New Comment Form */}
+        <div className="bg-[#f9f9f9] p-4 rounded-lg mb-5 border border-[#e0e0e0]">
+          <h4 className="m-0 mb-3 text-[#333] text-sm font-bold">Leave a Comment</h4>
+          <textarea
+            value={newCommentText}
+            onChange={(e) => setNewCommentText(e.target.value)}
+            placeholder="Share your message..."
+            className="w-full min-h-24 p-3 border border-[#ddd] rounded text-sm resize-vertical mb-3 disabled:bg-gray-100"
+            disabled={submitting}
+          />
+          <button
+            onClick={handleAddComment}
+            disabled={submitting || !newCommentText.trim()}
+            className={`px-4 py-2 border-none rounded text-white font-bold text-sm transition-opacity ${
+              submitting || !newCommentText.trim()
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-[#4CAF50] cursor-pointer hover:opacity-90'
+            }`}
+          >
+            {submitting ? 'Posting...' : 'Post Comment'}
+          </button>
+          <p className="text-xs text-[#999] mt-2">Comments will be published after review.</p>
+        </div>
+
+        {/* Comments List */}
         {comments.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyText}>
+          <div className="p-10 text-center bg-[#f9f9f9] rounded-lg border border-[#ddd]">
+            <p className="text-[#999] m-0 text-sm">
               No comments yet. Be the first to leave a comment!
             </p>
           </div>
         ) : (
-          <div style={styles.commentsList}>
+          <div className="flex flex-col gap-4">
             {comments.map((comment) => (
-              <div key={comment.id} style={styles.commentCard}>
-                <div style={styles.commentHeader}>
+              <div key={comment.id} className="bg-[#f9f9f9] p-4 rounded-lg border border-[#e0e0e0]">
+                <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h5 style={styles.commenterName}>
+                    <h5 className="m-0 mb-1 text-[#333] text-sm font-bold">
                       {comment.first_name && comment.last_name
                         ? `${comment.first_name} ${comment.last_name}`
                         : 'Anonymous'}
                     </h5>
-                    <span style={styles.commentDate}>
+                    <span className="text-xs text-[#999]">
                       {new Date(comment.created_at).toLocaleDateString()} at{' '}
                       {new Date(comment.created_at).toLocaleTimeString([], {
                         hour: '2-digit',
@@ -154,7 +222,7 @@ const UserCommentsPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <p style={styles.commentContent}>{comment.content}</p>
+                <p className="m-0 text-[#555] leading-relaxed break-words">{comment.content}</p>
               </div>
             ))}
           </div>
@@ -162,144 +230,6 @@ const UserCommentsPage: React.FC = () => {
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    padding: '20px',
-    maxWidth: '900px',
-    margin: '0 auto',
-  },
-  backButton: {
-    marginBottom: '20px',
-    padding: '10px 20px',
-    backgroundColor: '#2196F3',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold' as const,
-  },
-  profileHeader: {
-    backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '8px',
-    marginBottom: '30px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    border: '1px solid #e0e0e0',
-  },
-  title: {
-    margin: '0 0 20px 0',
-    color: '#333',
-    fontSize: '28px',
-    fontWeight: 'bold' as const,
-  },
-  photosSection: {
-    display: 'grid' as const,
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' as const,
-    gap: '20px',
-  },
-  photoCard: {
-    backgroundColor: '#f9f9f9',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    padding: '15px',
-    textAlign: 'center' as const,
-  },
-  photoLabel: {
-    margin: '0 0 15px 0',
-    fontSize: '16px',
-    fontWeight: 'bold' as const,
-    color: '#333',
-  },
-  profilePhoto: {
-    maxWidth: '100%',
-    maxHeight: '300px',
-    borderRadius: '4px',
-  },
-  photoPlaceholder: {
-    height: '300px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#e0e0e0',
-    borderRadius: '4px',
-    color: '#999',
-  },
-  commentsSection: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    border: '1px solid #e0e0e0',
-  },
-  commentsTitle: {
-    margin: '0 0 20px 0',
-    color: '#333',
-    fontSize: '18px',
-    fontWeight: 'bold' as const,
-  },
-  commentsList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '15px',
-  },
-  commentCard: {
-    backgroundColor: '#f9f9f9',
-    padding: '15px',
-    borderRadius: '8px',
-    border: '1px solid #e0e0e0',
-  },
-  commentHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '10px',
-  },
-  commenterName: {
-    margin: '0 0 5px 0',
-    color: '#333',
-    fontSize: '14px',
-    fontWeight: 'bold' as const,
-  },
-  commentDate: {
-    fontSize: '12px',
-    color: '#999',
-  },
-  commentContent: {
-    margin: '10px 0 0 0',
-    color: '#555',
-    lineHeight: '1.6',
-    wordBreak: 'break-word' as const,
-  },
-  emptyState: {
-    padding: '40px 20px',
-    textAlign: 'center' as const,
-    backgroundColor: '#f9f9f9',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-  },
-  emptyText: {
-    color: '#999',
-    margin: 0,
-    fontSize: '14px',
-  },
-  error: {
-    padding: '12px',
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    borderRadius: '4px',
-    marginBottom: '15px',
-    border: '1px solid #ef5350',
-    fontSize: '14px',
-  },
-  spinner: {
-    padding: '40px',
-    textAlign: 'center' as const,
-    color: '#999',
-    fontSize: '16px',
-  },
 };
 
 export default UserCommentsPage;

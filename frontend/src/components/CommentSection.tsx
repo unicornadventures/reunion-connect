@@ -101,53 +101,62 @@ const CommentSection: React.FC = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <h3 style={styles.title}>💬 My Comments ({comments.length})</h3>
+    <div className="p-5 bg-[#f9f9f9] rounded-lg border border-[#e0e0e0]">
+      <h3 className="mt-0 mb-5 text-[#333] text-lg font-bold">💬 My Comments ({comments.length})</h3>
 
-      {error && <div style={styles.error}>{error}</div>}
+      {error && (
+        <div className="px-3 py-3 bg-[#FFEBEE] text-[#C62828] rounded border border-[#EF5350] mb-4 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* New Comment Form */}
-      <div style={styles.newCommentSection}>
-        <h4 style={styles.formTitle}>Add a Comment to Your Profile</h4>
+      <div className="bg-white p-5 rounded-lg mb-5 border border-[#ddd]">
+        <h4 className="m-0 mb-4 text-[#333] text-base">Add a Comment to Your Profile</h4>
         <textarea
           value={newCommentText}
           onChange={(e) => setNewCommentText(e.target.value)}
           placeholder="Share your thoughts..."
-          style={styles.textarea}
+          className="w-full min-h-[100px] p-3 border border-[#ddd] rounded text-sm resize-vertical mb-3 disabled:bg-gray-100"
           disabled={submitting}
         />
         <button
           onClick={handleAddComment}
           disabled={submitting || !newCommentText.trim()}
-          style={{
-            ...styles.button,
-            backgroundColor: submitting || !newCommentText.trim() ? '#ccc' : '#4CAF50',
-            cursor: submitting || !newCommentText.trim() ? 'not-allowed' : 'pointer'
-          }}
+          className={`px-5 py-2 border-none rounded text-white font-bold text-sm transition-opacity ${
+            submitting || !newCommentText.trim()
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-[#4CAF50] cursor-pointer hover:opacity-90'
+          }`}
         >
           {submitting ? 'Posting...' : 'Post Comment'}
         </button>
       </div>
 
       {/* Comments List */}
-      <div style={styles.commentsList}>
+      <div className="flex flex-col gap-4">
         {loading ? (
-          <div style={styles.spinner}>Loading comments...</div>
+          <div className="p-5 text-center text-[#999] text-sm">Loading comments...</div>
         ) : comments.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyText}>You haven't posted any comments yet. Add one to get started!</p>
+          <div className="p-10 text-center bg-white rounded-lg border border-[#ddd]">
+            <p className="text-[#999] m-0 text-sm">
+              You haven't posted any comments yet. Add one to get started!
+            </p>
           </div>
         ) : (
           comments.map(comment => (
-            <div key={comment.id} style={styles.commentCard}>
-              <div style={styles.commentHeader}>
+            <div
+              key={comment.id}
+              className="bg-white p-4 rounded-lg border border-[#e0e0e0] transition-shadow hover:shadow-md"
+            >
+              <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h5 style={styles.commenterName}>
+                  <h5 className="m-0 mb-1 text-[#333] text-sm font-bold">
                     {comment.first_name && comment.last_name
                       ? `${comment.first_name} ${comment.last_name}`
                       : 'Anonymous'}
                   </h5>
-                  <span style={styles.commentDate}>
+                  <span className="text-xs text-[#999]">
                     {new Date(comment.created_at).toLocaleDateString()} at{' '}
                     {new Date(comment.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -158,22 +167,18 @@ const CommentSection: React.FC = () => {
               </div>
 
               {editingId === comment.id ? (
-                <div style={styles.editForm}>
+                <div className="bg-[#f9f9f9] p-2 rounded-lg mt-3">
                   <textarea
                     value={editingText}
                     onChange={(e) => setEditingText(e.target.value)}
-                    style={styles.editTextarea}
+                    className="w-full min-h-20 p-3 border border-[#4CAF50] rounded text-sm resize-vertical mb-3 disabled:bg-gray-100"
                     disabled={submitting}
                   />
-                  <div style={styles.editActions}>
+                  <div className="flex gap-2">
                     <button
                       onClick={() => handleUpdateComment(comment.id)}
                       disabled={submitting}
-                      style={{
-                        ...styles.smallButton,
-                        backgroundColor: '#4CAF50',
-                        cursor: submitting ? 'not-allowed' : 'pointer'
-                      }}
+                      className="px-4 py-2 bg-[#4CAF50] text-white border-none rounded text-xs font-bold cursor-pointer hover:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       {submitting ? 'Saving...' : 'Save'}
                     </button>
@@ -182,10 +187,7 @@ const CommentSection: React.FC = () => {
                         setEditingId(null);
                         setEditingText('');
                       }}
-                      style={{
-                        ...styles.smallButton,
-                        backgroundColor: '#999'
-                      }}
+                      className="px-4 py-2 bg-[#999] text-white border-none rounded text-xs font-bold cursor-pointer hover:opacity-90"
                     >
                       Cancel
                     </button>
@@ -193,32 +195,25 @@ const CommentSection: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <p style={styles.commentContent}>{comment.content}</p>
+                  <p className="m-2.5 text-[#555] leading-relaxed break-words">{comment.content}</p>
 
-                  {/* All comments are the current user's, so always show edit/delete */}
-                  <div style={styles.commentActions}>
-                      <button
-                        onClick={() => {
-                          setEditingId(comment.id);
-                          setEditingText(comment.content);
-                        }}
-                        style={{
-                          ...styles.actionButton,
-                          color: '#2196F3'
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteComment(comment.id)}
-                        style={{
-                          ...styles.actionButton,
-                          color: '#f44336'
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  <div className="flex gap-4 mt-2.5">
+                    <button
+                      onClick={() => {
+                        setEditingId(comment.id);
+                        setEditingText(comment.content);
+                      }}
+                      className="border-none bg-none cursor-pointer text-xs font-bold text-[#2196F3] p-0 transition-opacity hover:opacity-70"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="border-none bg-none cursor-pointer text-xs font-bold text-[#f44336] p-0 transition-opacity hover:opacity-70"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -227,162 +222,6 @@ const CommentSection: React.FC = () => {
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    padding: '20px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '8px',
-    border: '1px solid #e0e0e0'
-  },
-  title: {
-    marginTop: 0,
-    marginBottom: '20px',
-    color: '#333',
-    fontSize: '18px',
-    fontWeight: 'bold'
-  },
-  newCommentSection: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    border: '1px solid #ddd'
-  },
-  formTitle: {
-    margin: '0 0 15px 0',
-    color: '#333',
-    fontSize: '16px'
-  },
-  textarea: {
-    width: '100%',
-    minHeight: '100px',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    boxSizing: 'border-box' as const,
-    marginBottom: '10px'
-  },
-  editTextarea: {
-    width: '100%',
-    minHeight: '80px',
-    padding: '12px',
-    border: '1px solid #4CAF50',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    resize: 'vertical',
-    boxSizing: 'border-box' as const,
-    marginBottom: '10px'
-  },
-  button: {
-    padding: '10px 20px',
-    border: 'none',
-    borderRadius: '4px',
-    color: 'white',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'opacity 0.2s'
-  },
-  smallButton: {
-    padding: '8px 16px',
-    border: 'none',
-    borderRadius: '4px',
-    color: 'white',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    fontSize: '12px',
-    marginRight: '8px'
-  },
-  commentsList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '15px'
-  },
-  commentCard: {
-    backgroundColor: 'white',
-    padding: '15px',
-    borderRadius: '8px',
-    border: '1px solid #e0e0e0',
-    transition: 'box-shadow 0.2s'
-  },
-  commentHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '10px'
-  },
-  commenterName: {
-    margin: '0 0 5px 0',
-    color: '#333',
-    fontSize: '14px',
-    fontWeight: 'bold'
-  },
-  commentDate: {
-    fontSize: '12px',
-    color: '#999'
-  },
-  commentContent: {
-    margin: '10px 0',
-    color: '#555',
-    lineHeight: '1.6',
-    wordBreak: 'break-word' as const
-  },
-  commentActions: {
-    display: 'flex',
-    gap: '15px',
-    marginTop: '10px'
-  },
-  actionButton: {
-    border: 'none',
-    background: 'none',
-    cursor: 'pointer',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    padding: 0,
-    transition: 'opacity 0.2s'
-  },
-  editForm: {
-    backgroundColor: '#f9f9f9',
-    padding: '10px',
-    borderRadius: '4px',
-    marginTop: '10px'
-  },
-  editActions: {
-    display: 'flex',
-    gap: '10px'
-  },
-  spinner: {
-    padding: '20px',
-    textAlign: 'center' as const,
-    color: '#999',
-    fontSize: '14px'
-  },
-  emptyState: {
-    padding: '40px 20px',
-    textAlign: 'center' as const,
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    border: '1px solid #ddd'
-  },
-  emptyText: {
-    color: '#999',
-    margin: 0,
-    fontSize: '14px'
-  },
-  error: {
-    padding: '12px',
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    borderRadius: '4px',
-    marginBottom: '15px',
-    border: '1px solid #ef5350',
-    fontSize: '14px'
-  }
 };
 
 export default CommentSection;
