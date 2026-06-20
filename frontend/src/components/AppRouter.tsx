@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Login from './Login';
 import Registration from './Registration';
+import RegisterWithLink from './RegisterWithLink';
 import ForgotPassword from './ForgotPassword';
 import ResetPassword from './ResetPassword';
 import VerifyEmail from './VerifyEmail';
@@ -31,6 +32,7 @@ const AppRouter: React.FC = () => {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Registration />} />
+        <Route path="/register/:hash" element={<RegisterWithLink />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />

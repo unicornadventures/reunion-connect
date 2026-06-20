@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { query } from '../db.ts';
 import { generateResetToken, verifyResetToken } from '../services/tokenService.ts';
 import { sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService.ts';
+import { decodeRegistrationHash } from '../utils/registrationLink.ts';
 
 const router = Router();
 
@@ -96,9 +97,43 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// GET /api/auth/registration-link/:hash
+router.get('/registration-link/:hash', async (req, res) => {
+  const { hash } = req.params;
+
+  try {
+    const data = decodeRegistrationHash(hash);
+    if (!data) {
+      return res.status(400).json({ error: 'Invalid registration link.' });
+    }
+
+    const { schoolId, classId } = data;
+
+    // Fetch school info
+    const schoolResult = await query('SELECT id, name, location FROM schools WHERE id = $1', [schoolId]);
+    if (schoolResult.rows.length === 0) {
+      return res.status(404).json({ error: 'School not found.' });
+    }
+
+    // Fetch class info
+    const classResult = await query('SELECT id, year FROM classes WHERE id = $1 AND school_id = $2', [classId, schoolId]);
+    if (classResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found.' });
+    }
+
+    res.status(200).json({
+      school: schoolResult.rows[0],
+      class: classResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Registration Link Decode Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { email, password, confirmPassword, firstName, lastName } = req.body;
+  const { email, password, confirmPassword, firstName, lastName, schoolId, classId } = req.body;
 
   if (!email || !password || !confirmPassword) {
     return res.status(400).json({ error: 'Email, password, and password confirmation are required.' });
@@ -138,6 +173,21 @@ router.post('/register', async (req, res) => {
       'INSERT INTO profiles (user_id, first_name, last_name) VALUES ($1, $2, $3)',
       [user.id, firstName || null, lastName || null]
     );
+
+    // If schoolId and classId provided, add user to class
+    if (schoolId && classId) {
+      const classExists = await query(
+        'SELECT id FROM classes WHERE id = $1 AND school_id = $2',
+        [classId, schoolId]
+      );
+
+      if (classExists.rows.length > 0) {
+        await query(
+          'INSERT INTO class_user (class_id, user_id) VALUES ($1, $2)',
+          [classId, user.id]
+        );
+      }
+    }
 
     // Generate email verification token
     const { token, hash, expiresAt } = generateResetToken();

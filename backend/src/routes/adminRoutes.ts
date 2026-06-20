@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.ts';
 import { seedAdminUser } from '../seed.ts';
+import { encodeRegistrationHash } from '../utils/registrationLink.ts';
 
 const router = express.Router();
 
@@ -108,6 +109,40 @@ router.get('/classes/:classId/users', async (req, res) => {
     res.status(200).json({ users: result.rows, total, page, pageSize });
   } catch (error) {
     console.error('Get Class Users Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// POST /api/admin/registration-links
+router.post('/registration-links', async (req, res) => {
+  const { classId, schoolId } = req.body;
+
+  if (!classId || !schoolId) {
+    return res.status(400).json({ error: 'Missing required fields: classId and schoolId.' });
+  }
+
+  try {
+    // Verify class exists
+    const classResult = await query(
+      'SELECT id, year FROM classes WHERE id = $1 AND school_id = $2',
+      [classId, schoolId]
+    );
+
+    if (classResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found.' });
+    }
+
+    // Generate hash
+    const hash = encodeRegistrationHash(schoolId, classId);
+    const registrationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/register/${hash}`;
+
+    res.status(200).json({
+      hash,
+      registrationUrl,
+      class: classResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Generate Registration Link Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });

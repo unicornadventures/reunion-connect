@@ -12,6 +12,9 @@ const mockDb = {
     { id: 2, user_id: 2, first_name: 'John', last_name: 'Doe' },
     { id: 3, user_id: 3, first_name: 'Jane', last_name: 'Smith' }
   ],
+  schools: [
+    { id: 1, name: 'High School A', location: 'City 1' }
+  ],
   classes: [
     { id: 1, school_id: 1, year: 2020 }
   ],
@@ -75,6 +78,21 @@ jest.mock('../../db', () => ({
         })
         .filter(Boolean);
       return { rows: users };
+    }
+
+    // SELECT school by id
+    if (sql.includes('SELECT id, name, location FROM schools WHERE id')) {
+      const schoolId = parseInt(params?.[0]);
+      const school = mockDb.schools.find(s => s.id === schoolId);
+      return { rows: school ? [school] : [] };
+    }
+
+    // SELECT class by id and school_id
+    if (sql.includes('SELECT id, year FROM classes WHERE id') && sql.includes('AND school_id')) {
+      const classId = parseInt(params?.[0]);
+      const schoolId = parseInt(params?.[1]);
+      const classInfo = mockDb.classes.find(c => c.id === classId && c.school_id === schoolId);
+      return { rows: classInfo ? [classInfo] : [] };
     }
 
     return { rows: [] };
@@ -270,6 +288,89 @@ describe('Admin Routes', () => {
       });
 
       const response = await request(app).get('/api/admin/classes/1/users');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/admin/registration-links', () => {
+    it('should generate registration link for valid school and class', async () => {
+      const response = await request(app)
+        .post('/api/admin/registration-links')
+        .send({
+          schoolId: 1,
+          classId: 1
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('hash');
+      expect(response.body).toHaveProperty('registrationUrl');
+      expect(response.body).toHaveProperty('class');
+      expect(response.body.class.year).toBe(2020);
+    });
+
+    it('should return 400 for missing schoolId', async () => {
+      const response = await request(app)
+        .post('/api/admin/registration-links')
+        .send({
+          classId: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('schoolId');
+    });
+
+    it('should return 400 for missing classId', async () => {
+      const response = await request(app)
+        .post('/api/admin/registration-links')
+        .send({
+          schoolId: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toContain('classId');
+    });
+
+    it('should return 404 for non-existent class', async () => {
+      const response = await request(app)
+        .post('/api/admin/registration-links')
+        .send({
+          schoolId: 1,
+          classId: 999
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 404 for non-existent school', async () => {
+      const response = await request(app)
+        .post('/api/admin/registration-links')
+        .send({
+          schoolId: 999,
+          classId: 1
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/registration-links')
+        .send({
+          schoolId: 1,
+          classId: 1
+        });
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');

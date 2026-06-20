@@ -32,6 +32,13 @@ const mockDb = {
       updated_at: new Date()
     }
   ],
+  schools: [
+    { id: 1, name: 'High School A', location: 'City 1' }
+  ],
+  classes: [
+    { id: 1, school_id: 1, year: 2020 }
+  ],
+  classUsers: [] as any[],
   passwordResetTokens: [] as any[],
   emailVerificationTokens: [] as any[]
 };
@@ -179,6 +186,37 @@ jest.mock('../../db', () => ({
       return { rows: [] };
     }
 
+    // SELECT school by id
+    if (sql.includes('SELECT id, name, location FROM schools WHERE id')) {
+      const schoolId = parseInt(params?.[0]);
+      const school = mockDb.schools.find(s => s.id === schoolId);
+      return { rows: school ? [school] : [] };
+    }
+
+    // SELECT class by id and school_id (for registration link lookup)
+    if (sql.includes('SELECT id, year FROM classes WHERE id') && sql.includes('AND school_id')) {
+      const classId = parseInt(params?.[0]);
+      const schoolId = parseInt(params?.[1]);
+      const classInfo = mockDb.classes.find(c => c.id === classId && c.school_id === schoolId);
+      return { rows: classInfo ? [classInfo] : [] };
+    }
+
+    // SELECT id FROM classes WHERE id and school_id (for registration validation)
+    if (sql.includes('SELECT id FROM classes WHERE id') && sql.includes('AND school_id')) {
+      const classId = parseInt(params?.[0]);
+      const schoolId = parseInt(params?.[1]);
+      const classInfo = mockDb.classes.find(c => c.id === classId && c.school_id === schoolId);
+      return { rows: classInfo ? [{ id: classInfo.id }] : [] };
+    }
+
+    // INSERT into class_user
+    if (sql.includes('INSERT INTO class_user')) {
+      const classId = parseInt(params?.[0]);
+      const userId = parseInt(params?.[1]);
+      mockDb.classUsers.push({ id: mockDb.classUsers.length + 1, class_id: classId, user_id: userId });
+      return { rows: [] };
+    }
+
     return { rows: [] };
   })
 }));
@@ -202,6 +240,7 @@ describe('Auth Routes', () => {
     // Reset mock data
     mockDb.passwordResetTokens = [];
     mockDb.emailVerificationTokens = [];
+    mockDb.classUsers = [];
     mockDb.users = [
       {
         id: 1,
@@ -758,4 +797,5 @@ describe('Auth Routes', () => {
       expect(response.body).toHaveProperty('error');
     });
   });
+
 });
