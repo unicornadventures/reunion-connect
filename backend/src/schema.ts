@@ -42,6 +42,7 @@ export async function initializeDatabase() {
         password VARCHAR(255) NOT NULL,
         is_admin BOOLEAN DEFAULT FALSE,
         is_class_admin BOOLEAN DEFAULT FALSE,
+        email_verified BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -55,6 +56,13 @@ export async function initializeDatabase() {
       ADD COLUMN IF NOT EXISTS is_class_admin BOOLEAN DEFAULT FALSE;
     `;
     await query(addClassAdminColumn);
+
+    // Add email_verified column if it doesn't exist
+    const addEmailVerifiedColumn = `
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+    `;
+    await query(addEmailVerifiedColumn);
 
     // 4. Create Profile Table - User profile data
     const createProfileTable = `

@@ -260,4 +260,48 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// POST /api/auth/verify-email
+router.post('/verify-email', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Verification token is required.' });
+  }
+
+  try {
+    // Find valid verification token
+    const tokenResult = await query(
+      'SELECT user_id FROM email_verification_tokens WHERE expires_at > NOW() AND verified = FALSE ORDER BY created_at DESC LIMIT 1'
+    );
+
+    if (tokenResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired verification token.' });
+    }
+
+    const verificationRecord = tokenResult.rows[0];
+    const isValid = verifyResetToken(verificationRecord.token_hash, token);
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired verification token.' });
+    }
+
+    // Mark email as verified
+    await query(
+      'UPDATE users SET email_verified = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [verificationRecord.user_id]
+    );
+
+    // Mark token as used
+    await query(
+      'UPDATE email_verification_tokens SET verified = TRUE WHERE user_id = $1',
+      [verificationRecord.user_id]
+    );
+
+    res.status(200).json({ message: 'Email verified successfully. You can now login to your account.' });
+  } catch (error) {
+    console.error('Verify Email Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as authRoutes };
