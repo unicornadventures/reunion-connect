@@ -266,4 +266,62 @@ describe('Photo Routes', () => {
       expect(response.status).toBe(404);
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in photo upload', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/users/1/photo/then')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle S3 service error in presigned URL generation', async () => {
+      const s3Service = require('../../s3Service');
+      s3Service.generatePresignedUrl.mockImplementationOnce(async () => {
+        throw new Error('S3 error');
+      });
+
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/then')
+        .send({ fileName: 'test.jpg' });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in PUT photo', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({ photoUrl: 'https://example.com/photo.jpg' });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle S3 upload error', async () => {
+      const s3Service = require('../../s3Service');
+      s3Service.uploadFileToS3.mockImplementationOnce(async () => {
+        throw new Error('Upload failed');
+      });
+
+      const response = await request(app)
+        .post('/api/users/1/photo/then')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });
