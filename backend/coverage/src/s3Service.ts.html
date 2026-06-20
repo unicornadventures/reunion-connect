@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">23.61% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>34/144</span>
+                <span class='fraction'>0/144</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>0/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>0/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">23.61% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>34/144</span>
+                <span class='fraction'>0/144</span>
             </div>
         
             
@@ -207,28 +207,7 @@
 <a name='L142'></a><a href='#L142'>142</a>
 <a name='L143'></a><a href='#L143'>143</a>
 <a name='L144'></a><a href='#L144'>144</a>
-<a name='L145'></a><a href='#L145'>145</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<a name='L145'></a><a href='#L145'>145</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -246,8 +225,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -269,8 +246,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -320,14 +295,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -351,28 +318,61 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import axios from 'axios';
-import dotenv from 'dotenv';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-&nbsp;
-dotenv.config();
-&nbsp;
-const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://localhost:4566';
-const BUCKET_NAME = 'class-reunion-photos';
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-&nbsp;
-const s3Client = new S3Client({
-  endpoint: S3_ENDPOINT,
-  region: AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
-  },
-  forcePathStyle: true,
-});
-&nbsp;
-export <span class="fstat-no" title="function not covered" >async function generatePresignedUrl(userId: number, fileName: string): Promise&lt;string&gt; {</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >import axios from 'axios';</span></span></span>
+<span class="cstat-no" title="statement not covered" >import dotenv from 'dotenv';</span>
+<span class="cstat-no" title="statement not covered" >import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';</span>
+<span class="cstat-no" title="statement not covered" >import { getSignedUrl } from '@aws-sdk/s3-request-presigner';</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >dotenv.config();</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://localhost:4566';</span>
+<span class="cstat-no" title="statement not covered" >const BUCKET_NAME = 'class-reunion-photos';</span>
+<span class="cstat-no" title="statement not covered" >const AWS_REGION = process.env.AWS_REGION || 'us-east-1';</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >const s3Client = new S3Client({</span>
+<span class="cstat-no" title="statement not covered" >  endpoint: S3_ENDPOINT,</span>
+<span class="cstat-no" title="statement not covered" >  region: AWS_REGION,</span>
+<span class="cstat-no" title="statement not covered" >  credentials: {</span>
+<span class="cstat-no" title="statement not covered" >    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',</span>
+<span class="cstat-no" title="statement not covered" >    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',</span>
+<span class="cstat-no" title="statement not covered" >  },</span>
+<span class="cstat-no" title="statement not covered" >  forcePathStyle: true,</span>
+<span class="cstat-no" title="statement not covered" >});</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export async function generatePresignedUrl(userId: number, fileName: string): Promise&lt;string&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  console.log(`[S3] Generating presigned URL for user ${userId} and file ${fileName}.`);</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  const key = `photos/${userId}/${fileName}`;</span>
@@ -390,8 +390,8 @@ export <span class="fstat-no" title="function not covered" >async function gener
 <span class="cstat-no" title="statement not covered" >    throw new Error('Failed to generate presigned URL.');</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
 <span class="cstat-no" title="statement not covered" >}</span>
-&nbsp;
-export <span class="fstat-no" title="function not covered" >async function uploadFileToS3(userId: number, fileName: string, fileBuffer: Buffer): Promise&lt;string&gt; {</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export async function uploadFileToS3(userId: number, fileName: string, fileBuffer: Buffer): Promise&lt;string&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  console.log(`[S3] Uploading file ${fileName} for user ${userId}.`);</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  const key = `photos/${userId}/${fileName}`;</span>
@@ -413,8 +413,8 @@ export <span class="fstat-no" title="function not covered" >async function uploa
 <span class="cstat-no" title="statement not covered" >    throw new Error('Failed to upload file to S3.');</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
 <span class="cstat-no" title="statement not covered" >}</span>
-&nbsp;
-export <span class="fstat-no" title="function not covered" >async function deleteUserPhotosFromS3(userId: number): Promise&lt;void&gt; {</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export async function deleteUserPhotosFromS3(userId: number): Promise&lt;void&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  console.log(`[S3] Deleting all photos for user ${userId}.`);</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
@@ -464,14 +464,14 @@ export <span class="fstat-no" title="function not covered" >async function delet
 <span class="cstat-no" title="statement not covered" >    // Don't throw - we still want to delete the user even if S3 cleanup fails</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
 <span class="cstat-no" title="statement not covered" >}</span>
-&nbsp;
-/**
- * Updates the user's photo URL in the database after a successful S3 upload.
- * @param userId The ID of the user whose photo was updated.
- * @param url The final URL provided by S3.
- * @param photoType Then or Now
- */
-export <span class="fstat-no" title="function not covered" >async function updatePhotoUrlInDatabase(</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * Updates the user's photo URL in the database after a successful S3 upload.</span>
+<span class="cstat-no" title="statement not covered" > * @param userId The ID of the user whose photo was updated.</span>
+<span class="cstat-no" title="statement not covered" > * @param url The final URL provided by S3.</span>
+<span class="cstat-no" title="statement not covered" > * @param photoType Then or Now</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function updatePhotoUrlInDatabase(</span>
 <span class="cstat-no" title="statement not covered" >    userId: number,</span>
 <span class="cstat-no" title="statement not covered" >    url: string,</span>
 <span class="cstat-no" title="statement not covered" >    photoType: 'then' | 'now'</span>
@@ -502,7 +502,7 @@ export <span class="fstat-no" title="function not covered" >async function updat
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-20T14:47:16.926Z
+                at 2026-06-20T14:51:30.177Z
             </div>
         <script src="../prettify.js"></script>
         <script>
