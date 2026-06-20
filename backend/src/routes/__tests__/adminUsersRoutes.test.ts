@@ -263,4 +263,63 @@ describe('Admin Users Routes', () => {
       expect([400, 404]).toContain(response.status);
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in POST seed', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/seed')
+        .send({ password: 'AdminPassword123!' });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in GET users', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/admin/users');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in GET class users', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .get('/api/admin/classes/1/users')
+        .query({ page: 1, pageSize: 10 });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in DELETE user', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .delete('/api/admin/users/1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });

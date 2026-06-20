@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">13.33% </span>
+                <span class="strong">35.55% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/45</span>
+                <span class='fraction'>16/45</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">50% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">13.33% </span>
+                <span class="strong">35.55% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/45</span>
+                <span class='fraction'>16/45</span>
             </div>
         
             
@@ -113,6 +113,10 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -142,26 +146,22 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import bcrypt from 'bcryptjs';
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">import bcrypt from 'bcryptjs';
 import { query } from './db.ts';
 &nbsp;
 const SALT_ROUNDS = 10;
 &nbsp;
-export <span class="fstat-no" title="function not covered" >async function seedAdminUser(password: string) {</span>
-<span class="cstat-no" title="statement not covered" >  console.log('🔨 Starting global admin user seeding process...');</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    await query('BEGIN');</span>
-<span class="cstat-no" title="statement not covered" ></span>
+export async function seedAdminUser(password: string) {
+  console.log('🔨 Starting global admin user seeding process...');
+&nbsp;
+  try {
+    await query('BEGIN');
+<span class="cstat-no" title="statement not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span>
 <span class="cstat-no" title="statement not covered" >    // 1. Check for duplicates to protect against primary key violations</span>
 <span class="cstat-no" title="statement not covered" >    const existingUser = await query('SELECT id FROM users WHERE email = $1', ['admin@reunion.com']);</span>
 <span class="cstat-no" title="statement not covered" >    if (existingUser.rows.length &gt; 0) {</span>
@@ -190,19 +190,19 @@ export <span class="fstat-no" title="function not covered" >async function seedA
 <span class="cstat-no" title="statement not covered" >    await query('COMMIT');</span>
 <span class="cstat-no" title="statement not covered" >    console.log('🎉 Global Admin User created successfully! ID:', adminUserId);</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  } catch (error: any) {</span>
-<span class="cstat-no" title="statement not covered" >    await query('ROLLBACK');</span>
-<span class="cstat-no" title="statement not covered" >    console.error('❌ FATAL: Failed to seed admin user.', error.message);</span>
-<span class="cstat-no" title="statement not covered" >    throw error;</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
-<span class="cstat-no" title="statement not covered" >}</span></pre></td></tr></table></pre>
+  } catch (error: any) {
+    await query('ROLLBACK');
+    console.error('❌ FATAL: Failed to seed admin user.', error.message);
+    throw error;
+  }
+}</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-20T15:09:35.827Z
+                at 2026-06-20T15:11:14.015Z
             </div>
         <script src="../prettify.js"></script>
         <script>
