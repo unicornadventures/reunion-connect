@@ -280,4 +280,63 @@ describe('Admin Event Routes', () => {
       expect(response.status).toBe(404);
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in POST', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/admin/events')
+        .send({
+          class_id: 1,
+          event_name: 'Error Test',
+          event_date: '2026-12-20',
+          event_time: '18:00',
+          location: 'Restaurant'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in PUT', async () => {
+      const { query } = require('../../db');
+      let callCount = 0;
+      query.mockImplementation(async (sql: string, params?: any[]) => {
+        callCount++;
+        if (callCount === 1 && sql.includes('SELECT id FROM classes')) {
+          return { rows: [{ id: 1 }] };
+        }
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .put('/api/admin/events/1')
+        .send({
+          event_name: 'Error Test',
+          event_date: '2026-12-20',
+          event_time: '18:00',
+          location: 'Restaurant'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in DELETE', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .delete('/api/admin/events/1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });
