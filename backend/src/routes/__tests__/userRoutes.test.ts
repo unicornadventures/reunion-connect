@@ -3,8 +3,8 @@ import request from 'supertest';
 
 const mockDb = {
   users: [
-    { id: 1, email: 'user1@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date() },
-    { id: 2, email: 'user2@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date() }
+    { id: 1, email: 'user1@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date(), updated_at: new Date() },
+    { id: 2, email: 'user2@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date(), updated_at: new Date() }
   ],
   profiles: [
     {
@@ -44,11 +44,38 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
+    // Transaction control
+    if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+      return { rows: [] };
+    }
+
     // SELECT user by id
     if (sql.includes('SELECT') && sql.includes('users') && sql.includes('WHERE id')) {
       const userId = parseInt(params?.[0]);
       const user = mockDb.users.find(u => u.id === userId);
       return { rows: user ? [user] : [] };
+    }
+
+    // SELECT user by email (for checking duplicates)
+    if (sql.includes('SELECT id FROM users WHERE email')) {
+      const email = params?.[0];
+      const userId = params?.[1];
+      const user = mockDb.users.find(u => u.email === email && u.id !== userId);
+      return { rows: user ? [{ id: user.id }] : [] };
+    }
+
+    // INSERT user
+    if (sql.includes('INSERT INTO users')) {
+      const user = {
+        id: Math.max(...mockDb.users.map(u => u.id), 0) + 1,
+        email: params?.[0],
+        password: params?.[1],
+        is_admin: params?.[2] || false,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      mockDb.users.push(user);
+      return { rows: [user] };
     }
 
     // SELECT profile by user_id
@@ -76,26 +103,56 @@ jest.mock('../../db', () => ({
       return { rows: [profile] };
     }
 
+    // UPDATE user email
+    if (sql.includes('UPDATE users SET email')) {
+      const email = params?.[0];
+      const userId = parseInt(params?.[1]);
+      const user = mockDb.users.find(u => u.id === userId);
+      if (user) {
+        user.email = email;
+        user.updated_at = new Date();
+        return { rows: [] };
+      }
+      return { rows: [] };
+    }
+
     // UPDATE profile
     if (sql.includes('UPDATE profiles SET')) {
       const userId = parseInt(params?.[params.length - 1]);
       const profile = mockDb.profiles.find(p => p.user_id === userId);
       if (profile) {
         // Handle different update fields
-        if (sql.includes('bio')) {
+        if (sql.includes('bio') && sql.includes('nickname_school')) {
           profile.bio = params?.[0];
-        } else if (sql.includes('first_name')) {
-          profile.first_name = params?.[0];
-          profile.last_name = params?.[1];
-        } else if (sql.includes('then_photo_url')) {
-          profile.then_photo_url = params?.[0];
-        } else if (sql.includes('now_photo_url')) {
-          profile.now_photo_url = params?.[0];
+          profile.nickname_school = params?.[1];
+        } else if (sql.includes('bio')) {
+          profile.bio = params?.[0];
+        } else if (sql.includes('nickname_school')) {
+          profile.nickname_school = params?.[0];
         }
         profile.updated_at = new Date();
         return { rows: [profile] };
       }
       return { rows: [] };
+    }
+
+    // CHECK if users in same class
+    if (sql.includes('SELECT cu1.class_id') && sql.includes('JOIN class_user cu2')) {
+      const userId1 = params?.[0];
+      const userId2 = params?.[1];
+      const cu1 = mockDb.classUsers.find(cu => cu.user_id === userId1);
+      const cu2 = mockDb.classUsers.find(cu => cu.user_id === userId2);
+      if (cu1 && cu2 && cu1.class_id === cu2.class_id) {
+        return { rows: [{ class_id: cu1.class_id }] };
+      }
+      return { rows: [] };
+    }
+
+    // SELECT user is_admin
+    if (sql.includes('SELECT is_admin FROM users')) {
+      const userId = parseInt(params?.[0]);
+      const user = mockDb.users.find(u => u.id === userId);
+      return { rows: user ? [{ is_admin: user.is_admin }] : [] };
     }
 
     // SELECT class by user
@@ -383,6 +440,220 @@ describe('User Routes', () => {
       const response = await request(app)
         .put('/api/users/1/profile')
         .send({ bio: 'Test' });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/users/register - Edge Cases', () => {
+    it('should reject missing email', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing first_name', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing last_name', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          first_name: 'John',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing password', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing class_id', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject non-existent class_id', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'newuser123@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 999
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('class_id does not exist');
+    });
+
+    it('should handle database error during registration', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'newuser@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/users/register - Edge Cases', () => {
+    it('should reject missing email', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing first_name', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing last_name', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          first_name: 'John',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing password', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject missing class_id', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'test@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
+    });
+
+    it('should reject non-existent class_id', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'newuser123@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 999
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('class_id does not exist');
+    });
+
+    it('should handle database error during registration', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'newuser@test.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          password: 'Password123!',
+          class_id: 1
+        });
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');

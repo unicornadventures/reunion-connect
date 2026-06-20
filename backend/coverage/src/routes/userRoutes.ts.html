@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">61.29% </span>
+                <span class="strong">70.25% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>171/279</span>
+                <span class='fraction'>196/279</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">82.92% </span>
+                <span class="strong">82.69% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>34/41</span>
+                <span class='fraction'>43/52</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">61.29% </span>
+                <span class="strong">70.25% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>171/279</span>
+                <span class='fraction'>196/279</span>
             </div>
         
             
@@ -367,6 +367,22 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -400,33 +416,17 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -645,23 +645,23 @@ const SALT_ROUNDS = 10;
 &nbsp;
 // POST /api/users/register
 router.post('/register', async (req, res) =&gt; {
-<span class="cstat-no" title="statement not covered" >  const { email, first_name, last_name, password, class_id } = req.body;</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  if (!email || !first_name || !last_name || !password || !class_id) {</span>
-<span class="cstat-no" title="statement not covered" >    return res.status(400).json({ error: 'Missing required fields.' });</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    // Start a transaction to guarantee data integrity</span>
-<span class="cstat-no" title="statement not covered" >    await query('BEGIN');</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    // 1. Verify class exists</span>
-<span class="cstat-no" title="statement not covered" >    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [class_id]);</span>
-<span class="cstat-no" title="statement not covered" >    if (classCheck.rows.length === 0) {</span>
-<span class="cstat-no" title="statement not covered" >      await query('ROLLBACK');</span>
-<span class="cstat-no" title="statement not covered" >      return res.status(400).json({ error: 'Provided class_id does not exist.' });</span>
-<span class="cstat-no" title="statement not covered" >    }</span>
-<span class="cstat-no" title="statement not covered" ></span>
+  const { email, first_name, last_name, password, class_id } = req.body;
+&nbsp;
+  if (!email || !first_name || !last_name || !password || !class_id) {
+    return res.status(400).json({ error: 'Missing required fields.' });
+  }
+&nbsp;
+  try {
+    // Start a transaction to guarantee data integrity
+    await query('BEGIN');
+&nbsp;
+    // 1. Verify class exists
+    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [class_id]);
+    if (classCheck.rows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(400).json({ error: 'Provided class_id does not exist.' });
+    }
+<span class="cstat-no" title="statement not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span>
 <span class="cstat-no" title="statement not covered" >    // 2. Hash password securely</span>
 <span class="cstat-no" title="statement not covered" >    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -694,17 +694,17 @@ router.post('/register', async (req, res) =&gt; {
 <span class="cstat-no" title="statement not covered" >      }</span>
 <span class="cstat-no" title="statement not covered" >    });</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  } catch (error: any) {</span>
-<span class="cstat-no" title="statement not covered" >    await query('ROLLBACK');</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    // Handle duplicate email constraint (PostgreSQL error code 23505)</span>
-<span class="cstat-no" title="statement not covered" >    if (error.code === '23505') {</span>
+  } catch (error: any) {
+    await query('ROLLBACK');
+&nbsp;
+    // Handle duplicate email constraint (PostgreSQL error code 23505)
+    if (error.code === '23505') <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(409).json({ error: 'User already exists.' });</span>
 <span class="cstat-no" title="statement not covered" >    }</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    console.error("Registration Error:", error.message);</span>
-<span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: 'Internal server error during registration.' });</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
+&nbsp;
+    console.error("Registration Error:", error.message);
+    res.status(500).json({ error: 'Internal server error during registration.' });
+  }
 });
 &nbsp;
 // GET /api/users/:id
@@ -904,7 +904,7 @@ export { router as userRoutes };</pre></td></tr></table></pre>
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-20T15:24:36.284Z
+                at 2026-06-20T15:34:29.365Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
