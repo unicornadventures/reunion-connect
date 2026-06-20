@@ -1,12 +1,17 @@
-export default {
+module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  rootDir: './',
-  testMatch: ['**/__tests__/**/*.test.ts'],
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  moduleFileExtensions: ['ts', 'js', 'json'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/server.ts'
   ],
-  moduleFileExtensions: ['ts', 'js']
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/'
+  ],
+  testTimeout: 10000
 };
