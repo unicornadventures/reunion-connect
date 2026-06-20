@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { Comment } from '../types';
+import ConfirmModal from './ConfirmModal';
 
 interface CommentWithProfile extends Comment {
   target_user_profile?: {
@@ -16,6 +17,7 @@ const AdminCommentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
 
   useEffect(() => {
     fetchAllUnpublishedComments();
@@ -83,16 +85,24 @@ const AdminCommentsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteComment = async (commentId: number) => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) {
-      return;
-    }
+  const openDeleteModal = (commentId: number) => {
+    setDeleteModal({ isOpen: true, id: commentId });
+  };
 
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, id: null });
+  };
+
+  const handleDeleteComment = async () => {
+    if (deleteModal.id === null) return;
+
+    const commentId = deleteModal.id;
     setActionLoading(commentId);
     try {
       await api.delete(`/comments/${commentId}`);
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
+      closeDeleteModal();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete comment.');
     } finally {
@@ -152,7 +162,7 @@ const AdminCommentsPage: React.FC = () => {
 
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => handleDeleteComment(comment.id)}
+                  onClick={() => openDeleteModal(comment.id)}
                   disabled={actionLoading === comment.id}
                   className={`px-4 py-2 rounded text-sm font-bold border-none cursor-pointer transition-opacity ${
                     actionLoading === comment.id
@@ -178,6 +188,17 @@ const AdminCommentsPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        onConfirm={handleDeleteComment}
+        onCancel={closeDeleteModal}
+      />
     </div>
   );
 };

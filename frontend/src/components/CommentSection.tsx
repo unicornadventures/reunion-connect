@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { Comment } from '../types';
+import ConfirmModal from './ConfirmModal';
 
 const CommentSection: React.FC = () => {
   const { currentUser } = useAppContext();
@@ -12,6 +13,7 @@ const CommentSection: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
 
   const fetchComments = async () => {
     if (!currentUser?.user_id) return;
@@ -86,15 +88,23 @@ const CommentSection: React.FC = () => {
     }
   };
 
-  const handleDeleteComment = async (commentId: number) => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) {
-      return;
-    }
+  const openDeleteModal = (commentId: number) => {
+    setDeleteModal({ isOpen: true, id: commentId });
+  };
 
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, id: null });
+  };
+
+  const handleDeleteComment = async () => {
+    if (deleteModal.id === null) return;
+
+    const commentId = deleteModal.id;
     try {
       await api.delete(`/comments/${commentId}`);
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
+      closeDeleteModal();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete comment.');
     }
@@ -201,7 +211,7 @@ const CommentSection: React.FC = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDeleteComment(comment.id)}
+                      onClick={() => openDeleteModal(comment.id)}
                       className="border-none bg-none cursor-pointer text-xs font-bold text-[#f44336] p-0 transition-opacity hover:opacity-70"
                     >
                       Delete
@@ -213,6 +223,17 @@ const CommentSection: React.FC = () => {
           ))
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        onConfirm={handleDeleteComment}
+        onCancel={closeDeleteModal}
+      />
     </div>
   );
 };
