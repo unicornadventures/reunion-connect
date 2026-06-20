@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import { query } from '../db.ts';
 
 const router = express.Router();
