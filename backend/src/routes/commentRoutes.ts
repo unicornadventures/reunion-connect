@@ -4,32 +4,32 @@ import { query } from '../db.ts';
 const router = express.Router();
 
 // Helper function to check if user is authorized to moderate comments
-async function canModerateComments(userId: number, targetUserId: number): Promise<boolean> {
-  // Profile owner can moderate
+// userId: the user trying to moderate
+// commenterId: the user who created the comment
+// targetUserId: the user whose profile the comment is on
+async function canModerateComments(userId: number, commenterId: number, targetUserId: number): Promise<boolean> {
+  // Profile owner can moderate comments on their profile
   if (userId === targetUserId) return true;
 
-  // Super admin can moderate
-  const userResult = await query('SELECT is_admin FROM users WHERE id = $1', [userId]);
-  if (userResult.rows.length > 0 && userResult.rows[0].is_admin) return true;
+  // Super admin can moderate any comment
+  const userResult = await query('SELECT is_admin, is_class_admin FROM users WHERE id = $1', [userId]);
+  if (userResult.rows.length === 0) return false;
 
-  // Class admin can moderate if in same class
-  const classResult = await query(`
-    SELECT cu1.class_id
-    FROM class_user cu1
-    WHERE cu1.user_id = $1
-    AND cu1.class_id IN (
-      SELECT cu2.class_id FROM class_user cu2 WHERE cu2.user_id = $2
-    )
-  `, [userId, targetUserId]);
+  const user = userResult.rows[0];
+  if (user.is_admin) return true;
 
-  if (classResult.rows.length > 0) {
-    const classAdminResult = await query(
-      'SELECT is_class_admin FROM users WHERE id = $1',
-      [userId]
-    );
-    if (classAdminResult.rows.length > 0 && classAdminResult.rows[0].is_class_admin) {
-      return true;
-    }
+  // Class admin can only moderate comments created by users in their class
+  if (user.is_class_admin) {
+    const sameClassResult = await query(`
+      SELECT cu1.class_id
+      FROM class_user cu1
+      WHERE cu1.user_id = $1
+      AND cu1.class_id IN (
+        SELECT cu2.class_id FROM class_user cu2 WHERE cu2.user_id = $2
+      )
+    `, [userId, commenterId]);
+
+    return sameClassResult.rows.length > 0;
   }
 
   return false;
@@ -86,23 +86,27 @@ router.get('/:targetUserId/comments/pending', async (req, res) => {
 
   try {
     const requesterIdNum = parseInt(String(requesterId));
+    const targetUserIdNum = parseInt(targetUserId);
 
-    // Check if requester is authorized to moderate
-    const isAuthorized = await canModerateComments(requesterIdNum, parseInt(targetUserId));
-    if (!isAuthorized) {
-      return res.status(403).json({ error: 'Not authorized to moderate comments.' });
-    }
-
-    // Get all comments (published and unpublished) - anonymous, no commenter names
+    // Get all comments for this profile
     const result = await query(`
       SELECT
         c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at
       FROM comments c
       WHERE c.target_user_id = $1
       ORDER BY c.published ASC, c.created_at DESC;
-    `, [targetUserId]);
+    `, [targetUserIdNum]);
 
-    res.status(200).json({ comments: result.rows });
+    // Filter comments based on authorization for each one
+    const authorizedComments = [];
+    for (const comment of result.rows) {
+      const isAuthorized = await canModerateComments(requesterIdNum, comment.commenter_id, targetUserIdNum);
+      if (isAuthorized) {
+        authorizedComments.push(comment);
+      }
+    }
+
+    res.status(200).json({ comments: authorizedComments });
   } catch (error) {
     console.error('Get Pending Comments Error:', error);
     res.status(500).json({ error: 'Could not fetch comments.' });
@@ -157,7 +161,7 @@ router.put('/:commentId', async (req, res) => {
     // If trying to publish/unpublish, check authorization
     if (published !== undefined && requesterId) {
       const requesterIdNum = parseInt(String(requesterId));
-      const isAuthorized = await canModerateComments(requesterIdNum, comment.target_user_id);
+      const isAuthorized = await canModerateComments(requesterIdNum, comment.commenter_id, comment.target_user_id);
       if (!isAuthorized) {
         return res.status(403).json({ error: 'Not authorized to moderate this comment.' });
       }
