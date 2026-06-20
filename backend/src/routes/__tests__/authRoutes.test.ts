@@ -2,6 +2,8 @@ import express, { Express } from 'express';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import cookieParser from 'cookie-parser';
 
 const mockDb = {
   users: [
@@ -194,6 +196,7 @@ describe('Auth Routes', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    app.use(cookieParser());
     app.use('/api/auth', authRoutes);
     jest.clearAllMocks();
     // Reset mock data
@@ -429,6 +432,80 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(400);
       expect(response.body.error).toContain('match');
     });
+
+    it('should reject reset with short password', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.passwordResetTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        created_at: new Date().toISOString()
+      });
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token,
+          password: 'short',
+          confirmPassword: 'short'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('6 characters');
+    });
+
+    it('should reject reset with missing fields', async () => {
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          password: 'newpassword123'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject reset with expired token', async () => {
+      // Clear all password reset tokens to ensure none are valid
+      mockDb.passwordResetTokens = [];
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: 'any_token_will_fail',
+          password: 'newpassword123',
+          confirmPassword: 'newpassword123'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid or expired');
+    });
+
+    it('should reject reset with token that does not match hash', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.passwordResetTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        created_at: new Date().toISOString()
+      });
+
+      // Provide a different token that won't match the hash
+      const wrongToken = crypto.randomBytes(32).toString('hex');
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: wrongToken,
+          password: 'newpassword123',
+          confirmPassword: 'newpassword123'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid or expired');
+    });
   });
 
   describe('POST /api/auth/verify-email', () => {
@@ -476,6 +553,107 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
     });
+
+    it('should reject verify with missing token', async () => {
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('required');
+    });
+
+    it('should reject verify with expired token', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.emailVerificationTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() - 3600000).toISOString(), // expired
+        verified: false
+      });
+
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ token });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject verify with token that does not match hash', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.emailVerificationTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        verified: false
+      });
+
+      // Provide a different token that won't match the hash
+      const wrongToken = crypto.randomBytes(32).toString('hex');
+
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ token: wrongToken });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Invalid or expired');
+    });
+  });
+
+  describe('GET /api/auth/me', () => {
+    it('should return authenticated user info with valid token', async () => {
+      const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key';
+      const payload = {
+        id: 1,
+        email: 'existing@example.com',
+        is_admin: false
+      };
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', `token=${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user.id).toBe(1);
+    });
+
+    it('should return 401 when not authenticated', async () => {
+      const response = await request(app).get('/api/auth/me');
+
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 403 with invalid token', async () => {
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', 'token=invalid.token.here');
+
+      expect(response.status).toBe(403);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should accept token from Authorization header', async () => {
+      const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key';
+      const payload = {
+        id: 1,
+        email: 'existing@example.com',
+        is_admin: false
+      };
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+
+      const response = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('user');
+    });
   });
 
   describe('POST /api/auth/logout', () => {
@@ -521,6 +699,59 @@ describe('Auth Routes', () => {
           email: 'newuser@example.com',
           password: 'Password123!',
           confirmPassword: 'Password123!'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in forgot-password', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({
+          email: 'existing@example.com'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in reset-password', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: 'valid_token',
+          password: 'newpassword123',
+          confirmPassword: 'newpassword123'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in verify-email', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({
+          token: 'valid_token'
         });
 
       expect(response.status).toBe(500);
