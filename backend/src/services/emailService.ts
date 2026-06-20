@@ -1,16 +1,59 @@
+import AWS from 'aws-sdk';
+
 interface EmailOptions {
   to: string;
   subject: string;
   html: string;
 }
 
-export const sendEmail = async (options: EmailOptions): Promise<void> => {
-  console.log('\n📧 EMAIL SERVICE (Development Mode)');
-  console.log(`To: ${options.to}`);
-  console.log(`Subject: ${options.subject}`);
-  console.log('---');
-  console.log(options.html);
-  console.log('---\n');
+// Initialize AWS SES
+const ses = new AWS.SES({
+  region: process.env.AWS_REGION || 'us-east-1',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+});
+
+// Determine if we're in development mode (use console logging if no AWS credentials)
+const isDevelopment = !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY;
+
+const sendEmail = async (options: EmailOptions): Promise<void> => {
+  if (isDevelopment) {
+    // Development mode: log to console
+    console.log('\n📧 EMAIL SERVICE (Development Mode - AWS SES Disabled)');
+    console.log(`To: ${options.to}`);
+    console.log(`Subject: ${options.subject}`);
+    console.log('---');
+    console.log(options.html);
+    console.log('---\n');
+    return;
+  }
+
+  try {
+    const params = {
+      Source: process.env.SES_FROM_EMAIL || 'noreply@classyear.com',
+      Destination: {
+        ToAddresses: [options.to]
+      },
+      Message: {
+        Subject: {
+          Data: options.subject,
+          Charset: 'UTF-8'
+        },
+        Body: {
+          Html: {
+            Data: options.html,
+            Charset: 'UTF-8'
+          }
+        }
+      }
+    };
+
+    await ses.sendEmail(params).promise();
+    console.log(`✅ Email sent to ${options.to}`);
+  } catch (error) {
+    console.error('❌ Failed to send email:', error);
+    throw new Error('Failed to send email');
+  }
 };
 
 export const sendPasswordResetEmail = async (
