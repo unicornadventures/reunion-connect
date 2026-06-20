@@ -9,11 +9,25 @@ interface UserWithProfile {
   profile: Profile | null;
 }
 
+interface ClassInfo {
+  id: number;
+  year: number;
+  school_id: number;
+}
+
+interface SchoolInfo {
+  id: number;
+  name: string;
+  location?: string;
+}
+
 const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const navigate = useNavigate();
   const { currentUser } = useAppContext();
   const [data, setData] = useState<UserWithProfile | null>(null);
   const [classYear, setClassYear] = useState<number | null>(null);
+  const [school, setSchool] = useState<SchoolInfo | null>(null);
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState<'then' | 'now' | null>(null);
@@ -40,9 +54,15 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
         setEditData(response.data.profile);
       }
 
-      // Fetch class year
+      // Fetch class and school info
       const classResponse = await api.get(`/users/${profileUserId}/class`);
-      setClassYear(classResponse.data.class.year);
+      const classData = classResponse.data.class;
+      setClassYear(classData.year);
+      setClassInfo(classData);
+
+      // Fetch school info
+      const schoolResponse = await api.get(`/schools/${classData.school_id}`);
+      setSchool(schoolResponse.data.school);
 
       setError(null);
     } catch (err: any) {
@@ -201,6 +221,28 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
               </div>
             )}
           </div>
+
+          {/* Class Info Card */}
+          {school && classInfo && (
+            <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] mt-4 overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#EEEEEE]">
+                <h3 className="text-base font-bold text-[#333333]">🎓 Class Info</h3>
+              </div>
+              <div className="p-5 space-y-3">
+                <div>
+                  <div className="text-xs font-semibold text-[#999999]">School</div>
+                  <div className="text-sm text-[#333333] mt-1">{school.name}</div>
+                  {school.location && (
+                    <div className="text-xs text-[#999999] mt-1">{school.location}</div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-[#999999]">Class Year</div>
+                  <div className="text-sm text-[#333333] mt-1">{classInfo.year}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Contact Info Card - Only visible to own profile */}
           {isOwnProfile && (
