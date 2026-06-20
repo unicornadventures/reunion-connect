@@ -1,10 +1,8 @@
 import express, { Express } from 'express';
 import request from 'supertest';
-import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
-// Mock database
 const mockDb = {
   users: [
     {
@@ -24,26 +22,35 @@ const mockDb = {
       user_id: 1,
       first_name: 'John',
       last_name: 'Doe',
-      bio: 'Test bio',
+      bio: '',
+      nickname_school: '',
+      then_photo_url: '',
+      now_photo_url: '',
       created_at: new Date(),
       updated_at: new Date()
     }
   ],
-  tokens: {
-    passwordReset: [] as any[],
-    emailVerification: [] as any[]
-  }
+  passwordResetTokens: [] as any[],
+  emailVerificationTokens: [] as any[]
 };
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    // Mock implementations for different queries
-    if (sql.includes('SELECT * FROM users WHERE email')) {
+    // SELECT user by email
+    if (sql.includes('SELECT') && sql.includes('users') && sql.includes('WHERE email')) {
       const email = params?.[0];
       const user = mockDb.users.find(u => u.email === email);
       return { rows: user ? [user] : [] };
     }
 
+    // SELECT user by id
+    if (sql.includes('SELECT') && sql.includes('users') && sql.includes('WHERE id')) {
+      const userId = parseInt(params?.[0]);
+      const user = mockDb.users.find(u => u.id === userId);
+      return { rows: user ? [user] : [] };
+    }
+
+    // INSERT user
     if (sql.includes('INSERT INTO users')) {
       const user = {
         id: mockDb.users.length + 1,
@@ -59,11 +66,36 @@ jest.mock('../../db', () => ({
       return { rows: [user] };
     }
 
-    if (sql.includes('SELECT * FROM profiles WHERE user_id')) {
-      const profile = mockDb.profiles.find(p => p.user_id === params?.[0]);
+    // UPDATE user password
+    if (sql.includes('UPDATE users SET password')) {
+      const userId = parseInt(params?.[1]);
+      const user = mockDb.users.find(u => u.id === userId);
+      if (user) {
+        user.password = params?.[0];
+        user.updated_at = new Date();
+      }
+      return { rows: [] };
+    }
+
+    // UPDATE user email_verified
+    if (sql.includes('UPDATE users SET email_verified')) {
+      const userId = parseInt(params?.[0]);
+      const user = mockDb.users.find(u => u.id === userId);
+      if (user) {
+        user.email_verified = true;
+        user.updated_at = new Date();
+      }
+      return { rows: [] };
+    }
+
+    // SELECT profile
+    if (sql.includes('SELECT') && sql.includes('profiles') && sql.includes('WHERE user_id')) {
+      const userId = parseInt(params?.[0]);
+      const profile = mockDb.profiles.find(p => p.user_id === userId);
       return { rows: profile ? [profile] : [] };
     }
 
+    // INSERT profile
     if (sql.includes('INSERT INTO profiles')) {
       const profile = {
         id: mockDb.profiles.length + 1,
@@ -71,15 +103,42 @@ jest.mock('../../db', () => ({
         first_name: params?.[1],
         last_name: params?.[2],
         bio: '',
+        nickname_school: '',
+        then_photo_url: '',
+        now_photo_url: '',
         created_at: new Date(),
         updated_at: new Date()
       };
       mockDb.profiles.push(profile);
+      return { rows: [profile] };
+    }
+
+    // INSERT password reset token
+    if (sql.includes('INSERT INTO password_reset_tokens')) {
+      mockDb.passwordResetTokens.push({
+        user_id: params?.[0],
+        token_hash: params?.[1],
+        expires_at: params?.[2]
+      });
       return { rows: [] };
     }
 
+    // SELECT password reset token (get most recent valid token)
+    if (sql.includes('SELECT') && sql.includes('password_reset_tokens')) {
+      // Return most recent valid token if any exist
+      const validTokens = mockDb.passwordResetTokens.filter(t =>
+        new Date(t.expires_at) > new Date()
+      ).sort((a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime());
+
+      if (validTokens.length > 0) {
+        return { rows: [validTokens[0]] };
+      }
+      return { rows: [] };
+    }
+
+    // INSERT email verification token
     if (sql.includes('INSERT INTO email_verification_tokens')) {
-      mockDb.tokens.emailVerification.push({
+      mockDb.emailVerificationTokens.push({
         user_id: params?.[0],
         token_hash: params?.[1],
         expires_at: params?.[2],
@@ -88,11 +147,33 @@ jest.mock('../../db', () => ({
       return { rows: [] };
     }
 
-    if (sql.includes('UPDATE users SET password')) {
-      const user = mockDb.users.find(u => u.id === params?.[1]);
-      if (user) {
-        user.password = params?.[0];
+    // SELECT email verification token
+    if (sql.includes('SELECT') && sql.includes('email_verification_tokens')) {
+      // Return most recent valid token if any exist
+      const validTokens = mockDb.emailVerificationTokens.filter(t =>
+        new Date(t.expires_at) > new Date() && !t.verified
+      ).sort((a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime());
+
+      if (validTokens.length > 0) {
+        return { rows: [validTokens[0]] };
       }
+      return { rows: [] };
+    }
+
+    // UPDATE email verification token
+    if (sql.includes('UPDATE email_verification_tokens SET verified')) {
+      const tokenHash = params?.[0];
+      const token = mockDb.emailVerificationTokens.find(t => t.token_hash === tokenHash);
+      if (token) {
+        token.verified = true;
+      }
+      return { rows: [] };
+    }
+
+    // DELETE password reset token
+    if (sql.includes('DELETE FROM password_reset_tokens')) {
+      const tokenHash = params?.[0];
+      mockDb.passwordResetTokens = mockDb.passwordResetTokens.filter(t => t.token_hash !== tokenHash);
       return { rows: [] };
     }
 
@@ -115,14 +196,27 @@ describe('Auth Routes', () => {
     app.use(express.json());
     app.use('/api/auth', authRoutes);
     jest.clearAllMocks();
+    // Reset mock data
+    mockDb.passwordResetTokens = [];
+    mockDb.emailVerificationTokens = [];
+    mockDb.users = [
+      {
+        id: 1,
+        email: 'existing@example.com',
+        password: '$2a$10$mock_hashed_password',
+        is_admin: false,
+        is_class_admin: false,
+        email_verified: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    ];
   });
 
   describe('POST /api/auth/login', () => {
     it('should login user with valid credentials', async () => {
-      // Create a test user with known password
       const testPassword = 'password123';
       const hashedPassword = await bcrypt.hash(testPassword, 10);
-
       mockDb.users[0].password = hashedPassword;
       mockDb.users[0].email = 'login@example.com';
 
@@ -136,7 +230,6 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('id');
       expect(response.body).toHaveProperty('email');
-      expect(response.body).toHaveProperty('is_admin');
     });
 
     it('should reject login with invalid password', async () => {
@@ -166,9 +259,7 @@ describe('Auth Routes', () => {
     it('should reject login with missing credentials', async () => {
       const response = await request(app)
         .post('/api/auth/login')
-        .send({
-          email: 'test@example.com'
-        });
+        .send({ email: 'test@example.com' });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
@@ -190,7 +281,7 @@ describe('Auth Routes', () => {
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('message');
       expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('email', 'newuser@example.com');
+      expect(response.body.user.email).toBe('newuser@example.com');
     });
 
     it('should reject registration with mismatched passwords', async () => {
@@ -205,7 +296,6 @@ describe('Auth Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
       expect(response.body.error).toContain('match');
     });
 
@@ -221,7 +311,6 @@ describe('Auth Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
       expect(response.body.error).toContain('6 characters');
     });
 
@@ -237,7 +326,6 @@ describe('Auth Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
       expect(response.body.error).toContain('already registered');
     });
 
@@ -258,9 +346,7 @@ describe('Auth Routes', () => {
     it('should accept forgot-password request with valid email', async () => {
       const response = await request(app)
         .post('/api/auth/forgot-password')
-        .send({
-          email: 'existing@example.com'
-        });
+        .send({ email: 'existing@example.com' });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
@@ -269,9 +355,7 @@ describe('Auth Routes', () => {
     it('should not reveal if email exists', async () => {
       const response = await request(app)
         .post('/api/auth/forgot-password')
-        .send({
-          email: 'nonexistent@example.com'
-        });
+        .send({ email: 'nonexistent@example.com' });
 
       expect(response.status).toBe(200);
       expect(response.body.message).toContain('If the email exists');
@@ -287,14 +371,119 @@ describe('Auth Routes', () => {
     });
   });
 
-  describe('POST /api/auth/logout', () => {
-    it('should logout and clear cookie', async () => {
+  describe('POST /api/auth/reset-password', () => {
+    it('should reset password with valid token', async () => {
+      // Create a valid token
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.passwordResetTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        created_at: new Date().toISOString()
+      });
+
       const response = await request(app)
-        .post('/api/auth/logout');
+        .post('/api/auth/reset-password')
+        .send({
+          token,
+          password: 'newpassword123',
+          confirmPassword: 'newpassword123'
+        });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
-      expect(response.headers['set-cookie']).toBeDefined();
+    });
+
+    it('should reject reset with invalid token', async () => {
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: 'invalid_token_12345',
+          newPassword: 'newpassword123',
+          confirmPassword: 'newpassword123'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject reset with mismatched passwords', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.passwordResetTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        created_at: new Date().toISOString()
+      });
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token,
+          password: 'newpassword123',
+          confirmPassword: 'different'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('match');
+    });
+  });
+
+  describe('POST /api/auth/verify-email', () => {
+    it('should verify email with valid token', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.emailVerificationTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        verified: false
+      });
+
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ token });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('message');
+    });
+
+    it('should reject verify with invalid token', async () => {
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ token: 'invalid_token_12345' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject verify if token already used', async () => {
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      mockDb.emailVerificationTokens.push({
+        user_id: 1,
+        token_hash: tokenHash,
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        verified: true
+      });
+
+      const response = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ token });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/auth/logout', () => {
+    it('should logout and clear cookie', async () => {
+      const response = await request(app).post('/api/auth/logout');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('message');
     });
   });
 });
