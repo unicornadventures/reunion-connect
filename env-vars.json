@@ -1,0 +1,342 @@
+{
+  "LoginFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "RegisterFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetRegistrationLinkFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "ForgotPasswordFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "ResetPasswordFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetUserProfileFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "UpdateProfileFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetUserClassFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "ListUsersFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "CreateCommentFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetCommentsFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetPendingCommentsFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "UpdateCommentFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "DeleteCommentFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetAdminUsersFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "UpdateUserClassAdminFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "DeleteUserFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetClassUsersFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "CreateRegistrationLinkFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "ListSchoolsFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetSchoolFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "CreateSchoolFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "ListClassesFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetClassFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "CreateClassFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetClassMembersFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "ListEventsFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetEventFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "CreateEventFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "UpdateEventFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "DeleteEventFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "UploadPhotoFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "DeletePhotoFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "GetPhotoPresignedUrlFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "admin",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  }
+}

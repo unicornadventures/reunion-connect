@@ -7,9 +7,16 @@
   "scripts": {
     "dev": "ts-node src/server.ts",
     "build": "tsc",
+    "build:lambda": "tsc -p tsconfig.lambda.json && sam build",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:lambda": "node $([ -f ../test-lambda-endpoints.js ] && echo '../test-lambda-endpoints.js' || echo 'test-lambda-endpoints.js')",
+    "test:lambda:verbose": "node $([ -f ../test-lambda-endpoints.js ] && echo '../test-lambda-endpoints.js' || echo 'test-lambda-endpoints.js') --verbose",
+    "sam:local": "cd .. && sam local start-api --port 3001 --docker-network classyear_localstack",
+    "sam:build": "tsc -p tsconfig.lambda.json && cd .. && sam build",
+    "sam:deploy": "cd .. && sam deploy",
+    "prepare": "tsc -p tsconfig.lambda.json || true"
   },
   "keywords": [
     "node",
@@ -36,6 +43,7 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.162",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",

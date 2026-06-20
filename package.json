@@ -1,0 +1,20 @@
+{
+  "name": "classyear",
+  "version": "1.0.0",
+  "description": "ClassYear - Serverless class reunion platform",
+  "private": true,
+  "scripts": {
+    "test:lambda": "cd backend && npm run test:lambda",
+    "test:lambda:verbose": "cd backend && npm run test:lambda:verbose",
+    "sam:local": "cd backend && npm run sam:local",
+    "sam:build": "cd backend && npm run sam:build",
+    "sam:deploy": "cd backend && npm run sam:deploy",
+    "dev": "cd backend && npm run dev",
+    "build": "cd backend && npm run build",
+    "test": "cd backend && npm test"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ]
+}

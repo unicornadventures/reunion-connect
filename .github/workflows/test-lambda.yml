@@ -1,0 +1,92 @@
+name: Test Lambda Endpoints
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/src/lambda/**'
+      - 'template.yaml'
+      - 'test-lambda-endpoints.js'
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_DB: class_reunion
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: testpass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install SAM CLI
+        run: |
+          pip install aws-sam-cli
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: Build Lambda functions
+        run: |
+          cd backend
+          npm run sam:build
+
+      - name: Run Lambda endpoint tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: class_reunion
+          DB_USER: admin
+          DB_PASSWORD: testpass
+          JWT_SECRET: test-secret-key
+        run: |
+          npm run test:lambda
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: test-results.json
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+            const comment = `## Lambda Test Results
+            
+            ✅ Passed: ${results.passed}/${results.passed + results.failed}
+            
+            ${results.failed > 0 ? `❌ Failed: ${results.failed}\n\n${results.tests.filter(t => !t.passed).map(t => `- ${t.name}`).join('\n')}` : 'All tests passed! 🎉'}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

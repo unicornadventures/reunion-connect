@@ -1,0 +1,127 @@
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { query } from '../db.js';
+import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
+  statusCode,
+  headers: {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*'
+  },
+  body: JSON.stringify(body)
+});
+
+const errorResponse = (statusCode: number, message: string): APIGatewayProxyResult =>
+  response(statusCode, { error: message });
+
+const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
+
+/**
+ * Lambda handler for POST /api/users/{userId}/photo/{photoType}
+ * Generates presigned URL for photo upload
+ */
+export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const { userId, photoType } = event.pathParameters || {};
+
+    if (!userId || !photoType || !['then', 'now'].includes(photoType)) {
+      return errorResponse(400, 'Valid userId and photoType (then/now) required.');
+    }
+
+    // Verify user exists
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return errorResponse(404, 'User not found.');
+    }
+
+    // Generate presigned URL for upload
+    const key = `photos/${userId}/${photoType}-${Date.now()}.jpg`;
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      ContentType: 'image/jpeg'
+    });
+
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    // Store the key in the database
+    const columnName = `${photoType}_photo_url`;
+    await query(`UPDATE profiles SET ${columnName} = $1 WHERE user_id = $2`, [key, userId]);
+
+    return response(200, { presignedUrl, key });
+  } catch (error: any) {
+    console.error('Upload photo handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for DELETE /api/users/{userId}/photo/{photoType}
+ */
+export const deletePhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const { userId, photoType } = event.pathParameters || {};
+
+    if (!userId || !photoType || !['then', 'now'].includes(photoType)) {
+      return errorResponse(400, 'Valid userId and photoType (then/now) required.');
+    }
+
+    // Get current photo URL
+    const profileResult = await query(
+      `SELECT ${photoType}_photo_url FROM profiles WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (profileResult.rows.length === 0) {
+      return errorResponse(404, 'User profile not found.');
+    }
+
+    const photoUrl = profileResult.rows[0][`${photoType}_photo_url`];
+
+    if (photoUrl) {
+      // Delete from S3
+      const command = new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: photoUrl
+      });
+      await s3Client.send(command);
+    }
+
+    // Clear URL from database
+    const columnName = `${photoType}_photo_url`;
+    await query(`UPDATE profiles SET ${columnName} = NULL WHERE user_id = $1`, [userId]);
+
+    return response(200, { message: 'Photo deleted successfully.' });
+  } catch (error: any) {
+    console.error('Delete photo handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for GET /api/photos/{photoKey}/presigned
+ * Get presigned URL to view a photo
+ */
+export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const { photoKey } = event.pathParameters || {};
+
+    if (!photoKey) {
+      return errorResponse(400, 'Photo key required.');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: photoKey
+    });
+
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    return response(200, { presignedUrl });
+  } catch (error: any) {
+    console.error('Get presigned URL handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};

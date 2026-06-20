@@ -1,0 +1,663 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2010-05-11
+Description: ClassYear Serverless Application - Lambda + API Gateway + RDS
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs18.x
+    Tracing: Active
+    Environment:
+      Variables:
+        NODE_ENV: !Ref Environment
+        DB_HOST: !If [UseLocalStack, 'postgres', !GetAtt RDSInstance.Endpoint.Address]
+        DB_PORT: '5432'
+        DB_NAME: class_reunion
+        DB_USER: admin
+        DB_PASSWORD: !Ref DBPassword
+        JWT_SECRET: !Ref JWTSecret
+        FRONTEND_URL: !Ref FrontendURL
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: PostgreSQL database password
+
+  JWTSecret:
+    Type: String
+    NoEcho: true
+    Description: JWT secret for token signing
+
+  FrontendURL:
+    Type: String
+    Default: http://localhost:5173
+    Description: Frontend URL for CORS and registration links
+
+  UseLocalStack:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Whether to use LocalStack (true) or AWS (false)
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+  IsLocalStack: !Equals [!Ref UseLocalStack, 'true']
+  CreateRDS: !Not [!Condition IsLocalStack]
+
+Resources:
+  # API Gateway
+  ClassYearAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      TracingEnabled: true
+      Cors:
+        AllowMethods: "'GET, POST, PUT, DELETE, OPTIONS'"
+        AllowHeaders: "'Content-Type, Authorization'"
+        AllowOrigin: "'*'"
+      # Auth: Disabled for local testing; add Cognito authorizer for production
+      # DefaultAuthorizer: !If [IsLocalStack, !Ref 'AWS::NoValue', MyCognitoAuth]
+      # AddDefaultAuthorizerToCorsPreflight: false
+
+  # Auth Routes
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-login-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.loginHandler
+      Runtime: nodejs18.x
+      Events:
+        PostLogin:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/login
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref 'AWS::NoValue'
+
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-register-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.registerHandler
+      Runtime: nodejs18.x
+      Events:
+        PostRegister:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/register
+            Method: POST
+
+  GetRegistrationLinkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-registration-link-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.getRegistrationLinkHandler
+      Runtime: nodejs18.x
+      Events:
+        GetLink:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/registration-link/{hash}
+            Method: GET
+
+  ForgotPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-forgot-password-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.forgotPasswordHandler
+      Runtime: nodejs18.x
+      Events:
+        PostForgot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/forgot-password
+            Method: POST
+
+  ResetPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-reset-password-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.resetPasswordHandler
+      Runtime: nodejs18.x
+      Events:
+        PostReset:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/reset-password
+            Method: POST
+
+  # User Routes
+  GetUserProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-user-profile-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/users.getProfileHandler
+      Runtime: nodejs18.x
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}
+            Method: GET
+
+  # Comment Routes
+  CreateCommentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-comment-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.createCommentHandler
+      Runtime: nodejs18.x
+      Events:
+        PostComment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{targetUserId}/comments
+            Method: POST
+
+  GetCommentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !sub 'classyear-get-comments-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.getCommentsHandler
+      Runtime: nodejs18.x
+      Events:
+        GetComments:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{targetUserId}/comments
+            Method: GET
+
+  GetPendingCommentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !sub 'classyear-get-pending-comments-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.getPendingCommentsHandler
+      Runtime: nodejs18.x
+      Events:
+        GetPending:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{targetUserId}/comments/pending
+            Method: GET
+
+  UpdateCommentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !sub 'classyear-update-comment-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.updateCommentHandler
+      Runtime: nodejs18.x
+      Events:
+        PutComment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/comments/{commentId}
+            Method: PUT
+
+  DeleteCommentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !sub 'classyear-delete-comment-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.deleteCommentHandler
+      Runtime: nodejs18.x
+      Events:
+        DeleteComment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/comments/{commentId}
+            Method: DELETE
+
+  # Admin Routes
+  GetAdminUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-admin-users-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.getAdminUsersHandler
+      Runtime: nodejs18.x
+      Events:
+        GetUsers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/users
+            Method: GET
+
+  UpdateUserClassAdminFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-update-user-class-admin-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.updateUserClassAdminHandler
+      Runtime: nodejs18.x
+      Events:
+        PutUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/users/{userId}
+            Method: PUT
+
+  DeleteUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-delete-user-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.deleteUserHandler
+      Runtime: nodejs18.x
+      Events:
+        DeleteUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/users/{userId}
+            Method: DELETE
+
+  GetClassUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-class-users-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.getClassUsersHandler
+      Runtime: nodejs18.x
+      Events:
+        GetUsers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/classes/{classId}/users
+            Method: GET
+
+  CreateRegistrationLinkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-registration-link-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.createRegistrationLinkHandler
+      Runtime: nodejs18.x
+      Events:
+        PostLink:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/registration-links
+            Method: POST
+
+  UpdateProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-update-profile-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/users.updateProfileHandler
+      Runtime: nodejs18.x
+      Events:
+        PutProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/profile
+            Method: PUT
+
+  GetUserClassFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-user-class-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/users.getUserClassHandler
+      Runtime: nodejs18.x
+      Events:
+        GetClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/class
+            Method: GET
+
+  ListUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-users-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/users.listUsersHandler
+      Runtime: nodejs18.x
+      Events:
+        GetUsers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users
+            Method: GET
+
+  ListSchoolsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-schools-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/schools.listSchoolsHandler
+      Runtime: nodejs18.x
+      Events:
+        GetSchools:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/schools
+            Method: GET
+
+  GetSchoolFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-school-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/schools.getSchoolHandler
+      Runtime: nodejs18.x
+      Events:
+        GetSchool:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/schools/{schoolId}
+            Method: GET
+
+  CreateSchoolFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-school-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/schools.createSchoolHandler
+      Runtime: nodejs18.x
+      Events:
+        PostSchool:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools
+            Method: POST
+
+  ListClassesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-classes-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.listClassesHandler
+      Runtime: nodejs18.x
+      Events:
+        GetClasses:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/schools/{schoolId}/classes
+            Method: GET
+
+  GetClassFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-class-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.getClassHandler
+      Runtime: nodejs18.x
+      Events:
+        GetClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/classes/{classId}
+            Method: GET
+
+  CreateClassFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-class-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.createClassHandler
+      Runtime: nodejs18.x
+      Events:
+        PostClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes
+            Method: POST
+
+  GetClassMembersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-class-members-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.getClassMembersHandler
+      Runtime: nodejs18.x
+      Events:
+        GetMembers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/classes/{classId}/members
+            Method: GET
+
+  ListEventsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-events-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/events.listEventsHandler
+      Runtime: nodejs18.x
+      Events:
+        GetEvents:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/classes/{classId}/events
+            Method: GET
+
+  GetEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-event-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/events.getEventHandler
+      Runtime: nodejs18.x
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/events/{eventId}
+            Method: GET
+
+  CreateEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-event-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/events.createEventHandler
+      Runtime: nodejs18.x
+      Events:
+        PostEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/classes/{classId}/events
+            Method: POST
+
+  UpdateEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-update-event-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/events.updateEventHandler
+      Runtime: nodejs18.x
+      Events:
+        PutEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/events/{eventId}
+            Method: PUT
+
+  DeleteEventFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-delete-event-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/events.deleteEventHandler
+      Runtime: nodejs18.x
+      Events:
+        DeleteEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/events/{eventId}
+            Method: DELETE
+
+  UploadPhotoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-upload-photo-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.uploadPhotoHandler
+      Runtime: nodejs18.x
+      Events:
+        PostPhoto:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/photo/{photoType}
+            Method: POST
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref AWS::NoValue
+
+  DeletePhotoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-delete-photo-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.deletePhotoHandler
+      Runtime: nodejs18.x
+      Events:
+        DeletePhoto:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/photo/{photoType}
+            Method: DELETE
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref AWS::NoValue
+
+  GetPhotoPresignedUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-photo-url-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.getPhotoPresignedUrlHandler
+      Runtime: nodejs18.x
+      Events:
+        GetPhoto:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/photos/{photoKey}/presigned
+            Method: GET
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref AWS::NoValue
+
+  # Optional: RDS Database (only for AWS, not LocalStack)
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Condition: CreateRDS
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: classyear-db-prod
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '14.7'
+      MasterUsername: admin
+      MasterUserPassword: !Ref DBPassword
+      AllocatedStorage: '20'
+      StorageType: gp2
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      PubliclyAccessible: false
+      BackupRetentionPeriod: !If [IsProduction, 30, 1]
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateRDS
+    Properties:
+      GroupDescription: Security group for RDS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateRDS
+    Properties:
+      GroupDescription: Security group for Lambda functions
+      VpcId: !Ref VPC
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Condition: CreateRDS
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+Outputs:
+  APIEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ClassYearAPI}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiEndpoint'
+
+  DatabaseEndpoint:
+    Condition: CreateRDS
+    Description: RDS Database endpoint
+    Value: !GetAtt RDSInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-DatabaseEndpoint'
+
+  SAMLocalCommand:
+    Description: Command to run SAM local server
+    Value: 'sam local start-api --port 3001 --docker-network localstack'
