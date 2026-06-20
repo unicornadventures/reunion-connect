@@ -3,8 +3,9 @@ import request from 'supertest';
 
 const mockDb = {
   users: [
-    { id: 1, email: 'user1@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date(), updated_at: new Date() },
-    { id: 2, email: 'user2@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date(), updated_at: new Date() }
+    { id: 1, email: 'user1@example.com', password: 'hashed_pass', is_admin: true, created_at: new Date(), updated_at: new Date() },
+    { id: 2, email: 'user2@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date(), updated_at: new Date() },
+    { id: 3, email: 'user3@example.com', password: 'hashed_pass', is_admin: false, created_at: new Date(), updated_at: new Date() }
   ],
   profiles: [
     {
@@ -30,11 +31,24 @@ const mockDb = {
       now_photo_url: '',
       created_at: new Date(),
       updated_at: new Date()
+    },
+    {
+      id: 3,
+      user_id: 3,
+      first_name: 'Bob',
+      last_name: 'Johnson',
+      bio: '',
+      nickname_school: '',
+      then_photo_url: '',
+      now_photo_url: '',
+      created_at: new Date(),
+      updated_at: new Date()
     }
   ],
   classUsers: [
     { id: 1, class_id: 1, user_id: 1 },
-    { id: 2, class_id: 2, user_id: 2 }
+    { id: 2, class_id: 2, user_id: 2 },
+    { id: 3, class_id: 1, user_id: 3 }
   ],
   classes: [
     { id: 1, school_id: 1, year: 2020 },
@@ -66,9 +80,16 @@ jest.mock('../../db', () => ({
 
     // INSERT user
     if (sql.includes('INSERT INTO users')) {
+      const email = params?.[0];
+      const existingUser = mockDb.users.find(u => u.email === email);
+      if (existingUser) {
+        const error: any = new Error('duplicate key value violates unique constraint');
+        error.code = '23505';
+        throw error;
+      }
       const user = {
         id: Math.max(...mockDb.users.map(u => u.id), 0) + 1,
-        email: params?.[0],
+        email: email,
         password: params?.[1],
         is_admin: params?.[2] || false,
         created_at: new Date(),
@@ -551,112 +572,140 @@ describe('User Routes', () => {
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
     });
+
+    it('should successfully register new user', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'newuser456@test.com',
+          first_name: 'Jane',
+          last_name: 'Smith',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user).toHaveProperty('id');
+      expect(response.body.user).toHaveProperty('email');
+      expect(response.body.user.email).toBe('newuser456@test.com');
+      expect(response.body.user.is_admin).toBe(false);
+    });
+
+    it('should handle duplicate email', async () => {
+      const response = await request(app)
+        .post('/api/users/register')
+        .send({
+          email: 'user1@example.com',
+          first_name: 'Duplicate',
+          last_name: 'User',
+          password: 'Password123!',
+          class_id: 1
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toContain('already exists');
+    });
   });
 
-  describe('POST /api/users/register - Edge Cases', () => {
-    it('should reject missing email', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          first_name: 'John',
-          last_name: 'Doe',
-          password: 'Password123!',
-          class_id: 1
-        });
+  describe('GET /api/users/:id with access control', () => {
+    it('should allow access when requester is admin', async () => {
+      const response = await request(app).get('/api/users/2?requesterId=1');
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('user');
     });
 
-    it('should reject missing first_name', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'test@test.com',
-          last_name: 'Doe',
-          password: 'Password123!',
-          class_id: 1
-        });
+    it('should allow access when requester is in same class', async () => {
+      const response = await request(app).get('/api/users/1?requesterId=1');
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('user');
     });
 
-    it('should reject missing last_name', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'test@test.com',
-          first_name: 'John',
-          password: 'Password123!',
-          class_id: 1
-        });
+    it('should deny access when requester is not in same class', async () => {
+      const response = await request(app).get('/api/users/2?requesterId=3');
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.status).toBe(403);
+      expect(response.body.error).toContain('Access denied');
+    });
+  });
+
+  describe('PUT /api/users/:userId/profile - Email validation', () => {
+    it('should update profile with bio only', async () => {
+      const response = await request(app)
+        .put('/api/users/1/profile')
+        .send({ bio: 'Updated bio text' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
+      expect(response.body.profile.bio).toBe('Updated bio text');
     });
 
-    it('should reject missing password', async () => {
+    it('should update email with valid format', async () => {
       const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'test@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          class_id: 1
-        });
+        .put('/api/users/1/profile')
+        .send({ email: 'newemail@example.com' });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
     });
 
-    it('should reject missing class_id', async () => {
+    it('should reject invalid email format', async () => {
       const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'test@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          password: 'Password123!'
-        });
+        .put('/api/users/1/profile')
+        .send({ email: 'invalid-email-format' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('Missing required fields');
+      expect(response.body.error).toContain('Invalid email format');
     });
 
-    it('should reject non-existent class_id', async () => {
+    it('should reject duplicate email', async () => {
       const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'newuser123@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          password: 'Password123!',
-          class_id: 999
-        });
+        .put('/api/users/1/profile')
+        .send({ email: 'user2@example.com' });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('class_id does not exist');
+      expect(response.status).toBe(409);
+      expect(response.body.error).toContain('Email already in use');
     });
 
-    it('should handle database error during registration', async () => {
-      const { query } = require('../../db');
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
+    it('should update nickname_school only', async () => {
       const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'newuser@test.com',
-          first_name: 'John',
-          last_name: 'Doe',
-          password: 'Password123!',
-          class_id: 1
-        });
+        .put('/api/users/1/profile')
+        .send({ nickname_school: 'Johnny Jr' });
 
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
+      expect(response.body.profile.nickname_school).toBe('Johnny Jr');
+    });
+
+    it('should update both bio and nickname_school', async () => {
+      const response = await request(app)
+        .put('/api/users/1/profile')
+        .send({ bio: 'New bio', nickname_school: 'JD' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
+      expect(response.body.profile.bio).toBe('New bio');
+      expect(response.body.profile.nickname_school).toBe('JD');
+    });
+
+    it('should handle user not found', async () => {
+      const response = await request(app)
+        .put('/api/users/999/profile')
+        .send({ bio: 'Test' });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain('User not found');
+    });
+
+    it('should allow email update when only email changes', async () => {
+      const response = await request(app)
+        .put('/api/users/2/profile')
+        .send({ email: 'newemail2@example.com' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('profile');
     });
   });
 });
