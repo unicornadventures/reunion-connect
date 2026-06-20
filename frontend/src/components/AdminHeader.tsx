@@ -34,6 +34,12 @@ const AdminHeader: React.FC = () => {
           >
             📚 Classes
           </Link>
+          <Link
+            to="/admin/users"
+            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+          >
+            👥 Users
+          </Link>
         </nav>
 
         <button
