@@ -29,9 +29,20 @@ interface PaginatedUsers {
   pageSize: number;
 }
 
+const STORAGE_KEY = 'usersManagerState';
+
+interface StoredState {
+  selectedSchoolId: number | null;
+  selectedClassId: number | null;
+  searchLastName: string;
+  currentPage: number;
+}
+
 const UsersManager: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAppContext();
+  const isInitialMount = React.useRef(true);
+  const restoredStateRef = React.useRef<StoredState | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
@@ -46,13 +57,40 @@ const UsersManager: React.FC = () => {
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
   const [userDeletionWarning, setUserDeletionWarning] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
 
+  const saveState = (state: StoredState) => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  };
+
+  const restoreState = (): StoredState | null => {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  };
+
   useEffect(() => {
     fetchSchools();
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      const savedState = restoreState();
+      if (savedState) {
+        restoredStateRef.current = savedState;
+        setSelectedSchoolId(savedState.selectedSchoolId);
+        setSearchLastName(savedState.searchLastName);
+        setCurrentPage(savedState.currentPage);
+      }
+    }
   }, []);
 
   useEffect(() => {
     if (selectedSchoolId) {
-      fetchClassesForSchool(selectedSchoolId);
+      const restoreClassId = restoredStateRef.current?.selectedClassId ?? null;
+      fetchClassesForSchool(selectedSchoolId, restoredStateRef.current ? restoreClassId : undefined);
+      restoredStateRef.current = null;
+      saveState({
+        selectedSchoolId,
+        selectedClassId,
+        searchLastName,
+        currentPage
+      });
     }
   }, [selectedSchoolId]);
 
@@ -60,6 +98,15 @@ const UsersManager: React.FC = () => {
     if (selectedClassId) {
       fetchUsers();
     }
+  }, [selectedClassId, currentPage, searchLastName]);
+
+  useEffect(() => {
+    saveState({
+      selectedSchoolId,
+      selectedClassId,
+      searchLastName,
+      currentPage
+    });
   }, [selectedClassId, currentPage, searchLastName]);
 
   const fetchSchools = async () => {
@@ -72,14 +119,20 @@ const UsersManager: React.FC = () => {
     }
   };
 
-  const fetchClassesForSchool = async (schoolId: number) => {
+  const fetchClassesForSchool = async (schoolId: number, restoreClassId?: number | null) => {
     try {
       const response = await api.get('/classes');
       const allClasses = response.data.classes || [];
       const filtered = allClasses.filter((c: any) => c.school_id === schoolId);
       setClasses(filtered);
-      setSelectedClassId(null);
-      setUsers([]);
+      if (restoreClassId !== undefined) {
+        setSelectedClassId(restoreClassId);
+      } else {
+        setSelectedClassId(null);
+      }
+      if (restoreClassId === undefined) {
+        setUsers([]);
+      }
       setError(null);
     } catch (err: any) {
       setError('Failed to fetch classes.');
