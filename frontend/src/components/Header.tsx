@@ -4,11 +4,19 @@ import { useAppContext } from '../context/AppContext';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { logout } = useAppContext();
+  const { logout, currentUser } = useAppContext();
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const getInitials = () => {
+    const firstName = currentUser?.first_name || '';
+    const lastName = currentUser?.last_name || '';
+    const firstInitial = firstName.charAt(0).toUpperCase();
+    const lastInitial = lastName.charAt(0).toUpperCase();
+    return (firstInitial + lastInitial) || '?';
   };
 
   return (
@@ -48,7 +56,7 @@ const Header: React.FC = () => {
             className="flex items-center gap-2 text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
           >
             <div className="w-8 h-8 rounded-full bg-[#4CAF50] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              YO
+              {getInitials()}
             </div>
             <span className="hidden sm:inline">My Profile</span>
           </Link>
