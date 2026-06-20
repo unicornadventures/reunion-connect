@@ -75,7 +75,7 @@ router.get('/class/:classId/days-until-next', async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const daysUntil = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+    const daysUntil = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     res.status(200).json({ daysUntil, eventDate: result.rows[0].event_date });
   } catch (error) {

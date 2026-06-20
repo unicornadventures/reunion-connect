@@ -58,6 +58,9 @@ jest.mock('../../db', () => ({
         first_name: params?.[1],
         last_name: params?.[2],
         bio: '',
+        nickname_school: '',
+        then_photo_url: '',
+        now_photo_url: '',
         created_at: new Date(),
         updated_at: new Date()
       };

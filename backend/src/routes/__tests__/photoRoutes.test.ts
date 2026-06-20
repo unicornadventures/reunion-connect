@@ -40,6 +40,8 @@ jest.mock('../../db', () => ({
         user_id: params?.[0],
         first_name: params?.[1],
         last_name: params?.[2],
+        then_photo_url: '',
+        now_photo_url: '',
         updated_at: new Date()
       };
       mockDb.profiles.push(profile);

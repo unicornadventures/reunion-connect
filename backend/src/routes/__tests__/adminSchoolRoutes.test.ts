@@ -18,11 +18,11 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    if (sql.includes('SELECT id, name, location') && !sql.includes('WHERE')) {
+    if (sql.includes('SELECT') && sql.includes('schools') && !sql.includes('WHERE')) {
       return { rows: mockDb.schools };
     }
 
-    if (sql.includes('SELECT id, name, location') && sql.includes('WHERE id')) {
+    if (sql.includes('SELECT') && sql.includes('schools') && sql.includes('WHERE id')) {
       const schoolId = params?.[0];
       const school = mockDb.schools.find(s => s.id === schoolId);
       return { rows: school ? [school] : [] };
@@ -47,16 +47,22 @@ jest.mock('../../db', () => ({
         school.name = params?.[0];
         school.location = params?.[1];
         school.updated_at = new Date();
+        return { rows: [school] };
       }
       return { rows: [] };
     }
 
-    if (sql.includes('DELETE FROM schools')) {
+    if (sql.includes('DELETE FROM schools WHERE')) {
       const schoolId = params?.[0];
       const index = mockDb.schools.findIndex(s => s.id === schoolId);
       if (index > -1) {
         mockDb.schools.splice(index, 1);
       }
+      return { rows: [] };
+    }
+
+    // Handle SELECT queries that might be part of delete logic
+    if (sql.includes('SELECT DISTINCT u.id') || sql.includes('SELECT u.id FROM users')) {
       return { rows: [] };
     }
 
@@ -72,6 +78,12 @@ jest.mock('../../db', () => ({
       return { rows: [] };
     }
 
+    // Handle BEGIN, COMMIT, ROLLBACK for transactions
+    if (sql.includes('BEGIN') || sql.includes('COMMIT') || sql.includes('ROLLBACK')) {
+      return { rows: [] };
+    }
+
+    // Catch-all for unmatched queries
     return { rows: [] };
   })
 }));
@@ -79,6 +91,17 @@ jest.mock('../../db', () => ({
 jest.mock('../../services/emailService', () => ({
   sendPasswordResetEmail: jest.fn(),
   sendVerificationEmail: jest.fn()
+}));
+
+jest.mock('../../middleware/adminAuth.ts', () => ({
+  requireAdmin: async (req: any, res: any, next: any) => {
+    req.user = { id: 1, is_admin: true, is_class_admin: false };
+    next();
+  },
+  requireSuperAdmin: async (req: any, res: any, next: any) => {
+    req.user = { id: 1, is_admin: true, is_class_admin: false };
+    next();
+  }
 }));
 
 import { adminSchoolRoutes } from '../adminSchoolRoutes';
@@ -89,13 +112,27 @@ describe('Admin School Routes', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    // Set user before any routes to bypass auth
+    app.use((req: any, res: any, next: any) => {
+      req.user = { id: 1, is_admin: true, is_class_admin: false };
+      next();
+    });
+    // Mount routes - this should use mocked middleware
     app.use('/api/admin', adminSchoolRoutes);
+    // Detailed 404 handler to see unmatched routes
+    app.use((req: any, res: any) => {
+      res.status(404).json({ error: 'Route not found', path: req.path, method: req.method });
+    });
+    app.use((err: any, req: any, res: any, next: any) => {
+      console.error('Error:', err.message);
+      res.status(500).json({ error: err.message });
+    });
     jest.clearAllMocks();
   });
 
-  describe('GET /api/admin/schools', () => {
+  describe('GET /api/admin', () => {
     it('should return all schools', async () => {
-      const response = await request(app).get('/api/admin/schools');
+      const response = await request(app).get('/api/admin');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('schools');
@@ -104,7 +141,7 @@ describe('Admin School Routes', () => {
     });
 
     it('should return schools with required fields', async () => {
-      const response = await request(app).get('/api/admin/schools');
+      const response = await request(app).get('/api/admin');
 
       expect(response.status).toBe(200);
       const school = response.body.schools[0];
@@ -114,10 +151,10 @@ describe('Admin School Routes', () => {
     });
   });
 
-  describe('POST /api/admin/schools', () => {
+  describe('POST /api/admin', () => {
     it('should create a new school', async () => {
       const response = await request(app)
-        .post('/api/admin/schools')
+        .post('/api/admin')
         .send({
           name: 'New School',
           location: 'New City'
@@ -130,7 +167,7 @@ describe('Admin School Routes', () => {
 
     it('should reject school creation with missing fields', async () => {
       const response = await request(app)
-        .post('/api/admin/schools')
+        .post('/api/admin')
         .send({
           name: 'Incomplete School'
         });
@@ -140,22 +177,23 @@ describe('Admin School Routes', () => {
     });
   });
 
-  describe('PUT /api/admin/schools/:id', () => {
+  describe('PUT /api/admin/:id', () => {
     it('should update a school', async () => {
       const response = await request(app)
-        .put('/api/admin/schools/1')
+        .put('/api/admin/1')
+        .set('Authorization', 'Bearer 1')
         .send({
           name: 'Updated School',
           location: 'Updated City'
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('school');
     });
 
     it('should reject update with missing fields', async () => {
       const response = await request(app)
-        .put('/api/admin/schools/1')
+        .put('/api/admin/1')
         .send({
           name: 'Updated'
         });
@@ -164,10 +202,10 @@ describe('Admin School Routes', () => {
     });
   });
 
-  describe('DELETE /api/admin/schools/:id', () => {
+  describe('DELETE /api/admin/:id', () => {
     it('should delete a school', async () => {
       const response = await request(app)
-        .delete('/api/admin/schools/2');
+        .delete('/api/admin/2');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
@@ -175,7 +213,7 @@ describe('Admin School Routes', () => {
 
     it('should handle deletion of non-existent school', async () => {
       const response = await request(app)
-        .delete('/api/admin/schools/999');
+        .delete('/api/admin/999');
 
       expect([200, 404]).toContain(response.status);
     });

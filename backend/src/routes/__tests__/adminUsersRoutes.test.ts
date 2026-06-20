@@ -106,6 +106,17 @@ jest.mock('../../services/emailService', () => ({
   sendVerificationEmail: jest.fn()
 }));
 
+jest.mock('../../middleware/adminAuth', () => ({
+  requireAdmin: jest.fn((req: any, res: any, next: any) => {
+    req.user = { id: 1, is_admin: true, is_class_admin: false };
+    next();
+  }),
+  requireSuperAdmin: jest.fn((req: any, res: any, next: any) => {
+    req.user = { id: 1, is_admin: true, is_class_admin: false };
+    next();
+  })
+}));
+
 import { adminRoutes } from '../adminRoutes';
 
 describe('Admin Users Routes', () => {
