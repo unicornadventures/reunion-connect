@@ -6,15 +6,15 @@ import { Express, Request, Response, NextFunction } from 'express';
  */
 export function mockAdminAuth() {
   jest.mock('../../middleware/adminAuth', () => ({
-    requireAdmin: jest.fn((req: Request, res: Response, next: NextFunction) => {
+    requireAdmin: jest.fn((req: any, res: Response, next: NextFunction) => {
       req.user = { id: 1, is_admin: true, is_class_admin: false };
       next();
     }),
-    requireSuperAdmin: jest.fn((req: Request, res: Response, next: NextFunction) => {
+    requireSuperAdmin: jest.fn((req: any, res: Response, next: NextFunction) => {
       req.user = { id: 1, is_admin: true, is_class_admin: false };
       next();
     }),
-    requireEventAdmin: jest.fn((req: Request, res: Response, next: NextFunction) => {
+    requireEventAdmin: jest.fn((req: any, res: Response, next: NextFunction) => {
       req.user = { id: 1, is_admin: true, is_class_admin: false };
       next();
     })
@@ -26,7 +26,7 @@ export function mockAdminAuth() {
  * This injects mock user into all requests
  */
 export function applyMockAuth(app: Express) {
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use((req: any, res: Response, next: NextFunction) => {
     req.user = req.user || { id: 1, is_admin: true, is_class_admin: false };
     next();
   });
