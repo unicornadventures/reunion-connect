@@ -25,7 +25,7 @@ export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 
     const result = await query(
-      `SELECT id, class_id, title, description, event_date, location, created_at, updated_at
+      `SELECT id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
        FROM events
        WHERE class_id = $1
        ORDER BY event_date DESC;`,
@@ -51,7 +51,7 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
     }
 
     const result = await query(
-      'SELECT id, class_id, title, description, event_date, location, created_at, updated_at FROM events WHERE id = $1',
+      'SELECT id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at FROM events WHERE id = $1',
       [eventId]
     );
 
@@ -84,11 +84,16 @@ export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(404, 'Class not found.');
     }
 
+    // Parse event_date ISO string into date and time components
+    const eventDateTime = new Date(event_date);
+    const eventDateOnly = eventDateTime.toISOString().split('T')[0];
+    const eventTimeOnly = eventDateTime.toISOString().split('T')[1].substring(0, 8);
+
     const result = await query(
-      `INSERT INTO events (class_id, title, description, event_date, location)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, class_id, title, description, event_date, location, created_at, updated_at;`,
-      [classId, title, description || null, event_date, location || null]
+      `INSERT INTO events (class_id, event_name, description, event_date, event_time, location)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+      [classId, title, description || null, eventDateOnly, eventTimeOnly, location || null]
     );
 
     return response(201, { event: result.rows[0] });
@@ -116,16 +121,26 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(404, 'Event not found.');
     }
 
+    // Parse event_date ISO string into date and time components if provided
+    let eventDateOnly = null;
+    let eventTimeOnly = null;
+    if (event_date) {
+      const eventDateTime = new Date(event_date);
+      eventDateOnly = eventDateTime.toISOString().split('T')[0];
+      eventTimeOnly = eventDateTime.toISOString().split('T')[1].substring(0, 8);
+    }
+
     const result = await query(
       `UPDATE events
-       SET title = COALESCE($1, title),
+       SET event_name = COALESCE($1, event_name),
            description = COALESCE($2, description),
            event_date = COALESCE($3, event_date),
-           location = COALESCE($4, location),
+           event_time = COALESCE($4, event_time),
+           location = COALESCE($5, location),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING id, class_id, title, description, event_date, location, created_at, updated_at;`,
-      [title, description, event_date, location, eventId]
+       WHERE id = $6
+       RETURNING id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+      [title, description, eventDateOnly, eventTimeOnly, location, eventId]
     );
 
     return response(200, { event: result.rows[0] });

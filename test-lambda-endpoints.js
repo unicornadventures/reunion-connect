@@ -171,11 +171,25 @@ async function runTests() {
     (b) => b.user && b.token
   );
 
+  // Early setup: Create school and class for registration link test
+  let setupSchoolRes = await makeRequest('GET', '/schools?page=1&pageSize=10');
+  if (setupSchoolRes.body?.schools?.[0]) {
+    testData.schoolId = setupSchoolRes.body.schools[0].id;
+  } else {
+    let newSchoolRes = await makeRequest('POST', '/admin/schools', { name: `TestSchool${Date.now()}`, location: 'Test City' });
+    if (newSchoolRes.body?.school) testData.schoolId = newSchoolRes.body.school.id;
+  }
+
+  if (testData.schoolId) {
+    let setupClassRes = await makeRequest('POST', `/admin/schools/${testData.schoolId}/classes`, { year: new Date().getFullYear() });
+    if (setupClassRes.body?.class) testData.classId = setupClassRes.body.class.id;
+  }
+
   let linkRes = await test(
     'POST /api/admin/registration-links',
     'POST',
     '/admin/registration-links',
-    { schoolId: 1, classId: 1 },
+    { schoolId: testData.schoolId || 1, classId: testData.classId || 1 },
     200,
     (b) => b.hash && b.registrationUrl
   );
@@ -190,6 +204,18 @@ async function runTests() {
       200,
       (b) => b.school && b.class
     );
+  }
+
+  // Enroll test user in the class if we have valid IDs
+  if (testData.userId && testData.classId) {
+    // Use docker exec to insert enrollment directly
+    const { exec } = require('child_process');
+    const enrollCmd = `docker exec classyear-postgres psql -U admin -d class_reunion -c "INSERT INTO class_user (user_id, class_id) VALUES (${testData.userId}, ${testData.classId}) ON CONFLICT DO NOTHING;"`;
+    await new Promise((resolve) => {
+      exec(enrollCmd, (err) => {
+        resolve(); // Ignore errors
+      });
+    });
   }
 
   await test(
@@ -461,6 +487,15 @@ async function runTests() {
   log('blue', '\n8️⃣  PHOTO ENDPOINTS (3 tests)\n');
 
   if (testData.userId) {
+    // Ensure user has a profile before photo operations
+    const { exec } = require('child_process');
+    const profileCmd = `docker exec classyear-postgres psql -U admin -d class_reunion -c "INSERT INTO profiles (user_id, first_name, last_name) VALUES (${testData.userId}, 'Test', 'User') ON CONFLICT (user_id) DO NOTHING;"`;
+    await new Promise((resolve) => {
+      exec(profileCmd, (err) => {
+        resolve(); // Ignore errors
+      });
+    });
+
     await test(
       `POST /api/users/{userId}/photo/then`,
       'POST',
