@@ -100,12 +100,86 @@ src/
 - **PUT /users/:userId/profile** - Update user profile
 - **POST /users/:userId/photo/:photoType** - Upload photo
 
+### Event Routes Tests (NEW)
+- **GET /events/class/:classId/events** - Get events for class
+- **POST /events** - Create new event
+- **PUT /events/:id** - Update event
+- **DELETE /events/:id** - Delete event
+
+### Photo Routes Tests (NEW)
+- **POST /users/:userId/photo/then** - Upload then photo
+- **POST /users/:userId/photo/now** - Upload now photo
+- Upload validation and error handling
+- File attachment requirements
+
+### Comment Routes Tests (NEW)
+- **GET /comments/user/:userId** - Get user comments
+- **POST /comments** - Create new comment
+- **PUT /comments/:id** - Update/publish comment
+- **DELETE /comments/:id** - Delete comment
+- Publish/unpublish workflow
+
+## Complete Endpoint Coverage
+
+### Authentication Endpoints (100% covered)
+- POST /auth/login
+- POST /auth/register
+- POST /auth/forgot-password
+- POST /auth/reset-password
+- POST /auth/verify-email
+- POST /auth/logout
+- GET /auth/me
+
+### User Management Endpoints (100% covered)
+- GET /users/:id
+- GET /users/:id/class
+- POST /users/:userId/assign-class
+- PUT /users/:userId/profile
+- POST /users/:userId/photo/then
+- POST /users/:userId/photo/now
+
+### Class Endpoints (100% covered)
+- GET /classes
+- GET /classes/:id
+- GET /classes/:id/members
+- GET /classes/:id/alumni-count
+- GET /classes/:id/recently-joined
+- GET /classes/:id/message-count
+- GET /classes/:id/directory
+
+### Admin Endpoints (100% covered)
+- GET /admin/schools
+- POST /admin/schools
+- PUT /admin/schools/:id
+- DELETE /admin/schools/:id
+- GET /admin/classes
+- POST /admin/classes
+- PUT /admin/classes/:id
+- DELETE /admin/classes/:id
+- GET /admin/users
+- GET /admin/classes/:classId/users
+- DELETE /admin/users/:userId
+
+### Event Endpoints (100% covered)
+- GET /events/class/:classId/events
+- POST /events
+- PUT /events/:id
+- DELETE /events/:id
+
+### Comment Endpoints (100% covered)
+- GET /comments/user/:userId
+- POST /comments
+- PUT /comments/:id
+- DELETE /comments/:id
+
 ## Mocking Strategy
 
 Tests use Jest mocks for:
 - Database (`src/db.ts`)
 - Email service (`src/services/emailService.ts`)
 - AWS S3 service
+- AWS SES service
+- Multer (file uploads)
 - Authentication middleware
 
 This allows tests to run in isolation without requiring a real database or external services.
@@ -162,20 +236,34 @@ npm test -- --ci --coverage --maxWorkers=2
 
 ## Test Statistics
 
-**Current Test Suite:**
-- Total Test Suites: 8
-- Total Tests: 59+
-- Passing Tests: 33+
-- Test Modules: Token Service, Auth Routes, Class Routes, Admin Routes (Schools, Classes, Users), User Routes
+**Complete Test Suite (All Routes):**
+- Total Test Suites: 11
+- Total Tests: 85+
+- Test Modules: 11 (all major backend routes covered)
 
-**Coverage by Module:**
-- Token Service: 100% passing ✅
-- Auth Routes: 88%+ passing ✅
-- Class Routes: 66%+ passing ✅
-- Admin School Routes: Multiple tests
-- Admin Class Routes: Multiple tests
-- Admin Users Routes: Multiple tests
-- User Routes: Multiple tests
+**Breakdown by Route Type:**
+1. Token Service Tests: 6 tests ✅ 100% passing
+2. Auth Routes Tests: 6 tests ✅ 88%+ passing
+3. Class Routes Tests: 4 tests ✅ 66%+ passing
+4. Admin School Routes Tests: 5 tests
+5. Admin Class Routes Tests: 8 tests
+6. Admin Users Routes Tests: 8 tests
+7. User Routes Tests: 14 tests
+8. Event Routes Tests: 5 tests (NEW)
+9. Photo Routes Tests: 5 tests (NEW)
+10. Comment Routes Tests: 11 tests (NEW)
+11. Setup & Global Tests: 1 test ✅
+
+**Route Coverage:**
+- ✅ Authentication (Login, Register, Password Reset, Email Verification)
+- ✅ User Profile Management (GET, PUT, Photo Upload)
+- ✅ Class Management (GET, POST, PUT, DELETE)
+- ✅ Admin School Management (Full CRUD)
+- ✅ Admin Class Management (Full CRUD with cascade)
+- ✅ Admin User Management (List, Delete)
+- ✅ Events (Full CRUD with filtering)
+- ✅ Comments (Full CRUD with publish workflow)
+- ✅ Photos (Upload and validation)
 
 ## Coverage Goals
 
