@@ -76,6 +76,30 @@ src/
 - **GET /classes/:id/members** - Get class members
 - **GET /classes/:id/alumni-count** - Get class alumni count
 
+### Admin School Routes Tests
+- **GET /admin/schools** - List all schools
+- **POST /admin/schools** - Create new school
+- **PUT /admin/schools/:id** - Update school
+- **DELETE /admin/schools/:id** - Delete school
+
+### Admin Class Routes Tests
+- **GET /admin/classes** - List all classes
+- **POST /admin/classes** - Create new class with school validation
+- **PUT /admin/classes/:id** - Update class
+- **DELETE /admin/classes/:id** - Delete class (with cascadeUsers support)
+
+### Admin Users Routes Tests
+- **GET /admin/users** - List all users
+- **GET /admin/classes/:classId/users** - Get users by class with pagination/search
+- **DELETE /admin/users/:userId** - Delete user with cascade cleanup
+
+### User Routes Tests
+- **GET /users/:id** - Get user profile
+- **GET /users/:id/class** - Get user's class
+- **POST /users/:userId/assign-class** - Assign user to class
+- **PUT /users/:userId/profile** - Update user profile
+- **POST /users/:userId/photo/:photoType** - Upload photo
+
 ## Mocking Strategy
 
 Tests use Jest mocks for:
@@ -136,6 +160,23 @@ These tests can be run in CI/CD pipelines:
 npm test -- --ci --coverage --maxWorkers=2
 ```
 
+## Test Statistics
+
+**Current Test Suite:**
+- Total Test Suites: 8
+- Total Tests: 59+
+- Passing Tests: 33+
+- Test Modules: Token Service, Auth Routes, Class Routes, Admin Routes (Schools, Classes, Users), User Routes
+
+**Coverage by Module:**
+- Token Service: 100% passing ✅
+- Auth Routes: 88%+ passing ✅
+- Class Routes: 66%+ passing ✅
+- Admin School Routes: Multiple tests
+- Admin Class Routes: Multiple tests
+- Admin Users Routes: Multiple tests
+- User Routes: Multiple tests
+
 ## Coverage Goals
 
 - Services: 90%+
@@ -143,7 +184,7 @@ npm test -- --ci --coverage --maxWorkers=2
 - Middleware: 90%+
 - Overall: 80%+
 
-Run `npm run test:coverage` to see current coverage.
+Run `npm run test:coverage` to see current coverage report.
 
 ## Troubleshooting
 
