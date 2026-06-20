@@ -1,4 +1,4 @@
-import AWS from 'aws-sdk';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 interface EmailOptions {
   to: string;
@@ -6,11 +6,13 @@ interface EmailOptions {
   html: string;
 }
 
-// Initialize AWS SES
-const ses = new AWS.SES({
+// Initialize AWS SES Client
+const sesClient = new SESClient({
   region: process.env.AWS_REGION || 'us-east-1',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+  }
 });
 
 // Determine if we're in development mode (use console logging if no AWS credentials)
@@ -29,7 +31,7 @@ const sendEmail = async (options: EmailOptions): Promise<void> => {
   }
 
   try {
-    const params = {
+    const command = new SendEmailCommand({
       Source: process.env.SES_FROM_EMAIL || 'noreply@classyear.com',
       Destination: {
         ToAddresses: [options.to]
@@ -46,9 +48,9 @@ const sendEmail = async (options: EmailOptions): Promise<void> => {
           }
         }
       }
-    };
+    });
 
-    await ses.sendEmail(params).promise();
+    await sesClient.send(command);
     console.log(`✅ Email sent to ${options.to}`);
   } catch (error) {
     console.error('❌ Failed to send email:', error);
