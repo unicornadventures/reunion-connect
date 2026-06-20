@@ -486,4 +486,45 @@ describe('Auth Routes', () => {
       expect(response.body).toHaveProperty('message');
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in login', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          email: 'existing@example.com',
+          password: 'password'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in register after validation', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      const mockQuery = jest.fn();
+      query.mockImplementation(mockQuery);
+
+      mockQuery.mockResolvedValueOnce({ rows: [] }); // email check passes (no existing user)
+      mockQuery.mockRejectedValueOnce(new Error('Database error')); // INSERT user fails
+
+      const response = await request(app)
+        .post('/api/auth/register')
+        .send({
+          email: 'newuser@example.com',
+          password: 'Password123!',
+          confirmPassword: 'Password123!'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });
