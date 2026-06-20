@@ -1,6 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
@@ -58,6 +58,57 @@ export async function uploadFileToS3(userId: number, fileName: string, fileBuffe
   } catch (error) {
     console.error(`[S3] Failed to upload file ${key}:`, error);
     throw new Error('Failed to upload file to S3.');
+  }
+}
+
+export async function deleteUserPhotosFromS3(userId: number): Promise<void> {
+  console.log(`[S3] Deleting all photos for user ${userId}.`);
+
+  try {
+    // List all objects in the user's photo directory
+    const { query } = await import('./db');
+
+    // Get the user's photo URLs from the database
+    const profileResult = await query(
+      `SELECT then_photo_url, now_photo_url FROM profiles WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (profileResult.rows.length === 0) {
+      console.log(`[S3] No profile found for user ${userId}, nothing to delete.`);
+      return;
+    }
+
+    const profile = profileResult.rows[0];
+    const photoUrls = [profile.then_photo_url, profile.now_photo_url].filter(Boolean);
+
+    // Delete each photo from S3
+    for (const photoUrl of photoUrls) {
+      if (!photoUrl) continue;
+
+      // Extract the key from the URL
+      // URL format: http://127.0.0.1:4566/class-reunion-photos/photos/userId/filename
+      const key = photoUrl.split(`/${BUCKET_NAME}/`)[1];
+      if (!key) continue;
+
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+      });
+
+      try {
+        await s3Client.send(deleteCommand);
+        console.log(`[S3] Deleted photo ${key} for user ${userId}.`);
+      } catch (deleteError) {
+        console.error(`[S3] Failed to delete photo ${key}:`, deleteError);
+        // Continue with other photos even if one fails
+      }
+    }
+
+    console.log(`[S3] Completed photo deletion for user ${userId}.`);
+  } catch (error) {
+    console.error(`[S3] Error during photo cleanup for user ${userId}:`, error);
+    // Don't throw - we still want to delete the user even if S3 cleanup fails
   }
 }
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.ts';
 import { requireSuperAdmin } from '../middleware/adminAuth.ts';
+import { deleteUserPhotosFromS3 } from '../s3Service.ts';
 
 const router = express.Router();
 
@@ -87,6 +88,21 @@ router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
 
     // If cascadeUsers is true, delete all users in classes for this school
     if (cascadeUsers) {
+      // First, get all user IDs so we can clean up their S3 photos
+      const usersResult = await query(`
+        SELECT DISTINCT u.id
+        FROM users u
+        JOIN class_user cu ON u.id = cu.user_id
+        JOIN classes c ON cu.class_id = c.id
+        WHERE c.school_id = $1
+      `, [id]);
+
+      // Clean up S3 photos for each user
+      for (const user of usersResult.rows) {
+        await deleteUserPhotosFromS3(user.id);
+      }
+
+      // Now delete the users
       await query(`
         DELETE FROM users
         WHERE id IN (
