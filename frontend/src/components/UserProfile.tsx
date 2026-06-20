@@ -34,6 +34,8 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<Partial<Profile>>({});
   const [bio, setBio] = useState('');
+  const [isClassAdmin, setIsClassAdmin] = useState(false);
+  const [updatingClassAdmin, setUpdatingClassAdmin] = useState(false);
 
   const profileUserId = userId ? Number(userId) : currentUser?.user_id;
   const isOwnProfile = profileUserId === currentUser?.user_id;
@@ -50,6 +52,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     try {
       const response = await api.get(`/users/${profileUserId}`);
       setData(response.data);
+      setIsClassAdmin(response.data.user?.is_class_admin || false);
       if (response.data.profile) {
         setEditData(response.data.profile);
       }
@@ -117,6 +120,29 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       setError(err.response?.data?.error || 'Failed to update profile.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleClassAdmin = async () => {
+    if (!currentUser?.is_admin) return;
+
+    setUpdatingClassAdmin(true);
+    try {
+      const newStatus = !isClassAdmin;
+      const response = await api.put(`/admin/users/${profileUserId}`, {
+        is_class_admin: newStatus
+      });
+
+      setIsClassAdmin(response.data.user?.is_class_admin || false);
+      setData(prev => prev ? {
+        ...prev,
+        user: { ...prev.user, is_class_admin: newStatus }
+      } : null);
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update class admin status.');
+    } finally {
+      setUpdatingClassAdmin(false);
     }
   };
 
@@ -244,27 +270,49 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
             </div>
           )}
 
-          {/* Contact Info Card - Only visible to own profile */}
-          {isOwnProfile && (
+          {/* Contact Info Card & Admin Controls */}
+          {(isOwnProfile || currentUser?.is_admin) && (
             <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] mt-4 overflow-hidden">
               <div className="px-5 py-3 border-b border-[#EEEEEE]">
-                <h3 className="text-base font-bold text-[#333333]">Contact Info</h3>
+                <h3 className="text-base font-bold text-[#333333]">{isOwnProfile ? 'Contact Info' : 'User Management'}</h3>
               </div>
               <div className="p-5 space-y-3">
-                <div>
-                  <div className="text-xs font-semibold text-[#999999]">Email</div>
-                  {editMode ? (
-                    <input
-                      type="email"
-                      value={editData.email || user.email}
-                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                      className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50] mt-1"
-                      placeholder="your@email.com"
-                    />
-                  ) : (
-                    <div className="text-sm text-[#2196F3]">{user.email}</div>
-                  )}
-                </div>
+                {isOwnProfile && (
+                  <div>
+                    <div className="text-xs font-semibold text-[#999999]">Email</div>
+                    {editMode ? (
+                      <input
+                        type="email"
+                        value={editData.email || user.email}
+                        onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                        className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50] mt-1"
+                        placeholder="your@email.com"
+                      />
+                    ) : (
+                      <div className="text-sm text-[#2196F3]">{user.email}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Class Admin Checkbox - Only visible to super admins */}
+                {currentUser?.is_admin && !isOwnProfile && (
+                  <div className="border-t border-[#EEEEEE] pt-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isClassAdmin}
+                        onChange={handleToggleClassAdmin}
+                        disabled={updatingClassAdmin}
+                        className="w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-sm text-[#333333] font-medium">Make Class Admin</span>
+                      {updatingClassAdmin && (
+                        <span className="text-xs text-[#999999]">Updating...</span>
+                      )}
+                    </label>
+                    <p className="text-xs text-[#999999] mt-2">Class admins can moderate comments from users in their class year.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

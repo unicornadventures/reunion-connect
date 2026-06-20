@@ -113,6 +113,37 @@ router.get('/classes/:classId/users', async (req, res) => {
   }
 });
 
+// PUT /api/admin/users/:userId - Update user admin status
+router.put('/users/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { is_class_admin } = req.body;
+
+  if (is_class_admin === undefined) {
+    return res.status(400).json({ error: 'Missing required field: is_class_admin.' });
+  }
+
+  try {
+    const userIdNum = parseInt(userId);
+
+    // Verify user exists
+    const userResult = await query('SELECT id, is_class_admin FROM users WHERE id = $1', [userIdNum]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Update user's class admin status
+    const updateResult = await query(
+      'UPDATE users SET is_class_admin = $1 WHERE id = $2 RETURNING id, email, is_admin, is_class_admin',
+      [is_class_admin, userIdNum]
+    );
+
+    res.status(200).json({ user: updateResult.rows[0] });
+  } catch (error) {
+    console.error('Update User Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // POST /api/admin/registration-links
 router.post('/registration-links', async (req, res) => {
   const { classId, schoolId } = req.body;
