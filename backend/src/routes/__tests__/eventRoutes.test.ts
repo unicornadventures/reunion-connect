@@ -211,4 +211,42 @@ describe('Event Routes', () => {
       }
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle database error in GET all events', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/events/class/1/events');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in GET single event', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/events/1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error in days-until-next', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/events/class/1/days-until-next');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
 });
