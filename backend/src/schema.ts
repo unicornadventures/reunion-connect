@@ -130,6 +130,33 @@ export async function initializeDatabase() {
     await query(createCommentTable);
     console.log('✅ Table "comments" ensured.');
 
+    // 8. Create Password Reset Tokens Table
+    const createPasswordResetTable = `
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+        token_hash VARCHAR(255) NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+    await query(createPasswordResetTable);
+    console.log('✅ Table "password_reset_tokens" ensured.');
+
+    // 9. Create Email Verification Tokens Table
+    const createEmailVerificationTable = `
+      CREATE TABLE IF NOT EXISTS email_verification_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+        token_hash VARCHAR(255) NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        verified BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+    await query(createEmailVerificationTable);
+    console.log('✅ Table "email_verification_tokens" ensured.');
+
     console.log('🚀 Database schema initialization complete!');
 
   } catch (error) {

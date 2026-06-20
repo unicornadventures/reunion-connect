@@ -2,6 +2,9 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import Login from './Login';
+import Registration from './Registration';
+import ForgotPassword from './ForgotPassword';
+import ResetPassword from './ResetPassword';
 import Header from './Header';
 import AdminHeader from './AdminHeader';
 import WelcomePage from './WelcomePage';
@@ -18,13 +21,23 @@ import EventsPage from './EventsPage';
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();
 
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-
   const isSuperAdmin = currentUser?.is_admin || false;
   const isClassAdmin = currentUser?.is_class_admin || false;
 
+  // Public auth routes (accessible when not authenticated)
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Registration />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Authenticated routes
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
       {isSuperAdmin ? <AdminHeader /> : <Header />}
@@ -41,6 +54,7 @@ const AppRouter: React.FC = () => {
           <Route path="/admin/users" element={isSuperAdmin ? <UsersManager /> : <Navigate to="/" replace />} />
           <Route path="/profile" element={!isSuperAdmin ? <UserProfile /> : <Navigate to="/" replace />} />
           <Route path="/comments" element={!isSuperAdmin ? <CommentSection /> : <Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </div>
