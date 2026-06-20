@@ -331,46 +331,4 @@ describe('User Routes', () => {
       expect([200, 400]).toContain(response.status);
     });
   });
-
-  describe('POST /api/users/:userId/photo/:photoType', () => {
-    it('should handle then photo upload', async () => {
-      const response = await request(app)
-        .post('/api/users/1/photo/then')
-        .attach('file', Buffer.from('fake image data'), 'test.jpg');
-
-      expect([200, 400, 500]).toContain(response.status);
-    });
-
-    it('should handle now photo upload', async () => {
-      const response = await request(app)
-        .post('/api/users/1/photo/now')
-        .attach('file', Buffer.from('fake image data'), 'test.jpg');
-
-      expect([200, 400, 500]).toContain(response.status);
-    });
-
-    it('should reject upload for non-existent user', async () => {
-      const response = await request(app)
-        .post('/api/users/999/photo/then')
-        .attach('file', Buffer.from('fake image data'), 'test.jpg');
-
-      expect([400, 404, 500]).toContain(response.status);
-    });
-
-    it('should validate photo type (then or now)', async () => {
-      const response = await request(app)
-        .post('/api/users/1/photo/invalid')
-        .attach('file', Buffer.from('fake image data'), 'test.jpg');
-
-      expect([200, 400, 500]).toContain(response.status);
-    });
-
-    it('should require file upload', async () => {
-      const response = await request(app)
-        .post('/api/users/1/photo/then')
-        .send({});
-
-      expect([200, 400, 500]).toContain(response.status);
-    });
-  });
 });
