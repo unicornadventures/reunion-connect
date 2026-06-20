@@ -27,6 +27,7 @@ const UserCommentsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isCanModerate, setIsCanModerate] = useState(false);
 
   useEffect(() => {
     if (userId && currentUser?.user_id) {
@@ -45,12 +46,29 @@ const UserCommentsPage: React.FC = () => {
       });
       setUserProfile(profileResponse.data);
 
-      // Fetch comments on this user's profile (only published)
-      const commentsResponse = await api.get(`/users/${userId}/comments`);
-      const publishedComments = (commentsResponse.data.comments || []).filter(
-        (c: Comment) => c.published
-      );
-      setComments(publishedComments);
+      // Check if user is the profile owner or an admin
+      const canModerate = currentUser.user_id === parseInt(userId) || currentUser.is_admin;
+      setIsCanModerate(canModerate);
+
+      // Fetch all comments if can moderate, otherwise just published
+      let allComments: Comment[] = [];
+      if (canModerate) {
+        try {
+          const pendingResponse = await api.get(`/users/${userId}/comments/pending`, {
+            params: { requesterId: currentUser.user_id }
+          });
+          allComments = pendingResponse.data.comments || [];
+        } catch {
+          // Fall back to published-only if pending endpoint fails
+          const commentsResponse = await api.get(`/users/${userId}/comments`);
+          allComments = commentsResponse.data.comments || [];
+        }
+      } else {
+        const commentsResponse = await api.get(`/users/${userId}/comments`);
+        allComments = commentsResponse.data.comments || [];
+      }
+
+      setComments(allComments);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching user profile and comments:', err);
@@ -88,6 +106,22 @@ const UserCommentsPage: React.FC = () => {
       setError(err.response?.data?.error || 'Failed to post comment.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePublishComment = async (commentId: number, shouldPublish: boolean) => {
+    try {
+      const response = await api.put(`/comments/${commentId}`, {
+        published: shouldPublish,
+        requesterId: currentUser?.user_id
+      });
+
+      setComments(comments.map(c =>
+        c.id === commentId ? { ...c, published: response.data.comment.published } : c
+      ));
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update comment.');
     }
   };
 
@@ -212,14 +246,28 @@ const UserCommentsPage: React.FC = () => {
         ) : (
           <div className="flex flex-col gap-4">
             {comments.map((comment) => (
-              <div key={comment.id} className="bg-[#f9f9f9] p-4 rounded-lg border border-[#e0e0e0]">
+              <div
+                key={comment.id}
+                className={`p-4 rounded-lg border ${
+                  !comment.published
+                    ? 'bg-[#FFF3E0] border-[#FFB74D]'
+                    : 'bg-[#f9f9f9] border-[#e0e0e0]'
+                }`}
+              >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h5 className="m-0 mb-1 text-[#333] text-sm font-bold">
-                      {comment.first_name && comment.last_name
-                        ? `${comment.first_name} ${comment.last_name}`
-                        : 'Anonymous'}
-                    </h5>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h5 className="m-0 text-[#333] text-sm font-bold">
+                        {comment.first_name && comment.last_name
+                          ? `${comment.first_name} ${comment.last_name}`
+                          : 'Anonymous'}
+                      </h5>
+                      {!comment.published && (
+                        <span className="px-2 py-0.5 bg-[#FF6F00] text-white text-xs font-bold rounded">
+                          Pending Review
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-[#999]">
                       {new Date(comment.created_at).toLocaleDateString()} at{' '}
                       {new Date(comment.created_at).toLocaleTimeString([], {
@@ -228,6 +276,18 @@ const UserCommentsPage: React.FC = () => {
                       })}
                     </span>
                   </div>
+                  {isCanModerate && (
+                    <button
+                      onClick={() => handlePublishComment(comment.id, !comment.published)}
+                      className={`px-3 py-1 rounded text-xs font-bold border-none cursor-pointer transition-opacity ${
+                        comment.published
+                          ? 'bg-[#FFA726] text-white hover:opacity-90'
+                          : 'bg-[#4CAF50] text-white hover:opacity-90'
+                      }`}
+                    >
+                      {comment.published ? 'Unpublish' : 'Publish'}
+                    </button>
+                  )}
                 </div>
                 <p className="m-0 text-[#555] leading-relaxed break-words">{comment.content}</p>
               </div>

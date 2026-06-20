@@ -32,14 +32,19 @@ const mockDb = {
     }
   ],
   users: [
-    { id: 1, email: 'user1@example.com', created_at: new Date() },
-    { id: 2, email: 'user2@example.com', created_at: new Date() },
-    { id: 3, email: 'user3@example.com', created_at: new Date() }
+    { id: 1, email: 'user1@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
+    { id: 2, email: 'user2@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
+    { id: 3, email: 'user3@example.com', is_admin: false, is_class_admin: false, created_at: new Date() }
   ],
   profiles: [
     { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe' },
     { id: 2, user_id: 2, first_name: 'Jane', last_name: 'Smith' },
     { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson' }
+  ],
+  classUsers: [
+    { id: 1, class_id: 1, user_id: 1 },
+    { id: 2, class_id: 1, user_id: 2 },
+    { id: 3, class_id: 1, user_id: 3 }
   ]
 };
 
@@ -71,14 +76,52 @@ jest.mock('../../db', () => ({
       return { rows: comments };
     }
 
-    // INSERT new comment (always published = true)
+    // GET all comments on a user's profile (for moderation)
+    if (sql.includes('WHERE c.target_user_id = $1') && !sql.includes('AND c.published')) {
+      const targetUserId = Number(params?.[0]);
+      const comments = mockDb.comments
+        .filter(c => c.target_user_id === targetUserId)
+        .sort((a, b) => (a.published === b.published ? 0 : a.published ? 1 : -1))
+        .map(c => ({
+          ...c,
+          first_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.first_name,
+          last_name: mockDb.profiles.find(p => p.user_id === c.commenter_id)?.last_name
+        }));
+      return { rows: comments };
+    }
+
+    // SELECT single comment by ID
+    if (sql.includes('SELECT id, target_user_id, commenter_id FROM comments WHERE id')) {
+      const commentId = Number(params?.[0]);
+      const comment = mockDb.comments.find(c => c.id === commentId);
+      return { rows: comment ? [comment] : [] };
+    }
+
+    // SELECT user info
+    if (sql.includes('SELECT is_admin FROM users WHERE id')) {
+      const userId = Number(params?.[0]);
+      const user = mockDb.users.find(u => u.id === userId);
+      return { rows: user ? [{ is_admin: user.is_admin, is_class_admin: user.is_class_admin }] : [] };
+    }
+
+    // SELECT class membership
+    if (sql.includes('SELECT cu1.class_id') && sql.includes('FROM class_user cu1')) {
+      const userId = Number(params?.[0]);
+      const targetUserId = Number(params?.[1]);
+      const classes = mockDb.classUsers
+        .filter(cu => cu.user_id === userId)
+        .map(cu => ({ class_id: cu.class_id }));
+      return { rows: classes };
+    }
+
+    // INSERT new comment (published = false by default)
     if (sql.includes('INSERT INTO comments')) {
       const newComment = {
         id: Math.max(...mockDb.comments.map(c => c.id), 0) + 1,
         target_user_id: Number(params?.[0]),
         commenter_id: Number(params?.[1]),
         content: params?.[2],
-        published: true,
+        published: false,
         created_at: new Date(),
         updated_at: new Date()
       };
@@ -263,7 +306,7 @@ describe('Comment Routes', () => {
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('comment');
       expect(response.body.comment.content).toBe('Great reunion!');
-      expect(response.body.comment.published).toBe(true);
+      expect(response.body.comment.published).toBe(false);
     });
 
     it('should reject comment without commenterId', async () => {
@@ -288,7 +331,7 @@ describe('Comment Routes', () => {
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should create comment with published=true by default', async () => {
+    it('should create comment with published=false by default', async () => {
       const response = await request(app)
         .post('/api/comments/2/comments')
         .send({
@@ -297,7 +340,7 @@ describe('Comment Routes', () => {
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.comment.published).toBe(true);
+      expect(response.body.comment.published).toBe(false);
     });
   });
 
