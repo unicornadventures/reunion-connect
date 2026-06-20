@@ -45,7 +45,7 @@ const AppRouter: React.FC = () => {
   // Authenticated routes
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
-      {isSuperAdmin ? <AdminHeader /> : <Header />}
+      {isSuperAdmin || isClassAdmin ? <AdminHeader /> : <Header />}
 
       <div className="max-w-[1200px] mx-auto">
         <Routes>
@@ -54,7 +54,7 @@ const AppRouter: React.FC = () => {
           <Route path="/events" element={!isSuperAdmin ? <EventsPage /> : <Navigate to="/" replace />} />
           <Route path="/user/:userId" element={!isSuperAdmin ? <UserCommentsPage /> : <Navigate to="/" replace />} />
           <Route path="/admin/user/:userId" element={isSuperAdmin ? <AdminUserProfile /> : <Navigate to="/" replace />} />
-          <Route path="/admin/comments" element={isSuperAdmin ? <AdminCommentsPage /> : <Navigate to="/" replace />} />
+          <Route path="/admin/comments" element={isSuperAdmin || isClassAdmin ? <AdminCommentsPage /> : <Navigate to="/" replace />} />
           <Route path="/admin/schools" element={isSuperAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isSuperAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/users" element={isSuperAdmin ? <UsersManager /> : <Navigate to="/" replace />} />

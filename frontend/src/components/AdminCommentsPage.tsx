@@ -31,6 +31,7 @@ const AdminCommentsPage: React.FC = () => {
       const users = usersResponse.data.users || [];
 
       // For each user, fetch their pending comments
+      // Note: For class admins, the backend will return 403 for users they can't moderate
       const allComments: CommentWithProfile[] = [];
       for (const user of users) {
         try {
@@ -47,8 +48,14 @@ const AdminCommentsPage: React.FC = () => {
               }
             });
           });
-        } catch (err) {
-          // Skip if error fetching comments for this user
+        } catch (err: any) {
+          // Skip if error (403 for unauthorized, or other errors)
+          // Class admins will get 403 for users not in their class
+          if (err.response?.status === 403) {
+            continue;
+          }
+          // Log other errors but continue
+          console.error(`Error fetching comments for user ${user.id}:`, err);
           continue;
         }
       }

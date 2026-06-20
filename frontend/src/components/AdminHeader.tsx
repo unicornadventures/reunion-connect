@@ -30,30 +30,36 @@ const AdminHeader: React.FC = () => {
         </Link>
 
         <nav className="hidden md:flex items-center gap-[30px]">
-          <Link
-            to="/admin/schools"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
-          >
-            🏫 Schools
-          </Link>
-          <Link
-            to="/admin/classes"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
-          >
-            📚 Classes
-          </Link>
-          <Link
-            to="/admin/users"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
-          >
-            👥 Users
-          </Link>
-          <Link
-            to="/admin/comments"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
-          >
-            💬 Comments
-          </Link>
+          {currentUser?.is_admin && (
+            <>
+              <Link
+                to="/admin/schools"
+                className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+              >
+                🏫 Schools
+              </Link>
+              <Link
+                to="/admin/classes"
+                className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+              >
+                📚 Classes
+              </Link>
+              <Link
+                to="/admin/users"
+                className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+              >
+                👥 Users
+              </Link>
+            </>
+          )}
+          {(currentUser?.is_admin || currentUser?.is_class_admin) && (
+            <Link
+              to="/admin/comments"
+              className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+            >
+              💬 Comments
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-3">
