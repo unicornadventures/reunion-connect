@@ -21,11 +21,12 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const [editData, setEditData] = useState<Partial<Profile>>({});
   const [bio, setBio] = useState('');
 
-  const profileUserId = userId || currentUser?.user_id;
+  const profileUserId = userId ? Number(userId) : currentUser?.user_id;
   const isOwnProfile = profileUserId === currentUser?.user_id;
 
   const fetchProfile = async () => {
-    if (!isOwnProfile && !currentUser?.is_admin) {
+    const canView = isOwnProfile || currentUser?.is_admin;
+    if (!canView) {
       setError('You can only view your own profile.');
       setLoading(false);
       return;
@@ -125,7 +126,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     );
   }
 
-  if (!isOwnProfile) {
+  if (!isOwnProfile && !currentUser?.is_admin) {
     return (
       <div className="max-w-[1000px] mx-auto px-5 py-8">
         <button
@@ -148,7 +149,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     <div className="max-w-[1200px] mx-auto px-5 py-8">
       {/* Back Button */}
       <button
-        onClick={() => navigate('/directory')}
+        onClick={() => navigate(-1)}
         className="text-[#2196F3] text-sm font-bold hover:opacity-80 transition-opacity flex items-center gap-1 mb-6"
       >
         ← Back
@@ -187,40 +188,44 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
             </div>
             <h2 className="text-2xl font-bold text-[#333333]">{displayName}</h2>
 
-            <div className="mt-5 space-y-2">
-              <button
-                onClick={() => setEditMode(!editMode)}
-                className={`w-full font-bold py-[10px] rounded text-sm hover:opacity-90 transition-opacity ${
-                  editMode ? 'bg-[#f44336] text-white' : 'bg-[#2196F3] text-white'
-                }`}
-              >
-                {editMode ? '✏️ Cancel Editing' : '✏️ Edit Profile'}
-              </button>
-            </div>
+            {isOwnProfile && (
+              <div className="mt-5 space-y-2">
+                <button
+                  onClick={() => setEditMode(!editMode)}
+                  className={`w-full font-bold py-[10px] rounded text-sm hover:opacity-90 transition-opacity ${
+                    editMode ? 'bg-[#f44336] text-white' : 'bg-[#2196F3] text-white'
+                  }`}
+                >
+                  {editMode ? '✏️ Cancel Editing' : '✏️ Edit Profile'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Contact Info Card - Only visible to own profile */}
-          <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] mt-4 overflow-hidden">
-            <div className="px-5 py-3 border-b border-[#EEEEEE]">
-              <h3 className="text-base font-bold text-[#333333]">Contact Info</h3>
-            </div>
-            <div className="p-5 space-y-3">
-              <div>
-                <div className="text-xs font-semibold text-[#999999]">Email</div>
-                {editMode ? (
-                  <input
-                    type="email"
-                    value={editData.email || user.email}
-                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                    className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50] mt-1"
-                    placeholder="your@email.com"
-                  />
-                ) : (
-                  <div className="text-sm text-[#2196F3]">{user.email}</div>
-                )}
+          {isOwnProfile && (
+            <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] mt-4 overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#EEEEEE]">
+                <h3 className="text-base font-bold text-[#333333]">Contact Info</h3>
+              </div>
+              <div className="p-5 space-y-3">
+                <div>
+                  <div className="text-xs font-semibold text-[#999999]">Email</div>
+                  {editMode ? (
+                    <input
+                      type="email"
+                      value={editData.email || user.email}
+                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                      className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50] mt-1"
+                      placeholder="your@email.com"
+                    />
+                  ) : (
+                    <div className="text-sm text-[#2196F3]">{user.email}</div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Content */}
@@ -270,22 +275,24 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                 { key: 'now', label: `Now (${new Date().getFullYear()})`, url: profile?.now_photo_url }
               ].map((photo) => (
                 <div key={photo.key}>
-                  <input
-                    type="file"
-                    id={`photo-${photo.key}`}
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        handlePhotoUpload(photo.key as 'then' | 'now', file);
-                      }
-                    }}
-                    className="hidden"
-                    disabled={uploadingPhoto !== null}
-                  />
-                  <label htmlFor={`photo-${photo.key}`}>
+                  {isOwnProfile && (
+                    <input
+                      type="file"
+                      id={`photo-${photo.key}`}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handlePhotoUpload(photo.key as 'then' | 'now', file);
+                        }
+                      }}
+                      className="hidden"
+                      disabled={uploadingPhoto !== null}
+                    />
+                  )}
+                  <label htmlFor={`photo-${photo.key}`} style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}>
                     {photo.url ? (
-                      <div className="rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
+                      <div className={`rounded-lg overflow-hidden ${isOwnProfile ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}>
                         <img
                           src={photo.url}
                           alt={photo.label}
@@ -294,13 +301,13 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                       </div>
                     ) : (
                       <div
-                        className="rounded-lg flex items-center justify-center text-[#999999] text-sm border-2 border-dashed border-[#DDDDDD] bg-[#F9F9F9] cursor-pointer hover:border-[#4CAF50] hover:bg-[#E8F5E9] transition-colors duration-200"
+                        className={`rounded-lg flex items-center justify-center text-[#999999] text-sm border-2 border-dashed border-[#DDDDDD] bg-[#F9F9F9] ${isOwnProfile ? 'cursor-pointer hover:border-[#4CAF50] hover:bg-[#E8F5E9] transition-colors duration-200' : ''}`}
                         style={{ height: 180 }}
                       >
                         <div className="text-center">
                           <div className="text-3xl mb-2">📷</div>
                           <div className="text-xs font-semibold">
-                            {uploadingPhoto === photo.key ? 'Uploading...' : 'Add photo'}
+                            {uploadingPhoto === photo.key ? 'Uploading...' : isOwnProfile ? 'Add photo' : 'No photo'}
                           </div>
                         </div>
                       </div>
