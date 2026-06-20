@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { adminClassAPI, schoolAPI } from '../apiClient';
 import ConfirmModal from './ConfirmModal';
+import UserDeletionWarning from './UserDeletionWarning';
 
 const ClassManager: React.FC = () => {
   const { currentUser } = useAppContext();
@@ -13,6 +14,8 @@ const ClassManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
+  const [userDeletionWarning, setUserDeletionWarning] = useState<{ isOpen: boolean; classId: number | null; userCount: number }>({ isOpen: false, classId: null, userCount: 0 });
+  const [pendingCascadeDelete, setPendingCascadeDelete] = useState(false);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -72,14 +75,47 @@ const ClassManager: React.FC = () => {
 
   const handleConfirmDelete = async (cascadeUsers?: boolean) => {
     if (deleteModal.id === null) return;
+
+    // If cascadeUsers is true, show a warning modal first
+    if (cascadeUsers) {
+      setUserDeletionWarning({
+        isOpen: true,
+        classId: deleteModal.id,
+        userCount: 0,
+      });
+      setPendingCascadeDelete(true);
+      setDeleteModal({ isOpen: false, id: null });
+      return;
+    }
+
+    // Otherwise, proceed with normal deletion
     try {
-      await adminClassAPI.deleteClass(deleteModal.id, String(currentUser?.id), cascadeUsers);
+      await adminClassAPI.deleteClass(deleteModal.id, String(currentUser?.id), false);
       setDeleteModal({ isOpen: false, id: null });
       fetchClasses();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete class.');
       setDeleteModal({ isOpen: false, id: null });
     }
+  };
+
+  const handleConfirmUserDeletion = async () => {
+    if (userDeletionWarning.classId === null) return;
+    try {
+      await adminClassAPI.deleteClass(userDeletionWarning.classId, String(currentUser?.id), true);
+      setUserDeletionWarning({ isOpen: false, classId: null, userCount: 0 });
+      setPendingCascadeDelete(false);
+      fetchClasses();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete class.');
+      setUserDeletionWarning({ isOpen: false, classId: null, userCount: 0 });
+      setPendingCascadeDelete(false);
+    }
+  };
+
+  const handleCancelUserDeletion = () => {
+    setUserDeletionWarning({ isOpen: false, classId: null, userCount: 0 });
+    setPendingCascadeDelete(false);
   };
 
   const handleCancelDelete = () => {
@@ -193,6 +229,13 @@ const ClassManager: React.FC = () => {
         checkboxLabel="Also delete all users assigned to this class"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      <UserDeletionWarning
+        isOpen={userDeletionWarning.isOpen}
+        userCount={userDeletionWarning.userCount || 1}
+        onConfirm={handleConfirmUserDeletion}
+        onCancel={handleCancelUserDeletion}
       />
     </div>
   );
