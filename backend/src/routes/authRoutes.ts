@@ -271,7 +271,7 @@ router.post('/verify-email', async (req, res) => {
   try {
     // Find valid verification token
     const tokenResult = await query(
-      'SELECT user_id FROM email_verification_tokens WHERE expires_at > NOW() AND verified = FALSE ORDER BY created_at DESC LIMIT 1'
+      'SELECT user_id, token_hash FROM email_verification_tokens WHERE expires_at > NOW() AND verified = FALSE ORDER BY created_at DESC LIMIT 1'
     );
 
     if (tokenResult.rows.length === 0) {
