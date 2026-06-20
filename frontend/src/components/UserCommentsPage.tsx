@@ -99,7 +99,7 @@ const UserCommentsPage: React.FC = () => {
     );
   }
 
-  if (error || !userProfile) {
+  if (!userProfile) {
     return (
       <div className="max-w-[900px] mx-auto px-5 py-8">
         <button
@@ -166,6 +166,13 @@ const UserCommentsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="px-3 py-3 bg-[#FFEBEE] text-[#C62828] rounded border border-[#EF5350] text-sm mb-5">
+          {error}
+        </div>
+      )}
 
       {/* Comments Section */}
       <div className="bg-white p-5 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.1)] border border-[#e0e0e0]">
