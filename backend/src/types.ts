@@ -10,10 +10,8 @@ export interface School {
 // Class Entity
 export interface ClassEntity {
   id: number;
-  school_id: number;
   year: number;
   created_at: Date;
-  updated_at: Date;
 }
 
 // User Entity - Auth only

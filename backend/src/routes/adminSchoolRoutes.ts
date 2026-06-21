@@ -5,7 +5,7 @@ import { deleteUserPhotosFromS3 } from '../s3Service.ts';
 
 const router = express.Router();
 
-// GET /api/admin/schools - Read all schools
+// GET /api/admin/schools
 router.get('/', requireSuperAdmin, async (req: any, res) => {
   try {
     const result = await query('SELECT * FROM schools ORDER BY name ASC;');
@@ -16,7 +16,99 @@ router.get('/', requireSuperAdmin, async (req: any, res) => {
   }
 });
 
-// GET /api/admin/schools/:id - Read single school
+// POST /api/admin/schools/:id/classes — link a class year to this school
+router.post('/:id/classes', requireSuperAdmin, async (req: any, res) => {
+  const { id } = req.params;
+  const { year } = req.body;
+
+  if (!year) {
+    return res.status(400).json({ error: 'year is required.' });
+  }
+
+  try {
+    const schoolCheck = await query('SELECT id FROM schools WHERE id = $1;', [id]);
+    if (schoolCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'School not found.' });
+    }
+
+    const classRow = await query('SELECT id, year FROM classes WHERE year = $1;', [year]);
+    if (classRow.rows.length === 0) {
+      return res.status(404).json({ error: `Class year ${year} not found.` });
+    }
+
+    const classId = classRow.rows[0].id;
+
+    const existing = await query(
+      'SELECT 1 FROM class_school WHERE class_id = $1 AND school_id = $2;',
+      [classId, id]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: `Class year ${year} is already linked to this school.` });
+    }
+
+    await query('INSERT INTO class_school (class_id, school_id) VALUES ($1, $2);', [classId, id]);
+
+    res.status(201).json({ class: classRow.rows[0] });
+  } catch (error) {
+    console.error("Admin Link Class Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// DELETE /api/admin/schools/:id/classes/:classId — unlink a class from this school
+router.delete('/:id/classes/:classId', requireSuperAdmin, async (req: any, res) => {
+  const { id, classId } = req.params;
+  const cascadeUsers = req.query.cascadeUsers === 'true';
+
+  try {
+    await query('BEGIN;');
+
+    const linkCheck = await query(
+      'SELECT 1 FROM class_school WHERE class_id = $1 AND school_id = $2;',
+      [classId, id]
+    );
+    if (linkCheck.rows.length === 0) {
+      await query('ROLLBACK;');
+      return res.status(404).json({ error: 'Class is not linked to this school.' });
+    }
+
+    if (cascadeUsers) {
+      const usersResult = await query(`
+        SELECT DISTINCT user_id AS id
+        FROM class_user
+        WHERE class_id = $1 AND school_id = $2
+      `, [classId, id]);
+
+      for (const user of usersResult.rows) {
+        await deleteUserPhotosFromS3(user.id);
+      }
+
+      await query(`
+        DELETE FROM users
+        WHERE id IN (
+          SELECT user_id FROM class_user
+          WHERE class_id = $1 AND school_id = $2
+        );
+      `, [classId, id]);
+    } else {
+      await query(
+        'DELETE FROM class_user WHERE class_id = $1 AND school_id = $2;',
+        [classId, id]
+      );
+    }
+
+    await query('DELETE FROM class_school WHERE class_id = $1 AND school_id = $2;', [classId, id]);
+
+    await query('COMMIT;');
+    res.status(200).json({ message: 'Class unlinked from school successfully.' });
+  } catch (error) {
+    await query('ROLLBACK;');
+    console.error("Admin Unlink Class Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// GET /api/admin/schools/:id
 router.get('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
 
@@ -32,7 +124,7 @@ router.get('/:id', requireSuperAdmin, async (req: any, res) => {
   }
 });
 
-// POST /api/admin/schools - Create school
+// POST /api/admin/schools
 router.post('/', requireSuperAdmin, async (req: any, res) => {
   const { name, location } = req.body;
 
@@ -52,7 +144,7 @@ router.post('/', requireSuperAdmin, async (req: any, res) => {
   }
 });
 
-// PUT /api/admin/schools/:id - Update school
+// PUT /api/admin/schools/:id
 router.put('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
   const { name, location } = req.body;
@@ -78,7 +170,7 @@ router.put('/:id', requireSuperAdmin, async (req: any, res) => {
   }
 });
 
-// DELETE /api/admin/schools/:id - Delete school
+// DELETE /api/admin/schools/:id
 router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
   const cascadeUsers = req.query.cascadeUsers === 'true';
@@ -86,36 +178,26 @@ router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
   try {
     await query('BEGIN;');
 
-    // If cascadeUsers is true, delete all users in classes for this school
     if (cascadeUsers) {
-      // First, get all user IDs so we can clean up their S3 photos
       const usersResult = await query(`
         SELECT DISTINCT u.id
         FROM users u
         JOIN class_user cu ON u.id = cu.user_id
-        JOIN classes c ON cu.class_id = c.id
-        WHERE c.school_id = $1
+        WHERE cu.school_id = $1
       `, [id]);
 
-      // Clean up S3 photos for each user
       for (const user of usersResult.rows) {
         await deleteUserPhotosFromS3(user.id);
       }
 
-      // Now delete the users
       await query(`
         DELETE FROM users
         WHERE id IN (
-          SELECT DISTINCT u.id
-          FROM users u
-          JOIN class_user cu ON u.id = cu.user_id
-          JOIN classes c ON cu.class_id = c.id
-          WHERE c.school_id = $1
+          SELECT DISTINCT user_id FROM class_user WHERE school_id = $1
         );
       `, [id]);
     }
 
-    // Delete the school (which cascades to classes and class_user via foreign keys)
     const result = await query('DELETE FROM schools WHERE id = $1 RETURNING *;', [id]);
 
     if (result.rows.length === 0) {

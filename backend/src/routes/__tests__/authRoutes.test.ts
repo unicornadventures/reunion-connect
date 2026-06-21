@@ -36,7 +36,7 @@ const mockDb = {
     { id: 1, name: 'High School A', location: 'City 1' }
   ],
   classes: [
-    { id: 1, school_id: 1, year: 2020 }
+    { id: 1, year: 2020 }
   ],
   classUsers: [] as any[],
   passwordResetTokens: [] as any[],
@@ -193,27 +193,24 @@ jest.mock('../../db', () => ({
       return { rows: school ? [school] : [] };
     }
 
-    // SELECT class by id and school_id (for registration link lookup)
-    if (sql.includes('SELECT id, year FROM classes WHERE id') && sql.includes('AND school_id')) {
+    // SELECT class via class_school JOIN (registration link lookup and validation)
+    if (sql.includes('FROM classes c') && sql.includes('JOIN class_school cs') && sql.includes('WHERE c.id')) {
       const classId = parseInt(params?.[0]);
       const schoolId = parseInt(params?.[1]);
-      const classInfo = mockDb.classes.find(c => c.id === classId && c.school_id === schoolId);
-      return { rows: classInfo ? [classInfo] : [] };
+      const classInfo = mockDb.classes.find(c => c.id === classId);
+      // Simulate class_school link existing for school_id=1, class_id=1
+      if (classInfo && classId === 1 && schoolId === 1) {
+        return { rows: [{ id: classInfo.id, year: classInfo.year }] };
+      }
+      return { rows: [] };
     }
 
-    // SELECT id FROM classes WHERE id and school_id (for registration validation)
-    if (sql.includes('SELECT id FROM classes WHERE id') && sql.includes('AND school_id')) {
-      const classId = parseInt(params?.[0]);
-      const schoolId = parseInt(params?.[1]);
-      const classInfo = mockDb.classes.find(c => c.id === classId && c.school_id === schoolId);
-      return { rows: classInfo ? [{ id: classInfo.id }] : [] };
-    }
-
-    // INSERT into class_user
+    // INSERT into class_user (now includes school_id)
     if (sql.includes('INSERT INTO class_user')) {
       const classId = parseInt(params?.[0]);
       const userId = parseInt(params?.[1]);
-      mockDb.classUsers.push({ id: mockDb.classUsers.length + 1, class_id: classId, user_id: userId });
+      const schoolId = parseInt(params?.[2]);
+      mockDb.classUsers.push({ id: mockDb.classUsers.length + 1, class_id: classId, user_id: userId, school_id: schoolId });
       return { rows: [] };
     }
 

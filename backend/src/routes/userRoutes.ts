@@ -137,10 +137,10 @@ router.get('/:id/class', async (req, res) => {
 
   try {
     const result = await query(`
-      SELECT c.id, c.year, c.school_id, s.name as school_name
+      SELECT c.id, c.year, cu.school_id, s.name AS school_name
       FROM class_user cu
       JOIN classes c ON cu.class_id = c.id
-      JOIN schools s ON c.school_id = s.id
+      LEFT JOIN schools s ON cu.school_id = s.id
       WHERE cu.user_id = $1
       LIMIT 1;
     `, [id]);

@@ -115,8 +115,13 @@ router.get('/registration-link/:hash', async (req, res) => {
       return res.status(404).json({ error: 'School not found.' });
     }
 
-    // Fetch class info
-    const classResult = await query('SELECT id, year FROM classes WHERE id = $1 AND school_id = $2', [classId, schoolId]);
+    // Fetch class info — verify this class year is linked to this school
+    const classResult = await query(
+      `SELECT c.id, c.year FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       WHERE c.id = $1 AND cs.school_id = $2`,
+      [classId, schoolId]
+    );
     if (classResult.rows.length === 0) {
       return res.status(404).json({ error: 'Class not found.' });
     }
@@ -174,17 +179,19 @@ router.post('/register', async (req, res) => {
       [user.id, firstName || null, lastName || null]
     );
 
-    // If schoolId and classId provided, add user to class
+    // If schoolId and classId provided, add user to class with school context
     if (schoolId && classId) {
       const classExists = await query(
-        'SELECT id FROM classes WHERE id = $1 AND school_id = $2',
+        `SELECT c.id FROM classes c
+         JOIN class_school cs ON c.id = cs.class_id
+         WHERE c.id = $1 AND cs.school_id = $2`,
         [classId, schoolId]
       );
 
       if (classExists.rows.length > 0) {
         await query(
-          'INSERT INTO class_user (class_id, user_id) VALUES ($1, $2)',
-          [classId, user.id]
+          'INSERT INTO class_user (class_id, user_id, school_id) VALUES ($1, $2, $3)',
+          [classId, user.id, schoolId]
         );
       }
     }

@@ -26,12 +26,9 @@ const AdminCommentsPage: React.FC = () => {
   const fetchAllUnpublishedComments = async () => {
     setLoading(true);
     try {
-      // Fetch all users first to get their class info
       const usersResponse = await api.get('/admin/users');
       const users = usersResponse.data.users || [];
 
-      // For each user, fetch their pending comments
-      // Note: For class admins, the backend will return 403 for users they can't moderate
       const allComments: CommentWithProfile[] = [];
       for (const user of users) {
         try {
@@ -42,25 +39,16 @@ const AdminCommentsPage: React.FC = () => {
           userComments.forEach((comment: Comment) => {
             allComments.push({
               ...comment,
-              target_user_profile: {
-                first_name: user.first_name,
-                last_name: user.last_name
-              }
+              target_user_profile: { first_name: user.first_name, last_name: user.last_name }
             });
           });
         } catch (err: any) {
-          // Skip if error (403 for unauthorized, or other errors)
-          // Class admins will get 403 for users not in their class
-          if (err.response?.status === 403) {
-            continue;
-          }
-          // Log other errors but continue
+          if (err.response?.status === 403) continue;
           console.error(`Error fetching comments for user ${user.id}:`, err);
           continue;
         }
       }
 
-      // Filter to only unpublished comments and sort by date
       const unpublished = allComments
         .filter(c => !c.published)
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -68,7 +56,6 @@ const AdminCommentsPage: React.FC = () => {
       setComments(unpublished);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching comments:', err);
       setError(err.response?.data?.error || 'Failed to load comments.');
     } finally {
       setLoading(false);
@@ -78,11 +65,7 @@ const AdminCommentsPage: React.FC = () => {
   const handlePublishComment = async (commentId: number) => {
     setActionLoading(commentId);
     try {
-      await api.put(`/comments/${commentId}`, {
-        published: true,
-        requesterId: currentUser?.user_id
-      });
-
+      await api.put(`/comments/${commentId}`, { published: true, requesterId: currentUser?.user_id });
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
     } catch (err: any) {
@@ -92,24 +75,15 @@ const AdminCommentsPage: React.FC = () => {
     }
   };
 
-  const openDeleteModal = (commentId: number) => {
-    setDeleteModal({ isOpen: true, id: commentId });
-  };
-
-  const closeDeleteModal = () => {
-    setDeleteModal({ isOpen: false, id: null });
-  };
-
   const handleDeleteComment = async () => {
     if (deleteModal.id === null) return;
-
     const commentId = deleteModal.id;
     setActionLoading(commentId);
     try {
       await api.delete(`/comments/${commentId}`);
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
-      closeDeleteModal();
+      setDeleteModal({ isOpen: false, id: null });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete comment.');
     } finally {
@@ -119,73 +93,71 @@ const AdminCommentsPage: React.FC = () => {
 
   return (
     <div className="max-w-[900px] mx-auto px-5 py-8">
-      <h1 className="text-3xl font-bold text-[#333] mb-2">💬 Pending Comments</h1>
-      <p className="text-[#999] mb-6">Review and approve comments before they appear on user profiles</p>
+      <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight mb-1">
+        Pending Comments
+      </h1>
+      <p className="text-sm text-[#64748B] mb-6">Review and approve comments before they appear on user profiles</p>
 
       {error && (
-        <div className="px-4 py-3 bg-[#FFEBEE] text-[#C62828] rounded border border-[#EF5350] text-sm mb-6">
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-6">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-[#999]">Loading comments...</div>
+        <div className="py-12 text-center text-[#94A3B8] text-sm">Loading comments...</div>
       ) : comments.length === 0 ? (
-        <div className="py-12 text-center bg-[#f9f9f9] rounded-lg border border-[#ddd]">
-          <div className="text-4xl mb-4">✅</div>
-          <p className="text-[#999]">All comments have been reviewed!</p>
-          <p className="text-sm text-[#ccc] mt-2">No pending comments to moderate.</p>
+        <div className="py-12 text-center bg-white rounded-lg border border-[#E2E8F0]">
+          <p className="text-[#64748B] font-semibold">All caught up</p>
+          <p className="text-sm text-[#94A3B8] mt-1">No pending comments to moderate.</p>
         </div>
       ) : (
         <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
           {comments.map((comment) => (
             <div
               key={comment.id}
-              className="bg-white p-5 rounded-lg border border-[#FFB74D] shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+              className="bg-white rounded-lg border border-[#E8A93E]/30 p-5 hover:border-[#E8A93E] transition-colors"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold text-[#333]">
-                      Profile: {comment.target_user_profile?.first_name} {comment.target_user_profile?.last_name}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold text-[#0E2240]">
+                      {comment.target_user_profile?.first_name} {comment.target_user_profile?.last_name}
                     </span>
-                    <span className="px-2 py-0.5 bg-[#FF6F00] text-white text-xs font-bold rounded">
-                      Pending Review
+                    <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
+                      Pending
                     </span>
                   </div>
-                  <span className="text-xs text-[#999]">
+                  <span className="text-xs text-[#94A3B8]">
                     {new Date(comment.created_at).toLocaleDateString()} at{' '}
-                    {new Date(comment.created_at).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#F5F5F5] p-4 rounded-lg mb-4 border border-[#E0E0E0]">
-                <p className="text-[#555] leading-relaxed break-words">{comment.content}</p>
+              <div className="bg-[#F6F8FC] rounded px-4 py-3 mb-4 border border-[#E2E8F0]">
+                <p className="text-sm text-[#64748B] leading-relaxed break-words">{comment.content}</p>
               </div>
 
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => openDeleteModal(comment.id)}
+                  onClick={() => setDeleteModal({ isOpen: true, id: comment.id })}
                   disabled={actionLoading === comment.id}
-                  className={`px-4 py-2 rounded text-sm font-bold border-none cursor-pointer transition-opacity ${
+                  className={`px-4 py-2 rounded text-sm font-semibold border-none cursor-pointer transition-opacity ${
                     actionLoading === comment.id
-                      ? 'bg-gray-300 text-[#666] cursor-not-allowed'
+                      ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
                       : 'bg-[#f44336] text-white hover:opacity-90'
                   }`}
                 >
-                  {actionLoading === comment.id ? 'Deleting...' : 'Delete'}
+                  Delete
                 </button>
                 <button
                   onClick={() => handlePublishComment(comment.id)}
                   disabled={actionLoading === comment.id}
-                  className={`px-4 py-2 rounded text-sm font-bold border-none cursor-pointer transition-opacity ${
+                  className={`px-4 py-2 rounded text-sm font-semibold border-none cursor-pointer transition-opacity ${
                     actionLoading === comment.id
-                      ? 'bg-gray-300 text-[#666] cursor-not-allowed'
-                      : 'bg-[#4CAF50] text-white hover:opacity-90'
+                      ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                      : 'bg-[#0E2240] text-white hover:opacity-90'
                   }`}
                 >
                   {actionLoading === comment.id ? 'Publishing...' : 'Publish'}
@@ -204,7 +176,7 @@ const AdminCommentsPage: React.FC = () => {
         cancelText="Cancel"
         isDangerous={true}
         onConfirm={handleDeleteComment}
-        onCancel={closeDeleteModal}
+        onCancel={() => setDeleteModal({ isOpen: false, id: null })}
       />
     </div>
   );

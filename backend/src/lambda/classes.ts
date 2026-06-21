@@ -39,6 +39,19 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
   response(statusCode, { error: message });
 
 /**
+ * Lambda handler for GET /api/classes — all seeded class years
+ */
+export const listAllClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const result = await query('SELECT id, year FROM classes ORDER BY year DESC;');
+    return response(200, { classes: result.rows });
+  } catch (error: any) {
+    console.error('List all classes handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for GET /api/schools/{schoolId}/classes
  */
 export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -50,7 +63,11 @@ export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<A
     }
 
     const result = await query(
-      'SELECT id, school_id, year, created_at FROM classes WHERE school_id = $1 ORDER BY year DESC;',
+      `SELECT c.id, c.year
+       FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       WHERE cs.school_id = $1
+       ORDER BY c.year DESC;`,
       [schoolId]
     );
 
@@ -73,7 +90,12 @@ export const getClassHandler = async (event: APIGatewayProxyEvent): Promise<APIG
     }
 
     const result = await query(
-      'SELECT id, school_id, year, created_at FROM classes WHERE id = $1',
+      `SELECT c.id, c.year, cs.school_id, s.name AS school_name, c.created_at
+       FROM classes c
+       LEFT JOIN class_school cs ON c.id = cs.class_id
+       LEFT JOIN schools s ON cs.school_id = s.id
+       WHERE c.id = $1
+       LIMIT 1;`,
       [classId]
     );
 
@@ -89,7 +111,7 @@ export const getClassHandler = async (event: APIGatewayProxyEvent): Promise<APIG
 };
 
 /**
- * Lambda handler for POST /api/admin/schools/{schoolId}/classes
+ * Lambda handler for POST /api/admin/schools/{schoolId}/classes — link class year to school
  */
 export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
@@ -101,18 +123,29 @@ export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(400, 'School ID and year are required.');
     }
 
-    // Verify school exists
     const schoolCheck = await query('SELECT id FROM schools WHERE id = $1', [schoolId]);
     if (schoolCheck.rows.length === 0) {
       return errorResponse(404, 'School not found.');
     }
 
-    const result = await query(
-      'INSERT INTO classes (school_id, year) VALUES ($1, $2) RETURNING id, school_id, year, created_at',
-      [schoolId, year]
-    );
+    const classRow = await query('SELECT id, year FROM classes WHERE year = $1', [year]);
+    if (classRow.rows.length === 0) {
+      return errorResponse(404, `Class year ${year} not found.`);
+    }
 
-    return response(201, { class: result.rows[0] });
+    const classId = classRow.rows[0].id;
+
+    const existing = await query(
+      'SELECT 1 FROM class_school WHERE class_id = $1 AND school_id = $2',
+      [classId, schoolId]
+    );
+    if (existing.rows.length > 0) {
+      return errorResponse(409, `Class year ${year} is already linked to this school.`);
+    }
+
+    await query('INSERT INTO class_school (class_id, school_id) VALUES ($1, $2)', [classId, schoolId]);
+
+    return response(201, { class: classRow.rows[0] });
   } catch (error: any) {
     console.error('Create class handler error:', error);
     return errorResponse(500, 'Internal server error.');
@@ -120,46 +153,53 @@ export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<A
 };
 
 /**
- * Lambda handler for DELETE /api/admin/classes/{classId}
+ * Lambda handler for DELETE /api/admin/schools/{schoolId}/classes/{classId}
  */
 export const deleteClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
-    const { classId } = event.pathParameters || {};
+    const { schoolId, classId } = event.pathParameters || {};
+    const cascadeUsers = event.queryStringParameters?.cascadeUsers === 'true';
 
-    if (!classId) {
-      return errorResponse(400, 'Class ID required.');
+    if (!schoolId || !classId) {
+      return errorResponse(400, 'School ID and Class ID required.');
     }
 
-    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [classId]);
-    if (classCheck.rows.length === 0) {
-      return errorResponse(404, 'Class not found.');
-    }
-
-    // Collect all users in this class and their photo keys before deletion
-    const usersResult = await query(
-      `SELECT u.id, p.then_photo_url, p.now_photo_url
-       FROM class_user cu
-       JOIN users u ON cu.user_id = u.id
-       LEFT JOIN profiles p ON u.id = p.user_id
-       WHERE cu.class_id = $1`,
-      [classId]
+    const linkCheck = await query(
+      'SELECT 1 FROM class_school WHERE class_id = $1 AND school_id = $2',
+      [classId, schoolId]
     );
-
-    // Delete S3 photos for each user
-    const photoKeys = usersResult.rows.flatMap(u => [u.then_photo_url, u.now_photo_url]);
-    await deletePhotosFromS3(photoKeys);
-
-    // Delete the users — cascade removes profiles, comments, tokens
-    if (usersResult.rows.length > 0) {
-      const userIds = usersResult.rows.map(u => u.id);
-      await query('DELETE FROM users WHERE id = ANY($1)', [userIds]);
+    if (linkCheck.rows.length === 0) {
+      return errorResponse(404, 'Class is not linked to this school.');
     }
 
-    // Delete the class — cascade removes class_user rows and events
-    await query('DELETE FROM classes WHERE id = $1', [classId]);
+    if (cascadeUsers) {
+      const usersResult = await query(
+        `SELECT u.id, p.then_photo_url, p.now_photo_url
+         FROM class_user cu
+         JOIN users u ON cu.user_id = u.id
+         LEFT JOIN profiles p ON u.id = p.user_id
+         WHERE cu.class_id = $1 AND cu.school_id = $2`,
+        [classId, schoolId]
+      );
 
-    return response(200, { message: 'Class deleted successfully.' });
+      const photoKeys = usersResult.rows.flatMap(u => [u.then_photo_url, u.now_photo_url]);
+      await deletePhotosFromS3(photoKeys);
+
+      if (usersResult.rows.length > 0) {
+        const userIds = usersResult.rows.map(u => u.id);
+        await query('DELETE FROM users WHERE id = ANY($1)', [userIds]);
+      }
+    } else {
+      await query(
+        'DELETE FROM class_user WHERE class_id = $1 AND school_id = $2',
+        [classId, schoolId]
+      );
+    }
+
+    await query('DELETE FROM class_school WHERE class_id = $1 AND school_id = $2', [classId, schoolId]);
+
+    return response(200, { message: 'Class unlinked from school successfully.' });
   } catch (error: any) {
     console.error('Delete class handler error:', error);
     return errorResponse(500, 'Internal server error.');

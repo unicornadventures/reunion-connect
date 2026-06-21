@@ -69,6 +69,7 @@ export const adminSchoolAPI = {
 
 // Class endpoints
 export const classAPI = {
+  getAllClasses: () => api.get<{ classes: Class[] }>('/classes'),
   getClass: (classId: number) => api.get<{ class: Class }>(`/classes/${classId}`),
   getClassMembers: (classId: number) =>
     api.get<{ members: (User & { profile: Profile | null })[] }>(`/classes/${classId}/members`),
@@ -79,14 +80,14 @@ export const adminClassAPI = {
   getClasses: (schoolId: number) =>
     api.get<{ classes: Class[] }>(`/schools/${schoolId}/classes`),
 
-  createClass: (school_id: number, year: number) =>
-    api.post<{ class: Class }>(`/admin/schools/${school_id}/classes`, { year }),
+  createClass: (schoolId: number, year: number) =>
+    api.post<{ class: Class }>(`/admin/schools/${schoolId}/classes`, { year }),
 
   getClassUsers: (classId: number) =>
     api.get(`/admin/classes/${classId}/users`),
 
-  deleteClass: (classId: number) =>
-    api.delete(`/admin/classes/${classId}`),
+  unlinkClass: (schoolId: number, classId: number) =>
+    api.delete(`/admin/schools/${schoolId}/classes/${classId}`),
 
   createRegistrationLink: (schoolId: number, classId: number) =>
     api.post('/admin/registration-links', { schoolId, classId }),

@@ -30,17 +30,13 @@ describe('Type Definitions', () => {
     it('should have required properties', () => {
       const classEntity: ClassEntity = {
         id: 1,
-        school_id: 1,
         year: 2020,
         created_at: new Date(),
-        updated_at: new Date()
       };
 
       expect(classEntity.id).toBe(1);
-      expect(classEntity.school_id).toBe(1);
       expect(classEntity.year).toBe(2020);
       expect(classEntity.created_at).toBeInstanceOf(Date);
-      expect(classEntity.updated_at).toBeInstanceOf(Date);
     });
   });
 

@@ -17,79 +17,44 @@ const UserDeletionWarning: React.FC<UserDeletionWarningProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1001,
-      }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1001]"
       onClick={onCancel}
     >
       <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          padding: '30px',
-          maxWidth: '450px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          textAlign: 'left',
-          borderLeft: '4px solid #f44336',
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-lg p-8 max-w-[450px] w-full mx-4 shadow-xl border-l-4 border-[#f44336]"
+        onClick={e => e.stopPropagation()}
       >
-        <h2 style={{ marginBottom: '20px', color: '#333', textAlign: 'center' }}>⚠️ Warning</h2>
-        <p style={{ marginBottom: '15px', color: '#666', lineHeight: '1.5', fontSize: '16px' }}>
-          You are about to delete <strong>{userCount} user{userCount !== 1 ? 's' : ''}</strong>. This will permanently remove:
+        <h2 className="text-xl font-bold text-[#0E2240] text-center mb-4">Warning</h2>
+        <p className="text-sm text-[#64748B] leading-relaxed mb-4">
+          You are about to delete <strong className="text-[#0E2240]">{userCount} user{userCount !== 1 ? 's' : ''}</strong>. This will permanently remove:
         </p>
 
-        <div style={{ marginBottom: '20px', backgroundColor: '#fff3cd', padding: '12px', borderRadius: '4px', borderLeft: '3px solid #ffc107' }}>
-          <ul style={{ margin: '0', paddingLeft: '20px', color: '#333', fontSize: '14px' }}>
-            <li>All user profiles and account information</li>
-            <li>All comments written by and received by these users</li>
-            <li>All photographs stored in S3</li>
-            <li>All class assignments</li>
-            <li style={{ fontWeight: 'bold', marginTop: '10px' }}>This action CANNOT be undone</li>
+        <div className="mb-5 bg-[#FFF8EE] border border-[#E8A93E]/40 rounded p-4">
+          <ul className="list-disc list-inside space-y-1.5">
+            <li className="text-sm text-[#64748B]">All user profiles and account information</li>
+            <li className="text-sm text-[#64748B]">All comments written by and received by these users</li>
+            <li className="text-sm text-[#64748B]">All photographs stored in S3</li>
+            <li className="text-sm text-[#64748B]">All class assignments</li>
+            <li className="text-sm font-bold text-[#C62828] mt-1">This action CANNOT be undone</li>
           </ul>
         </div>
 
-        <p style={{ marginBottom: '20px', color: '#c62828', fontSize: '14px', fontWeight: 'bold' }}>
-          Please confirm you want to proceed with permanent deletion of {userCount} user{userCount !== 1 ? 's' : ''}.
+        <p className="text-sm text-[#C62828] font-semibold mb-5">
+          Confirm permanent deletion of {userCount} user{userCount !== 1 ? 's' : ''}.
         </p>
 
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        <div className="flex gap-3 justify-center">
           <button
             onClick={onCancel}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#ddd',
-              color: '#333',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
+            className="px-5 py-2.5 bg-[#E2E8F0] text-[#0E2240] rounded text-sm font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#f44336',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
+            className="px-5 py-2.5 bg-[#f44336] text-white rounded text-sm font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none"
           >
-            Yes, Delete Users
+            Yes, delete users
           </button>
         </div>
       </div>

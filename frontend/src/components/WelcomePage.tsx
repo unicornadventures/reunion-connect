@@ -16,10 +16,9 @@ interface DirectoryUser {
 interface ClassInfo {
   id: number;
   year: number;
-  school_id: number;
-  school_name: string;
+  school_id?: number;
+  school_name?: string;
 }
-
 
 const getColorForInitials = (initials: string): string => {
   const colors = ['#E91E63', '#3F51B5', '#009688', '#FF5722', '#9C27B0', '#4CAF50', '#FF9800', '#607D8B', '#795548', '#00BCD4', '#F06292', '#7986CB'];
@@ -36,26 +35,23 @@ const getInitials = (firstName?: string | null, lastName?: string | null): strin
   return (first + last) || '?';
 };
 
-const Avatar: React.FC<{ initials: string; size?: number }> = ({ initials, size = 48 }) => {
-  return (
-    <div
-      className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
-      style={{
-        width: size,
-        height: size,
-        background: getColorForInitials(initials),
-        fontSize: size * 0.35,
-      }}
-    >
-      {initials}
-    </div>
-  );
-};
+const Avatar: React.FC<{ initials: string; size?: number }> = ({ initials, size = 48 }) => (
+  <div
+    className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
+    style={{
+      width: size,
+      height: size,
+      background: getColorForInitials(initials),
+      fontSize: size * 0.35,
+    }}
+  >
+    {initials}
+  </div>
+);
 
 const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) => {
   const navigate = useNavigate();
   const isSuperAdmin = currentUser?.is_admin || false;
-  const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [recentlyJoined, setRecentlyJoined] = useState<DirectoryUser[]>([]);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [alumniCount, setAlumniCount] = useState(0);
@@ -78,11 +74,6 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
       const userClass = classResponse.data.class;
       setClassInfo(userClass);
 
-      const usersResponse = await api.get(`/classes/${userClass.id}/directory`, {
-        params: { userId: currentUser.user_id }
-      });
-      setUsers(usersResponse.data.users || []);
-
       const recentlyJoinedResponse = await api.get(`/classes/${userClass.id}/recently-joined`);
       setRecentlyJoined(recentlyJoinedResponse.data.users || []);
 
@@ -103,92 +94,99 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
   if (isSuperAdmin) {
     return (
-      <div className="max-w-[1200px] mx-auto px-5 py-8">
-        <section className="mb-8">
-          <h2 className="text-2xl font-bold text-[#333333] mb-2">Welcome back, {currentUser.first_name}! 👋</h2>
-          <p className="text-sm text-[#666666] leading-relaxed">
-            You are logged in as a super administrator. Use the navigation menu to manage schools and classes.
-          </p>
-        </section>
+      <div className="max-w-[1200px] mx-auto px-5 py-10">
+        <p className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.15em] uppercase mb-2">
+          Administrator
+        </p>
+        <h2 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight">
+          Welcome back, {currentUser.first_name}
+        </h2>
+        <p className="text-sm text-[#64748B] mt-3 max-w-md">
+          Use the navigation above to manage schools, classes, and users.
+        </p>
       </div>
     );
   }
 
-  // Regular user dashboard
-
   return (
     <div className="max-w-[1200px] mx-auto px-5 py-8">
-      {/* Welcome banner */}
-      <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-8 mb-8">
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-[32px] font-bold text-[#333333] leading-tight mb-2">
-              Welcome to the 20-Year Reunion! 🎉
-            </h1>
-            <p className="text-[#555555] text-base leading-relaxed max-w-2xl">
-              Can you believe it has been two decades? Reconnect with your classmates, share memories,
-              and get ready for the big event — <strong>August 15–17, 2024</strong> at Westbrook High School.
-            </p>
+
+      {/* Greeting */}
+      <div className="mb-6">
+        {classInfo && (
+          <p className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.15em] uppercase mb-1">
+            {classInfo.school_name} · Class of {classInfo.year}
+          </p>
+        )}
+        <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight">
+          Welcome back, {currentUser.first_name}
+        </h1>
+      </div>
+
+      {/* Countdown Strip */}
+      {daysUntilNextEvent !== null && (
+        <div className="bg-[#0E2240] rounded-lg px-8 py-8 mb-6 text-center">
+          <p className="text-[10px] font-semibold text-white/50 tracking-[0.2em] uppercase mb-3">
+            Reunion Countdown
+          </p>
+          <div className="font-display text-[88px] font-bold text-[#E8A93E] leading-none">
+            {daysUntilNextEvent}
           </div>
-          <div className="bg-[#E8F5E9] border border-[#4CAF50] rounded-lg px-5 py-4 text-center flex-shrink-0">
-            <div className="text-2xl font-bold text-[#4CAF50]">
-              {daysUntilNextEvent !== null ? daysUntilNextEvent : '-'}
-            </div>
-            <div className="text-xs text-[#2E7D32] font-semibold mt-0.5">
-              {daysUntilNextEvent !== null ? 'Days Until Next Event' : 'No Upcoming Events'}
-            </div>
+          <p className="text-white/50 text-xs font-medium tracking-[0.15em] uppercase mt-3">
+            days until the reunion
+          </p>
+        </div>
+      )}
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-lg border border-[#E2E8F0] px-5 py-6">
+          <div className="font-display text-5xl font-bold text-[#0E2240]">{alumniCount}</div>
+          <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mt-2">
+            Alumni Registered
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-[#E2E8F0] px-5 py-6">
+          <div className="font-display text-5xl font-bold text-[#0E2240]">
+            {classInfo?.year ? new Date().getFullYear() - classInfo.year : 0}
+          </div>
+          <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mt-2">
+            Years Since Graduation
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-[#E2E8F0] px-5 py-6">
+          <div className="font-display text-5xl font-bold text-[#0E2240]">{messageCount}</div>
+          <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mt-2">
+            Messages Posted
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
-        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
-          <div className="text-3xl mb-2">👤</div>
-          <div className="text-2xl font-bold text-[#4CAF50]">{alumniCount}</div>
-          <div className="text-xs font-semibold text-[#333333] mt-1">Alumni Registered</div>
-          <div className="text-xs text-[#999999] mt-0.5">This week</div>
+      {/* Recently Joined */}
+      {recentlyJoined.length > 0 && (
+        <div>
+          <h2 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-[0.12em] mb-4">
+            Recently Joined
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {recentlyJoined.map((user) => (
+              <button
+                key={user.id}
+                onClick={() => navigate(`/user/${user.id}`)}
+                className="bg-white rounded-lg border border-[#E2E8F0] p-4 text-center hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer"
+              >
+                <div className="flex justify-center mb-3">
+                  <Avatar initials={getInitials(user.first_name, user.last_name)} size={48} />
+                </div>
+                <div className="text-sm font-semibold text-[#0E2240] leading-tight">
+                  {user.first_name} {user.last_name}
+                </div>
+                <div className="text-xs text-[#94A3B8] mt-1 truncate">{user.email}</div>
+              </button>
+            ))}
+          </div>
         </div>
-
-        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
-          <div className="text-3xl mb-2">🎓</div>
-          <div className="text-2xl font-bold text-[#4CAF50]">{classInfo?.year ? new Date().getFullYear() - classInfo.year : 0}</div>
-          <div className="text-xs font-semibold text-[#333333] mt-1">Years Since Graduation</div>
-          <div className="text-xs text-[#999999] mt-0.5">Class of {classInfo?.year || '2004'}</div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-5 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] transition-shadow duration-200">
-          <div className="text-3xl mb-2">💬</div>
-          <div className="text-2xl font-bold text-[#4CAF50]">{messageCount}</div>
-          <div className="text-xs font-semibold text-[#333333] mt-1">Messages Posted</div>
-          <div className="text-xs text-[#999999] mt-0.5">Keep it going!</div>
-        </div>
-      </div>
-
-      {/* Recently joined */}
-      <div>
-        <h2 className="text-2xl font-bold text-[#333333] mb-4">Recently Joined</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {recentlyJoined.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => navigate(`/user/${user.id}`)}
-              className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-4 text-center hover:shadow-[0_2px_4px_rgba(0,0,0,0.1)] hover:scale-[1.02] transition-all duration-200 cursor-pointer"
-            >
-              <div className="flex justify-center mb-3">
-                <Avatar
-                  initials={getInitials(user.first_name, user.last_name)}
-                  size={48}
-                />
-              </div>
-              <div className="text-sm font-semibold text-[#333333] leading-tight">
-                {user.first_name} {user.last_name}
-              </div>
-              <div className="text-xs text-[#999999] mt-1">{user.email}</div>
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 };

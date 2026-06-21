@@ -44,7 +44,7 @@ const AppRouter: React.FC = () => {
 
   // Authenticated routes
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
+    <div className="min-h-screen bg-[#F6F8FC]">
       {isSuperAdmin || isClassAdmin ? <AdminHeader /> : <Header />}
 
       <div className="max-w-[1200px] mx-auto">

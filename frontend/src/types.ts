@@ -41,11 +41,10 @@ export interface School {
 
 export interface Class {
   id: number;
-  school_id: number;
-  school_name: string;
   year: number;
+  school_id?: number;
+  school_name?: string;
   created_at: string;
-  updated_at: string;
 }
 
 export interface Comment {

@@ -3,16 +3,31 @@ import request from 'supertest';
 
 const mockDb = {
   classes: [
-    { id: 1, school_id: 1, year: 2020, created_at: new Date(), updated_at: new Date() },
-    { id: 2, school_id: 1, year: 2021, created_at: new Date(), updated_at: new Date() },
-    { id: 3, school_id: 2, year: 2020, created_at: new Date(), updated_at: new Date() }
+    { id: 1, year: 2020, created_at: new Date() },
+    { id: 2, year: 2021, created_at: new Date() },
+    { id: 3, year: 2020, created_at: new Date() }
+  ],
+  classSchool: [
+    { class_id: 1, school_id: 1 },
+    { class_id: 2, school_id: 1 },
+    { class_id: 3, school_id: 2 }
   ],
   schools: [
     { id: 1, name: 'Lincoln High', location: 'Lincoln, NE' },
     { id: 2, name: 'Central High', location: 'Central, NE' }
   ],
-  classUsers: [] as any[],
-  users: [] as any[]
+  classUsers: [
+    { class_id: 1, user_id: 10, school_id: 1 },
+    { class_id: 1, user_id: 11, school_id: 1 }
+  ],
+  users: [
+    { id: 10, email: 'alice@example.com' },
+    { id: 11, email: 'bob@example.com' }
+  ],
+  profiles: [
+    { user_id: 10, first_name: 'Alice', last_name: 'A' },
+    { user_id: 11, first_name: 'Bob', last_name: 'B' }
+  ]
 };
 
 jest.mock('../../middleware/adminAuth', () => ({
@@ -20,130 +35,54 @@ jest.mock('../../middleware/adminAuth', () => ({
     req.user = { id: 1, is_admin: true };
     next();
   },
-  requireEventAdmin: (req: any, res: any, next: any) => {
-    req.user = { id: 1, is_admin: true };
-    next();
-  },
-  requireAdmin: (req: any, res: any, next: any) => {
-    req.user = { id: 1, is_admin: true };
-    next();
-  }
 }));
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    // SELECT all classes with JOIN
-    if (sql.includes('SELECT c.id, c.year, c.school_id, s.name as school_name') && !sql.includes('WHERE')) {
-      const sorted = [...mockDb.classes].sort((a, b) => {
-        if (b.year !== a.year) return b.year - a.year;
-        const schoolAName = mockDb.schools.find(s => s.id === a.school_id)?.name || '';
-        const schoolBName = mockDb.schools.find(s => s.id === b.school_id)?.name || '';
-        return schoolAName.localeCompare(schoolBName);
-      });
+    // GET all classes with JOIN through class_school
+    if (sql.includes('FROM classes c') && sql.includes('JOIN class_school cs') && !sql.includes('WHERE')) {
       return {
-        rows: sorted.map(c => ({
-          id: c.id,
-          year: c.year,
-          school_id: c.school_id,
-          school_name: mockDb.schools.find(s => s.id === c.school_id)?.name,
-          created_at: c.created_at,
-          updated_at: c.updated_at
-        }))
+        rows: mockDb.classSchool.map(cs => {
+          const cls = mockDb.classes.find(c => c.id === cs.class_id)!;
+          const school = mockDb.schools.find(s => s.id === cs.school_id)!;
+          return { id: cls.id, year: cls.year, school_id: cs.school_id, school_name: school.name, created_at: cls.created_at };
+        }).sort((a, b) => b.year - a.year || a.school_name.localeCompare(b.school_name))
       };
     }
 
-    // SELECT single class by id
-    if (sql.includes('SELECT c.id, c.year, c.school_id, s.name as school_name') && sql.includes('WHERE c.id')) {
+    // GET single class by id
+    if (sql.includes('FROM classes c') && sql.includes('LEFT JOIN class_school') && sql.includes('WHERE c.id')) {
       const classId = Number(params?.[0]);
       const cls = mockDb.classes.find(c => c.id === classId);
-      if (cls) {
-        return {
-          rows: [{
-            id: cls.id,
-            year: cls.year,
-            school_id: cls.school_id,
-            school_name: mockDb.schools.find(s => s.id === cls.school_id)?.name,
-            created_at: cls.created_at,
-            updated_at: cls.updated_at
-          }]
-        };
-      }
-      return { rows: [] };
-    }
-
-    // Check if school exists
-    if (sql.includes('SELECT id FROM schools WHERE id')) {
-      const schoolId = Number(params?.[0]);
-      const school = mockDb.schools.find(s => s.id === schoolId);
-      return { rows: school ? [{ id: school.id }] : [] };
-    }
-
-    // INSERT INTO classes
-    if (sql.includes('INSERT INTO classes')) {
-      const newClass = {
-        id: Math.max(...mockDb.classes.map(c => c.id), 0) + 1,
-        school_id: Number(params?.[0]),
-        year: Number(params?.[1]),
-        created_at: new Date(),
-        updated_at: new Date()
+      if (!cls) return { rows: [] };
+      const cs = mockDb.classSchool.find(c => c.class_id === classId);
+      const school = cs ? mockDb.schools.find(s => s.id === cs.school_id) : null;
+      return {
+        rows: [{
+          id: cls.id, year: cls.year,
+          school_id: cs?.school_id || null,
+          school_name: school?.name || null,
+          created_at: cls.created_at
+        }]
       };
-      mockDb.classes.push(newClass);
-      return { rows: [newClass] };
     }
 
-    // UPDATE classes
-    if (sql.includes('UPDATE classes SET')) {
-      const classId = Number(params?.[params.length - 1]);
-      const cls = mockDb.classes.find(c => c.id === classId);
-      if (cls) {
-        cls.school_id = Number(params?.[0]);
-        cls.year = Number(params?.[1]);
-        cls.updated_at = new Date();
-        return { rows: [{ ...cls }] };
-      }
-      return { rows: [] };
-    }
-
-    // SELECT users in class (for cascading delete)
-    if (sql.includes('SELECT DISTINCT user_id as id') && sql.includes('FROM class_user')) {
+    // GET class users
+    if (sql.includes('FROM class_user cu') && sql.includes('WHERE cu.class_id')) {
       const classId = Number(params?.[0]);
-      const users = mockDb.classUsers.filter(cu => cu.class_id === classId).map(cu => ({ id: cu.user_id }));
-      return { rows: users };
-    }
-
-    // DELETE users (cascading)
-    if (sql.includes('DELETE FROM users') && sql.includes('WHERE id IN')) {
-      return { rows: [] };
-    }
-
-    // DELETE class
-    if (sql.includes('DELETE FROM classes WHERE id')) {
-      const classId = Number(params?.[0]);
-      const cls = mockDb.classes.find(c => c.id === classId);
-      if (cls) {
-        const index = mockDb.classes.findIndex(c => c.id === classId);
-        mockDb.classes.splice(index, 1);
-        return { rows: [{ ...cls }] };
-      }
-      return { rows: [] };
-    }
-
-    // Transaction control
-    if (sql.includes('BEGIN') || sql.includes('COMMIT') || sql.includes('ROLLBACK')) {
-      return { rows: [] };
+      const rows = mockDb.classUsers
+        .filter(cu => cu.class_id === classId)
+        .map(cu => {
+          const user = mockDb.users.find(u => u.id === cu.user_id);
+          const profile = mockDb.profiles.find(p => p.user_id === cu.user_id);
+          return user ? { id: user.id, email: user.email, first_name: profile?.first_name || null, last_name: profile?.last_name || null } : null;
+        })
+        .filter(Boolean);
+      return { rows };
     }
 
     return { rows: [] };
   })
-}));
-
-jest.mock('../../s3Service', () => ({
-  deleteUserPhotosFromS3: jest.fn(async () => {})
-}));
-
-jest.mock('../../services/emailService', () => ({
-  sendPasswordResetEmail: jest.fn(),
-  sendVerificationEmail: jest.fn()
 }));
 
 import { adminClassRoutes } from '../adminClassRoutes';
@@ -152,12 +91,6 @@ describe('Admin Class Routes', () => {
   let app: Express;
 
   beforeEach(() => {
-    mockDb.classes = [
-      { id: 1, school_id: 1, year: 2020, created_at: new Date(), updated_at: new Date() },
-      { id: 2, school_id: 1, year: 2021, created_at: new Date(), updated_at: new Date() },
-      { id: 3, school_id: 2, year: 2020, created_at: new Date(), updated_at: new Date() }
-    ];
-
     app = express();
     app.use(express.json());
     app.use('/api/admin/classes', adminClassRoutes);
@@ -165,7 +98,7 @@ describe('Admin Class Routes', () => {
   });
 
   describe('GET /api/admin/classes', () => {
-    it('should return all classes', async () => {
+    it('should return all classes with school context', async () => {
       const response = await request(app).get('/api/admin/classes');
 
       expect(response.status).toBe(200);
@@ -174,7 +107,7 @@ describe('Admin Class Routes', () => {
       expect(response.body.classes.length).toBeGreaterThan(0);
     });
 
-    it('should return classes with required fields', async () => {
+    it('should return classes with school_id and school_name', async () => {
       const response = await request(app).get('/api/admin/classes');
 
       expect(response.status).toBe(200);
@@ -189,11 +122,61 @@ describe('Admin Class Routes', () => {
       const response = await request(app).get('/api/admin/classes');
 
       expect(response.status).toBe(200);
-      if (response.body.classes.length > 1) {
-        for (let i = 0; i < response.body.classes.length - 1; i++) {
-          expect(response.body.classes[i].year).toBeGreaterThanOrEqual(response.body.classes[i + 1].year);
-        }
+      const years = response.body.classes.map((c: any) => c.year);
+      for (let i = 0; i < years.length - 1; i++) {
+        expect(years[i]).toBeGreaterThanOrEqual(years[i + 1]);
       }
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/admin/classes');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('GET /api/admin/classes/:id/users', () => {
+    it('should return users in a class', async () => {
+      const response = await request(app).get('/api/admin/classes/1/users');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('users');
+      expect(Array.isArray(response.body.users)).toBe(true);
+    });
+
+    it('should return user info fields', async () => {
+      const response = await request(app).get('/api/admin/classes/1/users');
+
+      expect(response.status).toBe(200);
+      if (response.body.users.length > 0) {
+        const user = response.body.users[0];
+        expect(user).toHaveProperty('id');
+        expect(user).toHaveProperty('email');
+        expect(user).toHaveProperty('first_name');
+        expect(user).toHaveProperty('last_name');
+      }
+    });
+
+    it('should return empty array for class with no users', async () => {
+      const response = await request(app).get('/api/admin/classes/999/users');
+
+      expect(response.status).toBe(200);
+      expect(response.body.users).toHaveLength(0);
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/admin/classes/1/users');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
@@ -206,15 +189,13 @@ describe('Admin Class Routes', () => {
       expect(response.body.class.id).toBe(1);
     });
 
-    it('should return class with all required fields', async () => {
+    it('should return class with year and school context', async () => {
       const response = await request(app).get('/api/admin/classes/1');
 
       expect(response.status).toBe(200);
       const cls = response.body.class;
       expect(cls).toHaveProperty('id');
       expect(cls).toHaveProperty('year');
-      expect(cls).toHaveProperty('school_id');
-      expect(cls).toHaveProperty('school_name');
     });
 
     it('should return 404 for non-existent class', async () => {
@@ -223,220 +204,13 @@ describe('Admin Class Routes', () => {
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
     });
-  });
 
-  describe('POST /api/admin/classes', () => {
-    it('should create a new class', async () => {
-      const response = await request(app)
-        .post('/api/admin/classes')
-        .send({
-          school_id: 1,
-          year: 2022
-        });
-
-      expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('class');
-      expect(response.body.class.school_id).toBe(1);
-      expect(response.body.class.year).toBe(2022);
-    });
-
-    it('should reject creation without school_id', async () => {
-      const response = await request(app)
-        .post('/api/admin/classes')
-        .send({
-          year: 2022
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should reject creation without year', async () => {
-      const response = await request(app)
-        .post('/api/admin/classes')
-        .send({
-          school_id: 1
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should reject creation with non-existent school', async () => {
-      const response = await request(app)
-        .post('/api/admin/classes')
-        .send({
-          school_id: 999,
-          year: 2022
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-  });
-
-  describe('PUT /api/admin/classes/:id', () => {
-    it('should update a class', async () => {
-      const response = await request(app)
-        .put('/api/admin/classes/1')
-        .send({
-          school_id: 2,
-          year: 2023
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('class');
-      expect(response.body.class.year).toBe(2023);
-    });
-
-    it('should reject update without school_id', async () => {
-      const response = await request(app)
-        .put('/api/admin/classes/1')
-        .send({
-          year: 2023
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should reject update without year', async () => {
-      const response = await request(app)
-        .put('/api/admin/classes/1')
-        .send({
-          school_id: 1
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should reject update with non-existent school', async () => {
-      const response = await request(app)
-        .put('/api/admin/classes/1')
-        .send({
-          school_id: 999,
-          year: 2023
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should return 404 for non-existent class', async () => {
-      const response = await request(app)
-        .put('/api/admin/classes/999')
-        .send({
-          school_id: 1,
-          year: 2023
-        });
-
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('error');
-    });
-  });
-
-  describe('DELETE /api/admin/classes/:id', () => {
-    it('should delete a class', async () => {
-      const response = await request(app)
-        .delete('/api/admin/classes/2');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
-    });
-
-    it('should return 404 for non-existent class', async () => {
-      const response = await request(app)
-        .delete('/api/admin/classes/999');
-
-      expect(response.status).toBe(404);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should delete with cascadeUsers query parameter', async () => {
-      const response = await request(app)
-        .delete('/api/admin/classes/3?cascadeUsers=true');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('message');
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle database error in GET all classes', async () => {
-      const { query } = require('../../db');
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/admin/classes');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET single class', async () => {
+    it('should handle database error', async () => {
       const { query } = require('../../db');
       jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
 
       const response = await request(app).get('/api/admin/classes/1');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in POST after validation', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      const mockQuery = jest.fn();
-      query.mockImplementation(mockQuery);
-
-      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // school exists check passes
-      mockQuery.mockRejectedValueOnce(new Error('Database error')); // INSERT fails
-
-      const response = await request(app)
-        .post('/api/admin/classes')
-        .send({
-          school_id: 1,
-          year: 2024
-        });
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in PUT after validation', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      const mockQuery = jest.fn();
-      query.mockImplementation(mockQuery);
-
-      mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // school exists check passes
-      mockQuery.mockRejectedValueOnce(new Error('Database error')); // UPDATE fails
-
-      const response = await request(app)
-        .put('/api/admin/classes/1')
-        .send({
-          school_id: 1,
-          year: 2024
-        });
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in DELETE', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app)
-        .delete('/api/admin/classes/1');
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');

@@ -17,7 +17,6 @@ const CommentSection: React.FC = () => {
 
   const fetchComments = async () => {
     if (!currentUser?.user_id) return;
-
     setLoading(true);
     try {
       const response = await api.get(`/comments/my-comments/${currentUser.user_id}`);
@@ -32,21 +31,12 @@ const CommentSection: React.FC = () => {
   };
 
   useEffect(() => {
-    if (currentUser?.user_id) {
-      fetchComments();
-    }
+    if (currentUser?.user_id) fetchComments();
   }, [currentUser?.user_id]);
 
   const handleAddComment = async () => {
-    if (!newCommentText.trim()) {
-      setError('Comment cannot be empty.');
-      return;
-    }
-
-    if (!currentUser?.user_id) {
-      setError('User not authenticated.');
-      return;
-    }
+    if (!newCommentText.trim()) { setError('Comment cannot be empty.'); return; }
+    if (!currentUser?.user_id) { setError('User not authenticated.'); return; }
 
     setSubmitting(true);
     try {
@@ -54,7 +44,6 @@ const CommentSection: React.FC = () => {
         commenterId: currentUser.user_id,
         content: newCommentText
       });
-
       setComments([response.data.comment, ...comments]);
       setNewCommentText('');
       setError(null);
@@ -66,17 +55,10 @@ const CommentSection: React.FC = () => {
   };
 
   const handleUpdateComment = async (commentId: number) => {
-    if (!editingText.trim()) {
-      setError('Comment cannot be empty.');
-      return;
-    }
-
+    if (!editingText.trim()) { setError('Comment cannot be empty.'); return; }
     setSubmitting(true);
     try {
-      const response = await api.put(`/comments/${commentId}`, {
-        content: editingText
-      });
-
+      const response = await api.put(`/comments/${commentId}`, { content: editingText });
       setComments(comments.map(c => c.id === commentId ? response.data.comment : c));
       setEditingId(null);
       setEditingText('');
@@ -88,109 +70,93 @@ const CommentSection: React.FC = () => {
     }
   };
 
-  const openDeleteModal = (commentId: number) => {
-    setDeleteModal({ isOpen: true, id: commentId });
-  };
-
-  const closeDeleteModal = () => {
-    setDeleteModal({ isOpen: false, id: null });
-  };
-
   const handleDeleteComment = async () => {
     if (deleteModal.id === null) return;
-
     const commentId = deleteModal.id;
     try {
       await api.delete(`/comments/${commentId}`);
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
-      closeDeleteModal();
+      setDeleteModal({ isOpen: false, id: null });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete comment.');
     }
   };
 
+  const inputClass = 'w-full border border-[#E2E8F0] rounded text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors disabled:bg-[#F6F8FC]';
+
   return (
-    <div className="p-5 bg-[#f9f9f9] rounded-lg border border-[#e0e0e0]">
-      <h3 className="mt-0 mb-5 text-[#333] text-lg font-bold">💬 My Comments ({comments.length})</h3>
+    <div className="bg-[#F6F8FC] rounded-lg border border-[#E2E8F0] p-6">
+      <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight mb-5">
+        My Comments ({comments.length})
+      </h3>
 
       {error && (
-        <div className="px-3 py-3 bg-[#FFEBEE] text-[#C62828] rounded border border-[#EF5350] mb-4 text-sm">
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-4">
           {error}
         </div>
       )}
 
-      {/* New Comment Form */}
-      <div className="bg-white p-5 rounded-lg mb-5 border border-[#ddd]">
-        <h4 className="m-0 mb-4 text-[#333] text-base">Add a Comment to Your Profile</h4>
+      {/* New comment form */}
+      <div className="bg-white rounded-lg border border-[#E2E8F0] p-5 mb-5">
+        <h4 className="text-sm font-semibold text-[#0E2240] mb-3">Add a comment to your profile</h4>
         <textarea
           value={newCommentText}
-          onChange={(e) => setNewCommentText(e.target.value)}
+          onChange={e => setNewCommentText(e.target.value)}
           placeholder="Share your thoughts..."
-          className="w-full min-h-[100px] p-3 border border-[#ddd] rounded text-sm resize-vertical mb-3 disabled:bg-gray-100"
+          className={`${inputClass} min-h-[100px] resize-vertical p-3 mb-3`}
           disabled={submitting}
         />
         <button
           onClick={handleAddComment}
           disabled={submitting || !newCommentText.trim()}
-          className={`px-5 py-2 border-none rounded text-white font-bold text-sm transition-opacity ${
+          className={`px-5 py-2 rounded text-sm font-semibold transition-opacity ${
             submitting || !newCommentText.trim()
-              ? 'bg-gray-300 cursor-not-allowed'
-              : 'bg-[#4CAF50] cursor-pointer hover:opacity-90'
+              ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+              : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
           }`}
         >
-          {submitting ? 'Posting...' : 'Post Comment'}
+          {submitting ? 'Posting...' : 'Post comment'}
         </button>
       </div>
 
-      {/* Comments List */}
-      <div className="flex flex-col gap-4">
+      {/* Comments list */}
+      <div className="space-y-3">
         {loading ? (
-          <div className="p-5 text-center text-[#999] text-sm">Loading comments...</div>
+          <div className="py-5 text-center text-[#94A3B8] text-sm">Loading comments...</div>
         ) : comments.length === 0 ? (
-          <div className="p-10 text-center bg-white rounded-lg border border-[#ddd]">
-            <p className="text-[#999] m-0 text-sm">
-              You haven't posted any comments yet. Add one to get started!
-            </p>
+          <div className="py-10 text-center bg-white rounded-lg border border-[#E2E8F0]">
+            <p className="text-sm text-[#94A3B8]">You haven't posted any comments yet.</p>
           </div>
         ) : (
           comments.map(comment => (
-            <div
-              key={comment.id}
-              className="bg-white p-4 rounded-lg border border-[#e0e0e0] transition-shadow hover:shadow-md"
-            >
+            <div key={comment.id} className="bg-white rounded-lg border border-[#E2E8F0] p-4">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-xs text-[#999]">
+                <span className="text-xs text-[#94A3B8]">
                   {new Date(comment.created_at).toLocaleDateString()} at{' '}
-                  {new Date(comment.created_at).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                  {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
 
               {editingId === comment.id ? (
-                <div className="bg-[#f9f9f9] p-2 rounded-lg mt-3">
+                <div className="mt-2">
                   <textarea
                     value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    className="w-full min-h-20 p-3 border border-[#4CAF50] rounded text-sm resize-vertical mb-3 disabled:bg-gray-100"
+                    onChange={e => setEditingText(e.target.value)}
+                    className={`${inputClass} min-h-20 resize-vertical p-3 mb-3`}
                     disabled={submitting}
                   />
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleUpdateComment(comment.id)}
                       disabled={submitting}
-                      className="px-4 py-2 bg-[#4CAF50] text-white border-none rounded text-xs font-bold cursor-pointer hover:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-[#0E2240] text-white rounded text-xs font-semibold hover:opacity-90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed transition-opacity cursor-pointer"
                     >
                       {submitting ? 'Saving...' : 'Save'}
                     </button>
                     <button
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditingText('');
-                      }}
-                      className="px-4 py-2 bg-[#999] text-white border-none rounded text-xs font-bold cursor-pointer hover:opacity-90"
+                      onClick={() => { setEditingId(null); setEditingText(''); }}
+                      className="px-4 py-2 bg-[#E2E8F0] text-[#64748B] rounded text-xs font-semibold hover:opacity-80 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -198,21 +164,19 @@ const CommentSection: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  <p className="m-2.5 text-[#555] leading-relaxed break-words">{comment.content}</p>
-
-                  <div className="flex gap-4 mt-2.5">
+                  <p className="text-sm text-[#64748B] leading-relaxed break-words mt-1 mb-3">
+                    {comment.content}
+                  </p>
+                  <div className="flex gap-4">
                     <button
-                      onClick={() => {
-                        setEditingId(comment.id);
-                        setEditingText(comment.content);
-                      }}
-                      className="border-none bg-none cursor-pointer text-xs font-bold text-[#2196F3] p-0 transition-opacity hover:opacity-70"
+                      onClick={() => { setEditingId(comment.id); setEditingText(comment.content); }}
+                      className="text-xs font-semibold text-[#E8A93E] hover:opacity-70 bg-transparent border-none cursor-pointer p-0 transition-opacity"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => openDeleteModal(comment.id)}
-                      className="border-none bg-none cursor-pointer text-xs font-bold text-[#f44336] p-0 transition-opacity hover:opacity-70"
+                      onClick={() => setDeleteModal({ isOpen: true, id: comment.id })}
+                      className="text-xs font-semibold text-[#f44336] hover:opacity-70 bg-transparent border-none cursor-pointer p-0 transition-opacity"
                     >
                       Delete
                     </button>
@@ -232,7 +196,7 @@ const CommentSection: React.FC = () => {
         cancelText="Cancel"
         isDangerous={true}
         onConfirm={handleDeleteComment}
-        onCancel={closeDeleteModal}
+        onCancel={() => setDeleteModal({ isOpen: false, id: null })}
       />
     </div>
   );

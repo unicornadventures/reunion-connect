@@ -4,6 +4,9 @@ import { adminSchoolAPI } from '../apiClient';
 import ConfirmModal from './ConfirmModal';
 import UserDeletionWarning from './UserDeletionWarning';
 
+const inputClass = 'w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors';
+const labelClass = 'block text-sm font-semibold text-[#0E2240] mb-1.5';
+
 const SchoolManager: React.FC = () => {
   const { currentUser } = useAppContext();
   const [schools, setSchools] = useState<any[]>([]);
@@ -16,9 +19,7 @@ const SchoolManager: React.FC = () => {
   const [userDeletionWarning, setUserDeletionWarning] = useState<{ isOpen: boolean; schoolId: number | null; userCount: number }>({ isOpen: false, schoolId: null, userCount: 0 });
   const [pendingCascadeDelete, setPendingCascadeDelete] = useState(false);
 
-  useEffect(() => {
-    fetchSchools();
-  }, []);
+  useEffect(() => { fetchSchools(); }, []);
 
   const fetchSchools = async () => {
     setLoading(true);
@@ -27,7 +28,6 @@ const SchoolManager: React.FC = () => {
       setSchools(response.data.schools);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching schools:', err);
       setError(err.response?.data?.error || err.message || 'Failed to fetch schools.');
     } finally {
       setLoading(false);
@@ -37,12 +37,8 @@ const SchoolManager: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editingId) {
-        await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation);
-        setEditingId(null);
-      } else {
-        await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation);
-      }
+      await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation);
+      if (editingId) setEditingId(null);
       setNewSchoolName('');
       setNewSchoolLocation('');
       fetchSchools();
@@ -57,9 +53,7 @@ const SchoolManager: React.FC = () => {
     setNewSchoolLocation(school.location || '');
   };
 
-  const handleDelete = (id: number) => {
-    setDeleteModal({ isOpen: true, id });
-  };
+  const handleDelete = (id: number) => setDeleteModal({ isOpen: true, id });
 
   const handleConfirmDelete = async () => {
     if (deleteModal.id === null) return;
@@ -73,79 +67,122 @@ const SchoolManager: React.FC = () => {
     }
   };
 
-  const handleConfirmUserDeletion = async () => {
-    setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 });
-    setPendingCascadeDelete(false);
-  };
-
-  const handleCancelUserDeletion = () => {
-    setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 });
-    setPendingCascadeDelete(false);
-  };
-
-  const handleCancelDelete = () => {
-    setDeleteModal({ isOpen: false, id: null });
-  };
-
   const handleCancel = () => {
     setEditingId(null);
     setNewSchoolName('');
     setNewSchoolLocation('');
   };
 
-  if (loading) return <div style={{ padding: '20px' }}>Loading schools...</div>;
+  if (loading) {
+    return (
+      <div className="max-w-[1200px] mx-auto px-5 py-8">
+        <div className="text-center text-[#94A3B8] text-sm">Loading schools...</div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>School Management</h2>
+    <div className="max-w-[1200px] mx-auto px-5 py-8">
+      <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight mb-6">
+        School Management
+      </h1>
 
-      {error && <div style={{ padding: '12px', backgroundColor: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '20px' }}>{error}</div>}
+      {error && (
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-6">
+          {error}
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: '30px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
-        <h3>{editingId ? 'Edit School' : 'Add New School'}</h3>
-        <input
-          type="text"
-          placeholder="School Name"
-          value={newSchoolName}
-          onChange={(e) => setNewSchoolName(e.target.value)}
-          required
-          style={{ padding: '8px', marginRight: '10px', width: '30%' }}
-        />
-        <input
-          type="text"
-          placeholder="Location"
-          value={newSchoolLocation}
-          onChange={(e) => setNewSchoolLocation(e.target.value)}
-          style={{ padding: '8px', marginRight: '10px', width: '30%' }}
-        />
-        <button type="submit" style={{ padding: '8px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer', marginRight: '10px' }}>
-          {editingId ? 'Update' : 'Add'} School
-        </button>
-        {editingId && (
-          <button type="button" onClick={handleCancel} style={{ padding: '8px 15px', backgroundColor: '#666', color: 'white', border: 'none', cursor: 'pointer' }}>
-            Cancel
-          </button>
-        )}
-      </form>
-
-      <h3>Registered Schools ({schools.length})</h3>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {schools.map((school) => (
-          <li key={school.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Add/Edit form */}
+      <div className="bg-white border border-[#E2E8F0] rounded-lg p-6 mb-6">
+        <h2 className="text-base font-semibold text-[#0E2240] mb-5">
+          {editingId ? 'Edit School' : 'Add New School'}
+        </h2>
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <strong>{school.name}</strong> - {school.location || 'N/A'}
+              <label className={labelClass}>School name</label>
+              <input
+                type="text"
+                placeholder="Westbrook High School"
+                value={newSchoolName}
+                onChange={e => setNewSchoolName(e.target.value)}
+                required
+                className={inputClass}
+              />
             </div>
             <div>
-              <button onClick={() => handleEdit(school)} style={{ padding: '5px 10px', marginRight: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', cursor: 'pointer' }}>
-                Edit
-              </button>
-              <button onClick={() => handleDelete(school.id)} style={{ padding: '5px 10px', backgroundColor: '#f44336', color: 'white', border: 'none', cursor: 'pointer' }}>
-                Delete
-              </button>
+              <label className={labelClass}>Location</label>
+              <input
+                type="text"
+                placeholder="Springfield, IL"
+                value={newSchoolLocation}
+                onChange={e => setNewSchoolLocation(e.target.value)}
+                className={inputClass}
+              />
             </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              className="px-5 py-2.5 bg-[#0E2240] text-white rounded text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer border-none"
+            >
+              {editingId ? 'Update school' : 'Add school'}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-5 py-2.5 bg-[#E2E8F0] text-[#0E2240] rounded text-sm font-semibold hover:opacity-80 transition-opacity cursor-pointer border-none"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      {/* Schools list */}
+      <div>
+        <p className="text-xs font-semibold text-[#94A3B8] tracking-[0.15em] uppercase mb-3">
+          Registered Schools ({schools.length})
+        </p>
+        <div className="bg-white border border-[#E2E8F0] rounded-lg overflow-hidden">
+          {schools.length === 0 ? (
+            <div className="py-10 text-center text-sm text-[#94A3B8]">No schools yet.</div>
+          ) : (
+            <ul>
+              {schools.map((school, idx) => (
+                <li
+                  key={school.id}
+                  className={`flex items-center justify-between px-5 py-4 ${idx < schools.length - 1 ? 'border-b border-[#E2E8F0]' : ''}`}
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-[#0E2240]">{school.name}</div>
+                    {school.location && (
+                      <div className="text-xs text-[#64748B] mt-0.5">{school.location}</div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(school)}
+                      className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(school.id)}
+                      className="px-3 py-1.5 bg-[#f44336] text-white rounded text-xs font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
       <ConfirmModal
         isOpen={deleteModal.isOpen}
@@ -163,14 +200,14 @@ const SchoolManager: React.FC = () => {
         cancelText="Cancel"
         isDangerous={true}
         onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, id: null })}
       />
 
       <UserDeletionWarning
         isOpen={userDeletionWarning.isOpen}
         userCount={userDeletionWarning.userCount || 1}
-        onConfirm={handleConfirmUserDeletion}
-        onCancel={handleCancelUserDeletion}
+        onConfirm={() => { setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 }); setPendingCascadeDelete(false); }}
+        onCancel={() => { setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 }); setPendingCascadeDelete(false); }}
       />
     </div>
   );

@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 
+const BrandHeader: React.FC = () => (
+  <div className="text-center w-full">
+    <h1 className="font-display text-5xl font-bold text-[#0E2240] uppercase leading-none tracking-tight">
+      Class Reunion
+    </h1>
+    <div className="h-px bg-[#E8A93E] mt-4" />
+  </div>
+);
+
+const inputClass = 'w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors';
+const labelClass = 'block text-sm font-semibold text-[#0E2240] mb-1.5';
+
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -29,21 +41,14 @@ const ResetPassword: React.FC = () => {
       setError('Passwords do not match.');
       return;
     }
-
     if (password.length < 6) {
       setError('Password must be at least 6 characters long.');
       return;
     }
 
     setLoading(true);
-
     try {
-      await api.post('/auth/reset-password', {
-        token,
-        password,
-        confirmPassword
-      });
-
+      await api.post('/auth/reset-password', { token, password, confirmPassword });
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
@@ -55,22 +60,15 @@ const ResetPassword: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-5">
-        <div className="w-full max-w-[600px] flex flex-col items-center gap-10">
-          <div className="text-center mt-10">
-            <div className="text-6xl mb-4">🎓</div>
-            <h1 className="text-5xl font-bold text-[#4CAF50] mb-2">ReunionConnect</h1>
-          </div>
-
-          <div className="w-full bg-white rounded-2xl px-12 py-14 shadow-md border border-[#E0E0E0]">
-            <div className="text-center">
-              <div className="text-5xl mb-4">✅</div>
-              <h2 className="text-2xl font-bold text-[#4CAF50] mb-4">Password Reset Successful!</h2>
-              <p className="text-[#666666] mb-6">
-                Your password has been reset. You can now sign in with your new password.
-              </p>
-              <p className="text-sm text-[#999999]">Redirecting to login...</p>
-            </div>
+      <div className="min-h-screen bg-[#F6F8FC] flex items-center justify-center p-5">
+        <div className="w-full max-w-[460px] flex flex-col items-center gap-8">
+          <BrandHeader />
+          <div className="w-full bg-white rounded-lg px-10 py-10 shadow-sm border-t-2 border-t-[#E8A93E] border border-[#E2E8F0]">
+            <h2 className="text-xl font-semibold text-[#0E2240] mb-3">Password Updated</h2>
+            <p className="text-sm text-[#64748B] mb-2">
+              Your password has been reset. You can now sign in with your new password.
+            </p>
+            <p className="text-xs text-[#94A3B8]">Redirecting to login...</p>
           </div>
         </div>
       </div>
@@ -78,96 +76,62 @@ const ResetPassword: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-5">
-      <div className="w-full max-w-[600px] flex flex-col items-center gap-10">
-        {/* Header */}
-        <div className="text-center mt-10">
-          <div className="text-6xl mb-4">🎓</div>
-          <h1 className="text-5xl font-bold text-[#4CAF50] mb-2">ReunionConnect</h1>
-          <p className="text-[#666666] text-base">Reset Your Password</p>
-        </div>
-
-        {/* Reset Password Card */}
-        <div className="w-full bg-white rounded-2xl px-12 py-14 shadow-md border border-[#E0E0E0]">
-          <h2 className="text-3xl font-bold text-[#333333] mb-8">Create New Password</h2>
+    <div className="min-h-screen bg-[#F6F8FC] flex items-center justify-center p-5">
+      <div className="w-full max-w-[460px] flex flex-col items-center gap-8">
+        <BrandHeader />
+        <div className="w-full bg-white rounded-lg px-10 py-10 shadow-sm border border-[#E2E8F0]">
+          <h2 className="text-xl font-semibold text-[#0E2240] mb-7">Create new password</h2>
 
           {error && token && error.includes('Invalid') ? (
             <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">
               {error}
-              <p className="mt-4">
-                <button
-                  type="button"
-                  onClick={() => navigate('/forgot-password')}
-                  className="text-[#2196F3] font-semibold hover:opacity-80 transition-opacity"
-                >
+              <p className="mt-3">
+                <button type="button" onClick={() => navigate('/forgot-password')}
+                  className="text-[#E8A93E] font-semibold hover:opacity-80 transition-opacity bg-transparent border-none cursor-pointer">
                   Request a new reset link
                 </button>
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">
                   {error}
                 </div>
               )}
-
-              <div className="space-y-2">
-                <label className="block text-base font-semibold text-[#333333]">New Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  placeholder="••••••••"
-                  className="w-full border border-[#DDDDDD] rounded-lg px-4 py-3 text-base focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
-                />
-                <p className="text-xs text-[#999999]">At least 6 characters</p>
+              <div>
+                <label className={labelClass}>New password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  required disabled={loading} placeholder="••••••••" className={inputClass} />
+                <p className="text-xs text-[#94A3B8] mt-1">At least 6 characters</p>
               </div>
-
-              <div className="space-y-2">
-                <label className="block text-base font-semibold text-[#333333]">Confirm Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  placeholder="••••••••"
-                  className="w-full border border-[#DDDDDD] rounded-lg px-4 py-3 text-base focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
-                />
+              <div>
+                <label className={labelClass}>Confirm password</label>
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                  required disabled={loading} placeholder="••••••••" className={inputClass} />
               </div>
-
               <button
                 type="submit"
                 disabled={loading || !password || !confirmPassword}
-                className={`w-full font-bold py-3 rounded-lg text-lg transition-opacity mt-2 ${
+                className={`w-full font-semibold py-3 rounded text-sm transition-opacity mt-1 ${
                   loading || !password || !confirmPassword
-                    ? 'bg-[#CCCCCC] text-gray-700 cursor-not-allowed'
-                    : 'bg-[#4CAF50] text-white hover:opacity-90 cursor-pointer'
+                    ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                    : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
                 }`}
               >
-                {loading ? 'Resetting Password...' : 'Reset Password'}
+                {loading ? 'Resetting...' : 'Reset password'}
               </button>
             </form>
           )}
 
-          <div className="mt-5 pt-5 border-t border-[#EEEEEE] text-center">
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="text-[#2196F3] text-sm font-semibold hover:opacity-80 transition-opacity bg-none border-none cursor-pointer"
-            >
-              Back to Login
+          <div className="mt-5 pt-5 border-t border-[#E2E8F0] text-center">
+            <button type="button" onClick={() => navigate('/login')}
+              className="text-[#E8A93E] text-sm font-semibold hover:opacity-80 transition-opacity bg-transparent border-none cursor-pointer">
+              Back to login
             </button>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="text-center text-sm text-[#999999] mb-10">
-          🔒 Your account is safe with us
-        </div>
+        <p className="text-xs text-[#94A3B8]">Your account is safe with us</p>
       </div>
     </div>
   );

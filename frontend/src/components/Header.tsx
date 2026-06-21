@@ -20,49 +20,49 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-[100] bg-white border-b-2 border-[#4CAF50] shadow-[0_2px_4px_rgba(0,0,0,0.1)] h-[60px] flex items-center px-5">
+    <header className="sticky top-0 z-[100] bg-[#0E2240] h-16 flex items-center px-5">
       <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between">
         <Link
           to="/"
-          className="text-xl font-bold text-[#4CAF50] hover:opacity-80 transition-opacity flex items-center gap-2"
+          className="font-display text-xl font-bold text-[#E8A93E] tracking-tight hover:opacity-90 transition-opacity"
         >
-          🎓 ReunionConnect
+          ReunionConnect
         </Link>
 
-        <nav className="hidden md:flex items-center gap-[30px]">
+        <nav className="hidden md:flex items-center gap-8">
           <Link
             to="/"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+            className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
           >
-            🎓 Home
+            Home
           </Link>
           <Link
             to="/directory"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+            className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
           >
-            📖 Directory
+            Directory
           </Link>
           <Link
             to="/events"
-            className="text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+            className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
           >
-            📅 Events
+            Events
           </Link>
         </nav>
 
         <div className="flex items-center gap-3">
           <Link
             to="/profile"
-            className="flex items-center gap-2 text-sm font-medium text-[#333333] hover:text-[#4CAF50] transition-colors duration-200"
+            className="flex items-center gap-2 text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
           >
-            <div className="w-8 h-8 rounded-full bg-[#4CAF50] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
               {getInitials()}
             </div>
-            <span className="hidden sm:inline">My Profile</span>
+            <span className="hidden sm:inline">Profile</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="text-xs text-[#999999] hover:text-[#f44336] transition-colors duration-200 font-medium ml-2"
+            className="text-xs text-white/40 hover:text-white/70 transition-colors duration-200 font-medium ml-2"
           >
             Sign out
           </button>

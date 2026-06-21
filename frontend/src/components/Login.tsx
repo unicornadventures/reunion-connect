@@ -22,7 +22,6 @@ const Login: React.FC = () => {
 
       const { user: userData, token } = response.data;
 
-      // Build CurrentUser object from auth response
       const user: CurrentUser = {
         id: userData.user_id,
         email: userData.email,
@@ -34,41 +33,42 @@ const Login: React.FC = () => {
         last_name: userData.profile?.last_name || ''
       };
 
-      // Store token for subsequent requests
       localStorage.setItem('token', token);
       login(user);
       navigate('/');
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError(err.response?.data?.error || 'Incorrect email or password.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-5">
-      <div className="w-full max-w-[600px] flex flex-col items-center gap-10">
-        {/* Header */}
-        <div className="text-center mt-10">
-          <div className="text-6xl mb-4">🎓</div>
-          <h1 className="text-5xl font-bold text-[#4CAF50] mb-2">ReunionConnect</h1>
-          <p className="text-[#666666] text-base">Westbrook High School — Class of 2004</p>
+    <div className="min-h-screen bg-[#F6F8FC] flex items-center justify-center p-5">
+      <div className="w-full max-w-[460px] flex flex-col items-center gap-8">
+
+        {/* Brand Header */}
+        <div className="text-center w-full">
+          <h1 className="font-display text-5xl font-bold text-[#0E2240] uppercase leading-none tracking-tight">
+            Class Reunion
+          </h1>
+          <div className="h-px bg-[#E8A93E] mt-4" />
         </div>
 
         {/* Login Card */}
-        <div className="w-full bg-white rounded-2xl px-12 py-14 shadow-md border border-[#E0E0E0]">
-          <h2 className="text-3xl font-bold text-[#333333] mb-8">Welcome Back</h2>
+        <div className="w-full bg-white rounded-lg px-10 py-10 shadow-sm border border-[#E2E8F0]">
+          <h2 className="text-xl font-semibold text-[#0E2240] mb-7">Sign in to your account</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">
                 {error}
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="block text-base font-semibold text-[#333333]">Email Address</label>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-[#0E2240]">Email</label>
               <input
                 type="email"
                 value={email}
@@ -76,12 +76,12 @@ const Login: React.FC = () => {
                 required
                 disabled={loading}
                 placeholder="your@email.com"
-                className="w-full border border-[#DDDDDD] rounded-lg px-4 py-3 text-base focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
+                className="w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-base font-semibold text-[#333333]">Password</label>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-semibold text-[#0E2240]">Password</label>
               <input
                 type="password"
                 value={password}
@@ -89,40 +89,40 @@ const Login: React.FC = () => {
                 required
                 disabled={loading}
                 placeholder="••••••••"
-                className="w-full border border-[#DDDDDD] rounded-lg px-4 py-3 text-base focus:outline-none focus:border-[#4CAF50] placeholder:text-[#999999]"
+                className="w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className={`w-full font-bold py-3 rounded-lg text-lg transition-opacity mt-2 ${
+              className={`w-full font-semibold py-3 rounded text-sm transition-opacity mt-1 ${
                 loading || !email || !password
-                  ? 'bg-[#CCCCCC] text-gray-700 cursor-not-allowed'
-                  : 'bg-[#4CAF50] text-white hover:opacity-90 cursor-pointer'
+                  ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                  : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
               }`}
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-5 text-center">
             <button
               type="button"
               onClick={() => navigate('/forgot-password')}
-              className="text-[#2196F3] text-sm font-semibold hover:opacity-80 transition-opacity bg-none border-none cursor-pointer"
+              className="text-[#E8A93E] text-sm font-medium hover:opacity-80 transition-opacity bg-transparent border-none cursor-pointer"
             >
               Forgot your password?
             </button>
           </div>
 
-          <div className="mt-5 pt-5 border-t border-[#EEEEEE] text-center">
-            <p className="text-sm text-[#999999]">
+          <div className="mt-5 pt-5 border-t border-[#E2E8F0] text-center">
+            <p className="text-sm text-[#64748B]">
               Not registered yet?{' '}
               <button
                 type="button"
                 onClick={() => navigate('/register')}
-                className="text-[#2196F3] font-semibold hover:opacity-80 transition-opacity bg-none border-none cursor-pointer"
+                className="text-[#E8A93E] font-semibold hover:opacity-80 transition-opacity bg-transparent border-none cursor-pointer"
               >
                 Sign up here
               </button>
@@ -130,10 +130,7 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center text-sm text-[#999999] mb-10">
-          🔒 Secure access for alumni only
-        </div>
+        <p className="text-xs text-[#94A3B8]">Secure access for alumni only</p>
       </div>
     </div>
   );

@@ -155,7 +155,9 @@ router.post('/registration-links', async (req, res) => {
   try {
     // Verify class exists
     const classResult = await query(
-      'SELECT id, year FROM classes WHERE id = $1 AND school_id = $2',
+      `SELECT c.id, c.year FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       WHERE c.id = $1 AND cs.school_id = $2`,
       [classId, schoolId]
     );
 

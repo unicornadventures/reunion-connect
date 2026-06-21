@@ -22,13 +22,6 @@ interface Class {
   year: number;
 }
 
-interface PaginatedUsers {
-  users: User[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
 const STORAGE_KEY = 'usersManagerState';
 
 interface StoredState {
@@ -37,6 +30,8 @@ interface StoredState {
   searchLastName: string;
   currentPage: number;
 }
+
+const selectClass = 'border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors bg-white w-full';
 
 const UsersManager: React.FC = () => {
   const navigate = useNavigate();
@@ -57,10 +52,7 @@ const UsersManager: React.FC = () => {
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
   const [userDeletionWarning, setUserDeletionWarning] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
 
-  const saveState = (state: StoredState) => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  };
-
+  const saveState = (state: StoredState) => sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   const restoreState = (): StoredState | null => {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
@@ -85,71 +77,48 @@ const UsersManager: React.FC = () => {
       const restoreClassId = restoredStateRef.current?.selectedClassId ?? null;
       fetchClassesForSchool(selectedSchoolId, restoredStateRef.current ? restoreClassId : undefined);
       restoredStateRef.current = null;
-      saveState({
-        selectedSchoolId,
-        selectedClassId,
-        searchLastName,
-        currentPage
-      });
+      saveState({ selectedSchoolId, selectedClassId, searchLastName, currentPage });
     }
   }, [selectedSchoolId]);
 
   useEffect(() => {
-    if (selectedClassId) {
-      fetchUsers();
-    }
+    if (selectedClassId) fetchUsers();
   }, [selectedClassId, currentPage, searchLastName]);
 
   useEffect(() => {
-    saveState({
-      selectedSchoolId,
-      selectedClassId,
-      searchLastName,
-      currentPage
-    });
+    saveState({ selectedSchoolId, selectedClassId, searchLastName, currentPage });
   }, [selectedClassId, currentPage, searchLastName]);
 
   const fetchSchools = async () => {
     try {
       const response = await api.get('/schools');
       setSchools(response.data.schools || []);
-      setError(null);
-    } catch (err: any) {
+    } catch {
       setError('Failed to fetch schools.');
     }
   };
 
   const fetchClassesForSchool = async (schoolId: number, restoreClassId?: number | null) => {
     try {
-      const response = await api.get('/classes');
-      const allClasses = response.data.classes || [];
-      const filtered = allClasses.filter((c: any) => c.school_id === schoolId);
-      setClasses(filtered);
+      const response = await api.get(`/schools/${schoolId}/classes`);
+      setClasses(response.data.classes || []);
       if (restoreClassId !== undefined) {
         setSelectedClassId(restoreClassId);
       } else {
         setSelectedClassId(null);
-      }
-      if (restoreClassId === undefined) {
         setUsers([]);
       }
-      setError(null);
-    } catch (err: any) {
+    } catch {
       setError('Failed to fetch classes.');
     }
   };
 
   const fetchUsers = async () => {
     if (!selectedClassId) return;
-
     setLoading(true);
     try {
       const response = await api.get(`/admin/classes/${selectedClassId}/users`, {
-        params: {
-          page: currentPage,
-          pageSize,
-          lastName: searchLastName,
-        },
+        params: { page: currentPage, pageSize, lastName: searchLastName }
       });
       setUsers(response.data.users || []);
       setTotalUsers(response.data.total || 0);
@@ -162,17 +131,9 @@ const UsersManager: React.FC = () => {
     }
   };
 
-  const handleDelete = (userId: number) => {
-    setDeleteModal({ isOpen: true, userId });
-  };
-
   const handleConfirmDelete = () => {
     setDeleteModal({ isOpen: false, userId: null });
     setUserDeletionWarning({ isOpen: true, userId: deleteModal.userId });
-  };
-
-  const handleCancelDelete = () => {
-    setDeleteModal({ isOpen: false, userId: null });
   };
 
   const handleConfirmUserDeletion = async () => {
@@ -187,138 +148,141 @@ const UsersManager: React.FC = () => {
     }
   };
 
-  const handleCancelUserDeletion = () => {
-    setUserDeletionWarning({ isOpen: false, userId: null });
-  };
-
   const totalPages = Math.ceil(totalUsers / pageSize);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '30px' }}>Users Management</h2>
+    <div className="max-w-[1200px] mx-auto px-5 py-8">
+      <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight mb-6">
+        Users Management
+      </h1>
 
-      {error && <div style={{ padding: '12px', backgroundColor: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '20px' }}>{error}</div>}
+      {error && (
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-6">
+          {error}
+        </div>
+      )}
 
-      <div style={{ marginBottom: '30px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
-        <h3 style={{ marginBottom: '15px' }}>Filter Users</h3>
-
-        <label style={{ display: 'block', marginBottom: '10px' }}>Select School:</label>
-        <select
-          value={selectedSchoolId || ''}
-          onChange={(e) => setSelectedSchoolId(e.target.value ? parseInt(e.target.value) : null)}
-          style={{ padding: '8px', marginRight: '10px', marginBottom: '15px' }}
-        >
-          <option value="" disabled>-- Select School --</option>
-          {schools.map((school) => (
-            <option key={school.id} value={school.id}>
-              {school.name}
-            </option>
-          ))}
-        </select>
-
-        {selectedSchoolId && classes.length > 0 && (
-          <>
-            <label style={{ display: 'block', marginBottom: '10px' }}>Select Class Year:</label>
+      {/* Filter panel */}
+      <div className="bg-white border border-[#E2E8F0] rounded-lg p-6 mb-6">
+        <p className="text-xs font-semibold text-[#94A3B8] tracking-[0.15em] uppercase mb-4">Filter Users</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-[#0E2240] mb-1.5">School</label>
             <select
-              value={selectedClassId || ''}
-              onChange={(e) => setSelectedClassId(e.target.value ? parseInt(e.target.value) : null)}
-              style={{ padding: '8px', marginRight: '10px', marginBottom: '15px' }}
+              value={selectedSchoolId || ''}
+              onChange={e => setSelectedSchoolId(e.target.value ? parseInt(e.target.value) : null)}
+              className={selectClass}
             >
-              <option value="" disabled>-- Select Year --</option>
-              {classes.map((classItem) => (
-                <option key={classItem.id} value={classItem.id}>
-                  Class of {classItem.year}
-                </option>
+              <option value="" disabled>— Select school —</option>
+              {schools.map(school => (
+                <option key={school.id} value={school.id}>{school.name}</option>
               ))}
             </select>
-          </>
-        )}
+          </div>
 
-        {selectedClassId && (
-          <>
-            <label style={{ display: 'block', marginBottom: '10px' }}>Search by Last Name:</label>
-            <input
-              type="text"
-              placeholder="Enter last name"
-              value={searchLastName}
-              onChange={(e) => {
-                setSearchLastName(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{ padding: '8px', marginRight: '10px', marginBottom: '15px', width: '300px' }}
-            />
-          </>
-        )}
+          {selectedSchoolId && classes.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-[#0E2240] mb-1.5">Class year</label>
+              <select
+                value={selectedClassId || ''}
+                onChange={e => setSelectedClassId(e.target.value ? parseInt(e.target.value) : null)}
+                className={selectClass}
+              >
+                <option value="" disabled>— Select year —</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>Class of {c.year}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedClassId && (
+            <div>
+              <label className="block text-sm font-semibold text-[#0E2240] mb-1.5">Search by last name</label>
+              <input
+                type="text"
+                placeholder="Enter last name"
+                value={searchLastName}
+                onChange={e => { setSearchLastName(e.target.value); setCurrentPage(1); }}
+                className="border border-[#E2E8F0] rounded px-4 py-3 text-sm w-full focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors placeholder:text-[#CBD5E1]"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {selectedClassId && (
         <>
-          <h3 style={{ marginBottom: '15px' }}>
-            Users ({totalUsers}) {searchLastName && `- Last Name: "${searchLastName}"`}
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-[#94A3B8] tracking-[0.15em] uppercase">
+              Users ({totalUsers}){searchLastName && ` — "${searchLastName}"`}
+            </p>
+          </div>
 
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#999999' }}>Loading users...</div>
+            <div className="text-center text-[#94A3B8] text-sm py-8">Loading users...</div>
           ) : users.length === 0 ? (
-            <div style={{ padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '4px', textAlign: 'center', color: '#999999' }}>
+            <div className="bg-white border border-[#E2E8F0] rounded-lg py-10 text-center text-sm text-[#94A3B8]">
               No users found.
             </div>
           ) : (
             <>
-              <ul style={{ listStyle: 'none', padding: 0, marginBottom: '20px' }}>
-                {users.map((user) => (
-                  <li key={user.id} style={{ padding: '12px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ cursor: 'pointer', color: '#2196F3' }} onClick={() => navigate(`/admin/user/${user.id}`)}>
-                      <strong>{user.last_name}, {user.first_name}</strong>
-                      <div style={{ fontSize: '12px', color: '#999999' }}>{user.email}</div>
-                    </div>
-                    <div>
+              <div className="bg-white border border-[#E2E8F0] rounded-lg overflow-hidden mb-5">
+                {users.map((user, idx) => (
+                  <div
+                    key={user.id}
+                    className={`flex items-center justify-between px-5 py-4 ${idx < users.length - 1 ? 'border-b border-[#E2E8F0]' : ''}`}
+                  >
+                    <button
+                      onClick={() => navigate(`/admin/user/${user.id}`)}
+                      className="text-left bg-transparent border-none cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      <div className="text-sm font-semibold text-[#0E2240]">
+                        {user.last_name}, {user.first_name}
+                      </div>
+                      <div className="text-xs text-[#94A3B8] mt-0.5">{user.email}</div>
+                    </button>
+                    <div className="flex gap-2">
                       <button
                         onClick={() => navigate(`/admin/user/${user.id}`)}
-                        style={{ padding: '5px 10px', marginRight: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                        className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none"
                       >
                         View
                       </button>
                       <button
-                        onClick={() => handleDelete(user.id)}
-                        style={{ padding: '5px 10px', backgroundColor: '#f44336', color: 'white', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                        onClick={() => setDeleteModal({ isOpen: true, userId: user.id })}
+                        className="px-3 py-1.5 bg-[#f44336] text-white rounded text-xs font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none"
                       >
                         Delete
                       </button>
                     </div>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
 
               {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
+                <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    style={{
-                      padding: '8px 12px',
-                      backgroundColor: currentPage === 1 ? '#ddd' : '#2196F3',
-                      color: 'white',
-                      border: 'none',
-                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                      borderRadius: '4px',
-                    }}
+                    className={`px-4 py-2 rounded text-sm font-semibold border-none transition-opacity ${
+                      currentPage === 1
+                        ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                        : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
+                    }`}
                   >
                     Previous
                   </button>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        style={{
-                          padding: '8px 12px',
-                          backgroundColor: page === currentPage ? '#4CAF50' : '#ddd',
-                          color: page === currentPage ? 'white' : '#333',
-                          border: 'none',
-                          cursor: 'pointer',
-                          borderRadius: '4px',
-                        }}
+                        className={`w-9 h-9 rounded text-sm font-semibold border-none cursor-pointer transition-opacity ${
+                          page === currentPage
+                            ? 'bg-[#0E2240] text-white'
+                            : 'bg-[#E2E8F0] text-[#64748B] hover:opacity-80'
+                        }`}
                       >
                         {page}
                       </button>
@@ -327,14 +291,11 @@ const UsersManager: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    style={{
-                      padding: '8px 12px',
-                      backgroundColor: currentPage === totalPages ? '#ddd' : '#2196F3',
-                      color: 'white',
-                      border: 'none',
-                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                      borderRadius: '4px',
-                    }}
+                    className={`px-4 py-2 rounded text-sm font-semibold border-none transition-opacity ${
+                      currentPage === totalPages
+                        ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                        : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
+                    }`}
                   >
                     Next
                   </button>
@@ -354,14 +315,14 @@ const UsersManager: React.FC = () => {
         cancelText="Cancel"
         isDangerous={true}
         onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, userId: null })}
       />
 
       <UserDeletionWarning
         isOpen={userDeletionWarning.isOpen}
         userCount={1}
         onConfirm={handleConfirmUserDeletion}
-        onCancel={handleCancelUserDeletion}
+        onCancel={() => setUserDeletionWarning({ isOpen: false, userId: null })}
       />
     </div>
   );

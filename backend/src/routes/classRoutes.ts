@@ -3,15 +3,10 @@ import { query } from '../db.ts';
 
 const router = express.Router();
 
-// GET /api/classes
+// GET /api/classes — all available class years (for dropdowns)
 router.get('/', async (req, res) => {
   try {
-    const result = await query(`
-      SELECT c.id, c.year, c.school_id, s.name as school_name, c.created_at, c.updated_at
-      FROM classes c
-      JOIN schools s ON c.school_id = s.id
-      ORDER BY c.year DESC, s.name ASC;
-    `);
+    const result = await query('SELECT id, year FROM classes ORDER BY year DESC;');
     res.status(200).json({ classes: result.rows });
   } catch (error) {
     console.error("Get Classes Error:", error);
@@ -19,33 +14,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/classes
-router.post('/', async (req, res) => {
-  const { school_id, year } = req.body;
-
-  if (!school_id || !year) {
-    return res.status(400).json({ error: 'school_id and year are required.' });
-  }
-
-  try {
-    // Verify school exists
-    const schoolCheck = await query('SELECT id FROM schools WHERE id = $1;', [school_id]);
-    if (schoolCheck.rows.length === 0) {
-      return res.status(400).json({ error: 'School not found.' });
-    }
-
-    const result = await query(
-      'INSERT INTO classes (school_id, year) VALUES ($1, $2) RETURNING *;',
-      [school_id, year]
-    );
-    res.status(201).json({ class: result.rows[0] });
-  } catch (error) {
-    console.error("Create Class Error:", error);
-    res.status(500).json({ error: 'Internal server error.' });
-  }
-});
-
-// GET /api/classes/:id/members - Must come before /:id
+// GET /api/classes/:id/members — must come before /:id
 router.get('/:id/members', async (req, res) => {
   const { id } = req.params;
 
@@ -66,17 +35,16 @@ router.get('/:id/members', async (req, res) => {
   }
 });
 
-// GET /api/classes/:id/directory - Get users by class with full profile (for directory)
+// GET /api/classes/:id/directory
 router.get('/:id/directory', async (req, res) => {
   const { id } = req.params;
-  const userId = req.query.userId; // Requires userId for validation
+  const userId = req.query.userId;
 
   if (!userId) {
     return res.status(400).json({ error: 'User ID is required.' });
   }
 
   try {
-    // Validate that the requesting user is in this class
     const userClassCheck = await query(
       'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
       [userId, id]
@@ -86,7 +54,6 @@ router.get('/:id/directory', async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You are not in this class.' });
     }
 
-    // Fetch directory only if user is authorized
     const result = await query(`
       SELECT
         u.id,
@@ -119,9 +86,7 @@ router.get('/:id/alumni-count', async (req, res) => {
       'SELECT COUNT(*) as count FROM class_user WHERE class_id = $1',
       [id]
     );
-
-    const count = parseInt(result.rows[0].count, 10);
-    res.status(200).json({ count });
+    res.status(200).json({ count: parseInt(result.rows[0].count, 10) });
   } catch (error) {
     console.error("Get Alumni Count Error:", error);
     res.status(500).json({ error: 'Internal server error.' });
@@ -133,7 +98,6 @@ router.get('/:id/recently-joined', async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Get the last 3 users who joined this class, ordered by registration date (newest first)
     const result = await query(`
       SELECT
         u.id,
@@ -164,7 +128,6 @@ router.get('/:id/message-count', async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Count published comments where the target_user_id belongs to this class
     const result = await query(
       `SELECT COUNT(*) as count FROM comments c
        WHERE c.published = true
@@ -175,25 +138,25 @@ router.get('/:id/message-count', async (req, res) => {
        )`,
       [id]
     );
-
-    const count = parseInt(result.rows[0].count, 10);
-    res.status(200).json({ count });
+    res.status(200).json({ count: parseInt(result.rows[0].count, 10) });
   } catch (error) {
     console.error("Get Message Count Error:", error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
 
-// GET /api/classes/:id - Generic class fetch (must come last)
+// GET /api/classes/:id — must come last
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
     const result = await query(`
-      SELECT c.id, c.year, c.school_id, s.name as school_name, c.created_at, c.updated_at
+      SELECT c.id, c.year, cs.school_id, s.name AS school_name, c.created_at
       FROM classes c
-      JOIN schools s ON c.school_id = s.id
-      WHERE c.id = $1;
+      LEFT JOIN class_school cs ON c.id = cs.class_id
+      LEFT JOIN schools s ON cs.school_id = s.id
+      WHERE c.id = $1
+      LIMIT 1;
     `, [id]);
 
     if (result.rows.length === 0) {

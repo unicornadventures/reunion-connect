@@ -87,12 +87,12 @@ jest.mock('../../db', () => ({
       return { rows: school ? [school] : [] };
     }
 
-    // SELECT class by id and school_id
-    if (sql.includes('SELECT id, year FROM classes WHERE id') && sql.includes('AND school_id')) {
+    // SELECT class via class_school JOIN (registration link validation)
+    if (sql.includes('FROM classes c') && sql.includes('JOIN class_school cs') && sql.includes('WHERE c.id')) {
       const classId = parseInt(params?.[0]);
       const schoolId = parseInt(params?.[1]);
       const classInfo = mockDb.classes.find(c => c.id === classId && c.school_id === schoolId);
-      return { rows: classInfo ? [classInfo] : [] };
+      return { rows: classInfo ? [{ id: classInfo.id, year: classInfo.year }] : [] };
     }
 
     return { rows: [] };

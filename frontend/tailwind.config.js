@@ -6,14 +6,15 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['"Barlow Condensed"', 'sans-serif'],
+        sans: ['"DM Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
-        primary: "#4CAF50",
-        secondary: "#2196F3",
-        dark: "#333333",
-        gray: "#666666",
-        "light-gray": "#999999",
-        border: "#E0E0E0",
-        background: "#F5F5F5",
+        brand: {
+          navy: '#0E2240',
+          gold: '#E8A93E',
+        },
       },
     },
   },

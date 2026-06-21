@@ -33,86 +33,54 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
       onClick={onCancel}
     >
       <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          padding: '30px',
-          maxWidth: '450px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          textAlign: 'left',
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-lg p-8 max-w-[450px] w-full mx-4 shadow-xl"
+        onClick={e => e.stopPropagation()}
       >
-        <h2 style={{ marginBottom: '15px', color: '#333', textAlign: 'center' }}>{title}</h2>
-        <p style={{ marginBottom: '15px', color: '#666', lineHeight: '1.5' }}>{message}</p>
+        <h2 className="text-xl font-bold text-[#0E2240] text-center mb-4">{title}</h2>
+        <p className="text-sm text-[#64748B] leading-relaxed mb-4">{message}</p>
 
         {details && details.length > 0 && (
-          <div style={{ marginBottom: '20px', backgroundColor: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
-            <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#333', fontSize: '14px' }}>This will delete:</p>
-            <ul style={{ margin: '0', paddingLeft: '20px', color: '#666', fontSize: '14px' }}>
+          <div className="mb-5 bg-[#F6F8FC] border border-[#E2E8F0] rounded p-4">
+            <p className="text-xs font-bold text-[#0E2240] mb-2 uppercase tracking-wide">This will delete:</p>
+            <ul className="list-disc list-inside space-y-1">
               {details.map((detail, index) => (
-                <li key={index}>{detail}</li>
+                <li key={index} className="text-sm text-[#64748B]">{detail}</li>
               ))}
             </ul>
           </div>
         )}
 
         {showCheckbox && (
-          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="mb-5 flex items-center gap-3">
             <input
               type="checkbox"
               id="cascade-users-checkbox"
               checked={cascadeUsers}
-              onChange={(e) => setCascadeUsers(e.target.checked)}
-              style={{ cursor: 'pointer' }}
+              onChange={e => setCascadeUsers(e.target.checked)}
+              className="cursor-pointer"
             />
-            <label htmlFor="cascade-users-checkbox" style={{ cursor: 'pointer', fontSize: '14px', color: '#333' }}>
+            <label htmlFor="cascade-users-checkbox" className="text-sm text-[#0E2240] cursor-pointer">
               {checkboxLabel}
             </label>
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        <div className="flex gap-3 justify-center">
           <button
             onClick={onCancel}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#ddd',
-              color: '#333',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
+            className="px-5 py-2.5 bg-[#E2E8F0] text-[#0E2240] rounded text-sm font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none"
           >
             {cancelText}
           </button>
           <button
             onClick={() => onConfirm(cascadeUsers)}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: isDangerous ? '#f44336' : '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
+            className={`px-5 py-2.5 rounded text-sm font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none ${
+              isDangerous ? 'bg-[#f44336] text-white' : 'bg-[#0E2240] text-white'
+            }`}
           >
             {confirmText}
           </button>

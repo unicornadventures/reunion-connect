@@ -1,178 +1,203 @@
 import React, { useState, useEffect } from 'react';
-import { adminClassAPI, schoolAPI } from '../apiClient';
+import { adminClassAPI, classAPI, schoolAPI } from '../apiClient';
 import ConfirmModal from './ConfirmModal';
 
 const ClassManager: React.FC = () => {
-  const [classes, setClasses] = useState<any[]>([]);
+  const [allYears, setAllYears] = useState<{ id: number; year: number }[]>([]);
+  const [linkedClasses, setLinkedClasses] = useState<{ id: number; year: number }[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newYear, setNewYear] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
   const [addingYear, setAddingYear] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: number; year: number } | null>(null);
 
   useEffect(() => {
-    schoolAPI.getSchools()
-      .then(res => setSchools(res.data.schools || []))
-      .catch(() => setError('Failed to fetch schools.'))
+    Promise.all([
+      schoolAPI.getSchools(),
+      classAPI.getAllClasses(),
+    ])
+      .then(([schoolsRes, classesRes]) => {
+        setSchools(schoolsRes.data.schools || []);
+        setAllYears(classesRes.data.classes || []);
+      })
+      .catch(() => setError('Failed to load data.'))
       .finally(() => setLoadingSchools(false));
   }, []);
 
   useEffect(() => {
-    if (!selectedSchoolId) {
-      setClasses([]);
-      return;
-    }
+    if (!selectedSchoolId) { setLinkedClasses([]); return; }
     setLoadingClasses(true);
     adminClassAPI.getClasses(selectedSchoolId)
-      .then(res => setClasses(res.data.classes || []))
+      .then(res => setLinkedClasses(res.data.classes || []))
       .catch(() => setError('Failed to fetch classes.'))
       .finally(() => setLoadingClasses(false));
   }, [selectedSchoolId]);
 
   const handleSchoolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setError(null);
-    setNewYear('');
+    setSelectedYear('');
     setSelectedSchoolId(e.target.value ? parseInt(e.target.value) : null);
   };
 
-  const handleDeleteClass = (classId: number, year: number) => {
-    setPendingDelete({ id: classId, year });
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-    try {
-      await adminClassAPI.deleteClass(pendingDelete.id);
-      setClasses(prev => prev.filter(c => c.id !== pendingDelete.id));
-    } catch {
-      setError(`Failed to delete class year ${pendingDelete.year}.`);
-    } finally {
-      setPendingDelete(null);
-    }
-  };
+  const availableYears = allYears.filter(c => !linkedClasses.some(lc => lc.id === c.id));
 
   const handleAddYear = async (e: React.FormEvent) => {
     e.preventDefault();
-    const year = parseInt(newYear);
-    if (!year || year < 1900 || year > 2100) {
-      setError('Enter a valid year between 1900 and 2100.');
-      return;
-    }
-    if (classes.some(c => c.year === year)) {
-      setError(`Class year ${year} already exists for this school.`);
-      return;
-    }
+    if (!selectedYear) return;
+    const year = parseInt(selectedYear);
     setAddingYear(true);
     setError(null);
     try {
       const res = await adminClassAPI.createClass(selectedSchoolId!, year);
-      setClasses(prev => [...prev, res.data.class].sort((a, b) => b.year - a.year));
-      setNewYear('');
-    } catch {
-      setError(`Failed to add class year ${year}.`);
+      setLinkedClasses(prev => [...prev, res.data.class].sort((a, b) => b.year - a.year));
+      setSelectedYear('');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || `Failed to add class year ${year}.`);
     } finally {
       setAddingYear(false);
     }
   };
 
-  if (loadingSchools) return <div style={{ padding: '20px' }}>Loading schools...</div>;
+  const confirmDelete = async () => {
+    if (!pendingDelete || !selectedSchoolId) return;
+    try {
+      await adminClassAPI.unlinkClass(selectedSchoolId, pendingDelete.id);
+      setLinkedClasses(prev => prev.filter(c => c.id !== pendingDelete.id));
+    } catch {
+      setError(`Failed to remove class year ${pendingDelete.year}.`);
+    } finally {
+      setPendingDelete(null);
+    }
+  };
+
+  const selectClass = 'border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors bg-white';
+
+  if (loadingSchools) {
+    return (
+      <div className="max-w-[1200px] mx-auto px-5 py-8">
+        <div className="text-center text-[#94A3B8] text-sm">Loading...</div>
+      </div>
+    );
+  }
 
   const selectedSchool = schools.find(s => s.id === selectedSchoolId);
-  const sortedClasses = classes.slice().sort((a, b) => b.year - a.year);
+  const sortedClasses = linkedClasses.slice().sort((a, b) => b.year - a.year);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '30px' }}>Class Management</h2>
+    <div className="max-w-[1200px] mx-auto px-5 py-8">
+      <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight mb-6">
+        Class Management
+      </h1>
 
       {error && (
-        <div style={{ padding: '12px', backgroundColor: '#ffebee', color: '#c62828', borderRadius: '4px', marginBottom: '20px' }}>
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-6">
           {error}
         </div>
       )}
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Select School:</label>
-        <select
-          value={selectedSchoolId || ''}
-          onChange={handleSchoolChange}
-          style={{ padding: '8px 12px', minWidth: '250px', fontSize: '14px' }}
-        >
-          <option value="">-- Select a school --</option>
+      {/* School selector */}
+      <div className="bg-white border border-[#E2E8F0] rounded-lg p-6 mb-6">
+        <label className="block text-sm font-semibold text-[#0E2240] mb-1.5">Select school</label>
+        <select value={selectedSchoolId || ''} onChange={handleSchoolChange} className={`${selectClass} min-w-[260px]`}>
+          <option value="">— Select a school —</option>
           {schools.map(school => (
             <option key={school.id} value={school.id}>{school.name}</option>
           ))}
         </select>
-      </div>
 
-      {!selectedSchoolId && (
-        <div style={{ color: '#666', fontStyle: 'italic' }}>Select a school to view its class years.</div>
-      )}
+        {!selectedSchoolId && (
+          <p className="text-sm text-[#94A3B8] mt-3">Select a school to view and manage its class years.</p>
+        )}
+      </div>
 
       {selectedSchoolId && (
         <>
-          <form onSubmit={handleAddYear} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '24px' }}>
-            <label style={{ fontWeight: 600 }}>Add Class Year:</label>
-            <input
-              type="number"
-              value={newYear}
-              onChange={e => setNewYear(e.target.value)}
-              placeholder="e.g. 2026"
-              min="1900"
-              max="2100"
-              style={{ padding: '8px 12px', width: '120px', fontSize: '14px' }}
-            />
-            <button
-              type="submit"
-              disabled={addingYear || !newYear}
-              style={{ padding: '8px 16px', backgroundColor: '#1976d2', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}
-            >
-              {addingYear ? 'Adding...' : 'Add'}
-            </button>
-          </form>
-
-          {loadingClasses ? (
-            <div>Loading classes for {selectedSchool?.name}...</div>
-          ) : (
-            <>
-              <h3 style={{ marginBottom: '12px' }}>
-                {selectedSchool?.name} — {classes.length} class year{classes.length !== 1 ? 's' : ''}
-              </h3>
-              {classes.length === 0 ? (
-                <div style={{ color: '#666', fontStyle: 'italic' }}>No classes found for this school.</div>
-              ) : (
-                <ul style={{ listStyle: 'none', padding: 0, columns: 4, columnGap: '16px' }}>
-                  {sortedClasses.map(c => (
-                    <li key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eee', breakInside: 'avoid' }}>
-                      <span>{c.year}</span>
-                      <button
-                        onClick={() => handleDeleteClass(c.id, c.year)}
-                        title="Delete class year"
-                        style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: '16px', padding: '0 4px', lineHeight: 1 }}
-                      >
-                        ×
-                      </button>
-                    </li>
+          {/* Add year form */}
+          <div className="bg-white border border-[#E2E8F0] rounded-lg p-6 mb-6">
+            <form onSubmit={handleAddYear} className="flex items-end gap-4 flex-wrap">
+              <div>
+                <label className="block text-sm font-semibold text-[#0E2240] mb-1.5">Add class year</label>
+                <select
+                  value={selectedYear}
+                  onChange={e => setSelectedYear(e.target.value)}
+                  className={`${selectClass} w-[180px]`}
+                  disabled={availableYears.length === 0}
+                >
+                  <option value="">— Select year —</option>
+                  {availableYears.map(c => (
+                    <option key={c.id} value={c.year}>{c.year}</option>
                   ))}
-                </ul>
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={addingYear || !selectedYear}
+                className={`px-5 py-3 rounded text-sm font-semibold border-none transition-opacity ${
+                  addingYear || !selectedYear
+                    ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                    : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
+                }`}
+              >
+                {addingYear ? 'Adding...' : 'Add year'}
+              </button>
+            </form>
+            {availableYears.length === 0 && linkedClasses.length > 0 && (
+              <p className="text-xs text-[#94A3B8] mt-3">All available class years are already linked to this school.</p>
+            )}
+          </div>
+
+          {/* Classes list */}
+          {loadingClasses ? (
+            <div className="text-center text-[#94A3B8] text-sm py-8">
+              Loading classes for {selectedSchool?.name}...
+            </div>
+          ) : (
+            <div>
+              <p className="text-xs font-semibold text-[#94A3B8] tracking-[0.15em] uppercase mb-3">
+                {selectedSchool?.name} — {linkedClasses.length} class year{linkedClasses.length !== 1 ? 's' : ''}
+              </p>
+              {linkedClasses.length === 0 ? (
+                <div className="bg-white border border-[#E2E8F0] rounded-lg py-10 text-center text-sm text-[#94A3B8]">
+                  No classes linked to this school yet.
+                </div>
+              ) : (
+                <div className="bg-white border border-[#E2E8F0] rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-2 sm:grid-cols-4">
+                    {sortedClasses.map(c => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between px-4 py-3 border-b border-[#E2E8F0] border-r border-[#E2E8F0]"
+                      >
+                        <span className="text-sm font-semibold text-[#0E2240]">{c.year}</span>
+                        <button
+                          onClick={() => setPendingDelete({ id: c.id, year: c.year })}
+                          title={`Remove class year ${c.year}`}
+                          className="text-[#94A3B8] hover:text-[#f44336] text-lg leading-none bg-transparent border-none cursor-pointer transition-colors px-1"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-            </>
+            </div>
           )}
         </>
       )}
+
       <ConfirmModal
         isOpen={!!pendingDelete}
-        title={`Delete Class Year ${pendingDelete?.year}`}
-        message={`Deleting class year ${pendingDelete?.year} is permanent and cannot be undone.`}
+        title={`Remove Class Year ${pendingDelete?.year}`}
+        message={`Removing class year ${pendingDelete?.year} from ${selectedSchool?.name} is permanent and cannot be undone.`}
         details={[
-          'All members assigned to this class year',
-          'All profiles and account information for those members',
-          'All comments written by or about those members',
-          'All photographs uploaded by those members',
+          'All members assigned to this class year at this school will lose their class assignment',
+          'Member accounts will not be deleted',
         ]}
-        confirmText="Delete Class Year"
+        confirmText="Remove Class Year"
         isDangerous
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}

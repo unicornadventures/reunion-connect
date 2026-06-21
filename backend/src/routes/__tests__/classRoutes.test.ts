@@ -3,8 +3,12 @@ import request from 'supertest';
 
 const mockDb = {
   classes: [
-    { id: 1, school_id: 1, year: 2020, school_name: 'Lincoln High', created_at: new Date(), updated_at: new Date() },
-    { id: 2, school_id: 1, year: 2021, school_name: 'Lincoln High', created_at: new Date(), updated_at: new Date() }
+    { id: 1, year: 2020, created_at: new Date() },
+    { id: 2, year: 2021, created_at: new Date() }
+  ],
+  classSchool: [
+    { class_id: 1, school_id: 1 },
+    { class_id: 2, school_id: 1 }
   ],
   schools: [
     { id: 1, name: 'Lincoln High', location: 'Lincoln, NE' }
@@ -20,9 +24,9 @@ const mockDb = {
     { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson', nickname: 'Bobby', now_photo_url: 'https://example.com/bob_now.jpg', then_photo_url: 'https://example.com/bob_then.jpg' }
   ],
   classUsers: [
-    { id: 1, class_id: 1, user_id: 1 },
-    { id: 2, class_id: 1, user_id: 2 },
-    { id: 3, class_id: 2, user_id: 3 }
+    { id: 1, class_id: 1, user_id: 1, school_id: 1 },
+    { id: 2, class_id: 1, user_id: 2, school_id: 1 },
+    { id: 3, class_id: 2, user_id: 3, school_id: 1 }
   ],
   comments: [
     { id: 1, target_user_id: 1, commenter_id: 2, content: 'Great to see you!', published: true, created_at: new Date() },
@@ -32,37 +36,27 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    // GET all classes
-    if (sql.includes('SELECT c.id, c.year, c.school_id, s.name as school_name') && !sql.includes('WHERE')) {
-      return {
-        rows: mockDb.classes.map(c => ({
-          id: c.id,
-          year: c.year,
-          school_id: c.school_id,
-          school_name: c.school_name,
-          created_at: c.created_at,
-          updated_at: c.updated_at
-        }))
-      };
+    // GET all classes (SELECT id, year FROM classes)
+    if (sql.includes('SELECT id, year FROM classes') && !sql.includes('WHERE')) {
+      return { rows: mockDb.classes.map(c => ({ id: c.id, year: c.year })) };
     }
 
-    // GET single class by id
-    if (sql.includes('SELECT c.id, c.year, c.school_id, s.name as school_name') && sql.includes('WHERE c.id')) {
+    // GET single class by id (with class_school JOIN)
+    if (sql.includes('FROM classes c') && sql.includes('LEFT JOIN class_school') && sql.includes('WHERE c.id')) {
       const classId = Number(params?.[0]);
       const cls = mockDb.classes.find(c => c.id === classId);
-      if (cls) {
-        return {
-          rows: [{
-            id: cls.id,
-            year: cls.year,
-            school_id: cls.school_id,
-            school_name: cls.school_name,
-            created_at: cls.created_at,
-            updated_at: cls.updated_at
-          }]
-        };
-      }
-      return { rows: [] };
+      if (!cls) return { rows: [] };
+      const cs = mockDb.classSchool.find(cs => cs.class_id === classId);
+      const school = cs ? mockDb.schools.find(s => s.id === cs.school_id) : null;
+      return {
+        rows: [{
+          id: cls.id,
+          year: cls.year,
+          school_id: cs?.school_id || null,
+          school_name: school?.name || null,
+          created_at: cls.created_at
+        }]
+      };
     }
 
     // GET class members
@@ -74,18 +68,15 @@ jest.mock('../../db', () => ({
           const user = mockDb.users.find(u => u.id === cu.user_id);
           const profile = mockDb.profiles.find(p => p.user_id === cu.user_id);
           return user && profile ? {
-            id: user.id,
-            email: user.email,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
-            nickname: profile.nickname
+            id: user.id, email: user.email,
+            first_name: profile.first_name, last_name: profile.last_name, nickname: profile.nickname
           } : null;
         })
         .filter(Boolean);
       return { rows: members };
     }
 
-    // GET class directory
+    // GET class directory — auth check
     if (sql.includes('SELECT class_id FROM class_user WHERE user_id') && sql.includes('AND class_id')) {
       const userId = Number(params?.[0]);
       const classId = Number(params?.[1]);
@@ -94,7 +85,7 @@ jest.mock('../../db', () => ({
     }
 
     // GET directory users
-    if (sql.includes('SELECT') && sql.includes('now_photo_url, p.then_photo_url') && sql.includes('class_user')) {
+    if (sql.includes('now_photo_url') && sql.includes('class_user')) {
       const classId = Number(params?.[0]);
       const users = mockDb.classUsers
         .filter(cu => cu.class_id === classId)
@@ -102,13 +93,9 @@ jest.mock('../../db', () => ({
           const user = mockDb.users.find(u => u.id === cu.user_id);
           const profile = mockDb.profiles.find(p => p.user_id === cu.user_id);
           return user && profile ? {
-            id: user.id,
-            email: user.email,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
-            nickname: profile.nickname,
-            now_photo_url: profile.now_photo_url,
-            then_photo_url: profile.then_photo_url
+            id: user.id, email: user.email,
+            first_name: profile.first_name, last_name: profile.last_name, nickname: profile.nickname,
+            now_photo_url: profile.now_photo_url, then_photo_url: profile.then_photo_url
           } : null;
         })
         .filter(Boolean);
@@ -131,14 +118,9 @@ jest.mock('../../db', () => ({
           const user = mockDb.users.find(u => u.id === cu.user_id);
           const profile = mockDb.profiles.find(p => p.user_id === cu.user_id);
           return user && profile ? {
-            id: user.id,
-            email: user.email,
-            created_at: user.created_at,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
-            nickname: profile.nickname,
-            now_photo_url: profile.now_photo_url,
-            then_photo_url: profile.then_photo_url
+            id: user.id, email: user.email, created_at: user.created_at,
+            first_name: profile.first_name, last_name: profile.last_name, nickname: profile.nickname,
+            now_photo_url: profile.now_photo_url, then_photo_url: profile.then_photo_url
           } : null;
         })
         .filter(Boolean)
@@ -146,35 +128,12 @@ jest.mock('../../db', () => ({
       return { rows: users };
     }
 
-    // COUNT messages (published comments)
+    // COUNT messages
     if (sql.includes('SELECT COUNT(*) as count FROM comments c') && sql.includes('WHERE c.published = true')) {
       const classId = Number(params?.[0]);
-      const classUsers = mockDb.classUsers.filter(cu => cu.class_id === classId).map(cu => cu.user_id);
-      const count = mockDb.comments.filter(c => c.published && classUsers.includes(c.target_user_id)).length;
+      const classUserIds = mockDb.classUsers.filter(cu => cu.class_id === classId).map(cu => cu.user_id);
+      const count = mockDb.comments.filter(c => c.published && classUserIds.includes(c.target_user_id)).length;
       return { rows: [{ count }] };
-    }
-
-    // Check if school exists
-    if (sql.includes('SELECT id FROM schools WHERE id')) {
-      const schoolId = Number(params?.[0]);
-      const school = mockDb.schools.find(s => s.id === schoolId);
-      return school ? { rows: [{ id: school.id }] } : { rows: [] };
-    }
-
-    // INSERT new class
-    if (sql.includes('INSERT INTO classes')) {
-      const schoolId = Number(params?.[0]);
-      const year = Number(params?.[1]);
-      const newClass = {
-        id: Math.max(...mockDb.classes.map(c => c.id), 0) + 1,
-        school_id: schoolId,
-        year: year,
-        school_name: mockDb.schools.find(s => s.id === schoolId)?.name || 'Unknown',
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-      mockDb.classes.push(newClass);
-      return { rows: [newClass] };
     }
 
     return { rows: [] };
@@ -199,7 +158,7 @@ describe('Class Routes', () => {
   });
 
   describe('GET /api/classes', () => {
-    it('should return all classes', async () => {
+    it('should return all class years', async () => {
       const response = await request(app).get('/api/classes');
 
       expect(response.status).toBe(200);
@@ -208,100 +167,20 @@ describe('Class Routes', () => {
       expect(response.body.classes.length).toBeGreaterThan(0);
     });
 
-    it('should return classes with required fields', async () => {
+    it('should return classes with id and year', async () => {
       const response = await request(app).get('/api/classes');
 
       expect(response.status).toBe(200);
       const firstClass = response.body.classes[0];
       expect(firstClass).toHaveProperty('id');
       expect(firstClass).toHaveProperty('year');
-      expect(firstClass).toHaveProperty('school_id');
-      expect(firstClass).toHaveProperty('school_name');
-    });
-  });
-
-  describe('POST /api/classes', () => {
-    it('should create a new class', async () => {
-      const response = await request(app)
-        .post('/api/classes')
-        .send({
-          school_id: 1,
-          year: 2025
-        });
-
-      expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('class');
-      expect(response.body.class.school_id).toBe(1);
-      expect(response.body.class.year).toBe(2025);
     });
 
-    it('should return created class with all fields', async () => {
-      const response = await request(app)
-        .post('/api/classes')
-        .send({
-          school_id: 1,
-          year: 2026
-        });
-
-      expect(response.status).toBe(201);
-      const createdClass = response.body.class;
-      expect(createdClass).toHaveProperty('id');
-      expect(createdClass).toHaveProperty('school_id');
-      expect(createdClass).toHaveProperty('year');
-      expect(createdClass).toHaveProperty('created_at');
-      expect(createdClass).toHaveProperty('updated_at');
-    });
-
-    it('should reject missing school_id', async () => {
-      const response = await request(app)
-        .post('/api/classes')
-        .send({
-          year: 2025
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('school_id');
-    });
-
-    it('should reject missing year', async () => {
-      const response = await request(app)
-        .post('/api/classes')
-        .send({
-          school_id: 1
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('year');
-    });
-
-    it('should reject non-existent school_id', async () => {
-      const response = await request(app)
-        .post('/api/classes')
-        .send({
-          school_id: 999,
-          year: 2025
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toContain('School not found');
-    });
-
-    it('should handle database error during creation', async () => {
+    it('should handle database error', async () => {
       const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
 
-      const response = await request(app)
-        .post('/api/classes')
-        .send({
-          school_id: 1,
-          year: 2025
-        });
+      const response = await request(app).get('/api/classes');
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
@@ -315,12 +194,24 @@ describe('Class Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('class');
       expect(response.body.class.id).toBe(1);
+      expect(response.body.class).toHaveProperty('year');
     });
 
     it('should return 404 for non-existent class', async () => {
       const response = await request(app).get('/api/classes/999');
 
       expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/classes/1');
+
+      expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
     });
   });
@@ -352,6 +243,17 @@ describe('Class Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.members.length).toBe(0);
     });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/classes/1/members');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
   });
 
   describe('GET /api/classes/:id/alumni-count', () => {
@@ -368,6 +270,17 @@ describe('Class Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.count).toBe(0);
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/classes/1/alumni-count');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
@@ -386,6 +299,17 @@ describe('Class Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.users.length).toBeLessThanOrEqual(3);
     });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/classes/1/recently-joined');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
   });
 
   describe('GET /api/classes/:id/message-count', () => {
@@ -395,6 +319,17 @@ describe('Class Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('count');
       expect(typeof response.body.count).toBe('number');
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/classes/1/message-count');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
@@ -431,94 +366,13 @@ describe('Class Routes', () => {
         expect(user).toHaveProperty('then_photo_url');
       }
     });
-  });
 
-  describe('Error Handling', () => {
-    it('should handle database error in GET all classes', async () => {
-      const { query } = require('../../db');
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/classes');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET single class', async () => {
+    it('should handle database error', async () => {
       const { query } = require('../../db');
       jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/classes/1');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET members', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/classes/1/members');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET recently-joined', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/classes/1/recently-joined');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET message-count', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/classes/1/message-count');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET directory', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
 
       const response = await request(app).get('/api/classes/1/directory?userId=1');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in GET alumni-count', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => {
-        throw new Error('Database error');
-      });
-
-      const response = await request(app).get('/api/classes/1/alumni-count');
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');

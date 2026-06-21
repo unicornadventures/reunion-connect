@@ -14,6 +14,31 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/schools/:id/classes
+router.get('/:id/classes', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const schoolCheck = await query('SELECT id FROM schools WHERE id = $1;', [id]);
+    if (schoolCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'School not found.' });
+    }
+
+    const result = await query(
+      `SELECT c.id, c.year
+       FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       WHERE cs.school_id = $1
+       ORDER BY c.year DESC;`,
+      [id]
+    );
+    res.status(200).json({ classes: result.rows });
+  } catch (error) {
+    console.error("Get School Classes Error:", error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // GET /api/schools/:id
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
