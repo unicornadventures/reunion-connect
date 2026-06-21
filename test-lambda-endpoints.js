@@ -568,7 +568,7 @@ async function startSAM() {
 
     // Extract project directory name for docker-compose network naming
     const projectDirName = projectRoot.split('/').pop().toLowerCase();
-    const networkName = `${projectDirName}_localstack`;
+    const networkName = `${projectDirName}_local`;
 
     const sam = spawn('sam', ['local', 'start-api', '--port', '3001', '--docker-network', networkName, '--env-vars', 'env-vars.json'], {
       cwd: projectRoot,

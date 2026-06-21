@@ -1,40 +1,19 @@
-version: '3.8'
-
 services:
-  localstack:
-    image: localstack/localstack:latest
-    container_name: classyear-localstack
-    ports:
-      - "4566:4566"        # LocalStack gateway
-      - "4571:4571"        # Legacy
-    environment:
-      - DEBUG=0
-      - SERVICES=s3,lambda,apigateway,iam,cloudformation,logs,dynamodb
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
-    volumes:
-      - "${TMPDIR}:/tmp/localstack"
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    networks:
-      - localstack
-
   postgres:
     image: postgres:14-alpine
     container_name: classyear-postgres
     environment:
       POSTGRES_DB: class_reunion
-      POSTGRES_USER: admin
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: testpass
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - localstack
+      - local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,5 +22,5 @@ volumes:
   postgres_data:
 
 networks:
-  localstack:
+  local:
     driver: bridge

@@ -13,7 +13,7 @@
     "test:coverage": "jest --coverage",
     "test:lambda": "node $([ -f ../test-lambda-endpoints.js ] && echo '../test-lambda-endpoints.js' || echo 'test-lambda-endpoints.js')",
     "test:lambda:verbose": "node $([ -f ../test-lambda-endpoints.js ] && echo '../test-lambda-endpoints.js' || echo 'test-lambda-endpoints.js') --verbose",
-    "sam:local": "cd .. && sam local start-api --port 3001 --docker-network classyear_localstack",
+    "sam:local": "cd .. && DOCKER_HOST=unix:///Users/crgdncn/.docker/run/docker.sock sam local start-api --port 3001 --docker-network classyear_local --env-vars env-vars.json",
     "sam:build": "tsc -p tsconfig.lambda.json && cd .. && sam build",
     "sam:deploy": "cd .. && sam deploy",
     "prepare": "tsc -p tsconfig.lambda.json || true"

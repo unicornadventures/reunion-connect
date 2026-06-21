@@ -31,3 +31,4 @@ yarn.lock
 # Build output
 dist/
 build/
+localstack_tmp/

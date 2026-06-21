@@ -19,35 +19,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const isAuthenticated = !!currentUser;
 
   useEffect(() => {
-    const checkSession = async () => {
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('currentUser');
+    if (token && savedUser) {
       try {
-        const response = await api.get('/auth/me');
-
-        if (response.data && response.data.user) {
-          setCurrentUser(response.data.user);
-        }
-      } catch (err) {
-        setCurrentUser(null);
-      } finally {
-        setLoading(false);
+        setCurrentUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
       }
-    };
-
-    checkSession();
+    }
+    setLoading(false);
   }, []);
 
   const login = (user: CurrentUser) => {
     setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
   };
 
-  const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (err) {
-      console.error('Logout request failed:', err);
-    } finally {
-      setCurrentUser(null);
-    }
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
   };
 
   return (

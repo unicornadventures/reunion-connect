@@ -20,22 +20,26 @@ const Login: React.FC = () => {
     try {
       const response = await api.post(`/auth/login`, { email, password });
 
-      const authData = response.data;
+      const { user: userData, token } = response.data;
 
       // Build CurrentUser object from auth response
       const user: CurrentUser = {
-        id: authData.id,
-        email: authData.email,
-        is_admin: authData.is_admin,
-        created_at: authData.created_at,
-        profile: authData.profile || null,
-        user_id: authData.id,
-        first_name: authData.profile?.first_name || '',
-        last_name: authData.profile?.last_name || ''
+        id: userData.user_id,
+        email: userData.email,
+        is_admin: userData.is_admin,
+        created_at: userData.created_at,
+        profile: userData.profile || null,
+        user_id: userData.user_id,
+        first_name: userData.profile?.first_name || '',
+        last_name: userData.profile?.last_name || ''
       };
 
+      // Store token for subsequent requests
+      localStorage.setItem('token', token);
       login(user);
+      navigate('/');
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);

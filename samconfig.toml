@@ -9,7 +9,7 @@ parallel = true
 
 [default.local_start_api]
 port = 3001
-docker_network = "classyear_localstack"
+docker_network = "classyear_local"
 parameter_overrides = "Environment=dev UseLocalStack=true DBPassword=testpass JWTSecret=test-secret-key FrontendURL=http://localhost:5173"
 
 [default.deploy]

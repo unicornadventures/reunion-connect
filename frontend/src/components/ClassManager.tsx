@@ -25,8 +25,17 @@ const ClassManager: React.FC = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await adminClassAPI.getClasses(String(currentUser?.id));
-      setClasses(response.data.classes);
+      const schoolsRes = await schoolAPI.getSchools();
+      const allSchools = schoolsRes.data.schools || [];
+      const allClasses: any[] = [];
+      for (const school of allSchools) {
+        try {
+          const res = await adminClassAPI.getClasses(school.id);
+          const schoolClasses = (res.data.classes || []).map((c: any) => ({ ...c, school_name: school.name }));
+          allClasses.push(...schoolClasses);
+        } catch { /* school may have no classes */ }
+      }
+      setClasses(allClasses);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch classes.');
@@ -50,10 +59,10 @@ const ClassManager: React.FC = () => {
     }
     try {
       if (editingId) {
-        await adminClassAPI.updateClass(editingId, selectedSchoolId, parseInt(newYear), String(currentUser?.id));
+        await adminClassAPI.createClass(selectedSchoolId, parseInt(newYear));
         setEditingId(null);
       } else {
-        await adminClassAPI.createClass(selectedSchoolId, parseInt(newYear), String(currentUser?.id));
+        await adminClassAPI.createClass(selectedSchoolId, parseInt(newYear));
       }
       setNewYear('');
       setSelectedSchoolId(null);
@@ -90,7 +99,8 @@ const ClassManager: React.FC = () => {
 
     // Otherwise, proceed with normal deletion
     try {
-      await adminClassAPI.deleteClass(deleteModal.id, String(currentUser?.id), false);
+      // Delete not supported in Lambda — show error
+      setError('Class deletion is not supported in this version.');
       setDeleteModal({ isOpen: false, id: null });
       fetchClasses();
     } catch (err: any) {
@@ -102,7 +112,7 @@ const ClassManager: React.FC = () => {
   const handleConfirmUserDeletion = async () => {
     if (userDeletionWarning.classId === null) return;
     try {
-      await adminClassAPI.deleteClass(userDeletionWarning.classId, String(currentUser?.id), true);
+      setError('Class deletion is not supported in this version.');
       setUserDeletionWarning({ isOpen: false, classId: null, userCount: 0 });
       setPendingCascadeDelete(false);
       fetchClasses();

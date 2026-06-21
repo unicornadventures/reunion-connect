@@ -6,111 +6,129 @@ export const authAPI = {
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/auth/login', { email, password }),
 
-  logout: () => api.post('/auth/logout'),
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
+    return Promise.resolve();
+  },
 
-  getCurrentUser: () => api.get<{ user: CurrentUser }>('/auth/me'),
+  register: (email: string, password: string, first_name: string, last_name: string, hash?: string) =>
+    api.post('/auth/register', { email, password, first_name, last_name, hash }),
+
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+
+  resetPassword: (token: string, password: string) =>
+    api.post('/auth/reset-password', { token, password }),
+
+  getRegistrationLink: (hash: string) =>
+    api.get(`/auth/registration-link/${hash}`),
 };
 
 // User endpoints
 export const userAPI = {
-  register: (
-    email: string,
-    password: string,
-    first_name: string,
-    last_name: string,
-    class_id: number
-  ) =>
-    api.post<{ user: User }>('/users/register', {
-      email,
-      password,
-      first_name,
-      last_name,
-      class_id,
-    }),
+  register: (email: string, password: string, first_name: string, last_name: string, class_id?: number) =>
+    api.post('/auth/register', { email, password, first_name, last_name }),
 
   getUser: (userId: number) =>
     api.get<{ user: User; profile: Profile | null }>(`/users/${userId}`),
 
-  uploadPhotoPresignedUrl: (userId: number, photoType: 'then' | 'now', fileName: string) =>
-    api.post<{ presignedUrl: string }>(`/users/${userId}/photo/upload/${photoType}`, { fileName }),
+  updateProfile: (userId: number, data: Partial<Profile>) =>
+    api.put(`/users/${userId}/profile`, data),
 
-  updatePhoto: (userId: number, photoType: 'then' | 'now', photoUrl: string) =>
-    api.put<{ profile: Profile }>(`/users/${userId}/photo/${photoType}`, { photoUrl }),
+  getUserClass: (userId: number) =>
+    api.get(`/users/${userId}/class`),
+
+  getDirectory: (page = 1, pageSize = 20) =>
+    api.get(`/users?page=${page}&pageSize=${pageSize}`),
+
+  uploadPhoto: (userId: number, photoType: 'then' | 'now') =>
+    api.post<{ presignedUrl: string }>(`/users/${userId}/photo/${photoType}`),
+
+  deletePhoto: (userId: number, photoType: 'then' | 'now') =>
+    api.delete(`/users/${userId}/photo/${photoType}`),
 };
 
-// School endpoints (public read-only)
+// School endpoints
 export const schoolAPI = {
   getSchools: () => api.get<{ schools: School[] }>('/schools'),
-
   getSchool: (schoolId: number) => api.get<{ school: School }>(`/schools/${schoolId}`),
+  getClasses: (schoolId: number) => api.get<{ classes: Class[] }>(`/schools/${schoolId}/classes`),
 };
 
-// Admin school endpoints (requires admin token)
+// Admin school endpoints
 export const adminSchoolAPI = {
-  getSchools: (token: string) => api.get<{ schools: School[] }>('/admin/schools', {
-    headers: { Authorization: `Bearer ${token}` }
-  }),
-
-  getSchool: (schoolId: number, token: string) => api.get<{ school: School }>(`/admin/schools/${schoolId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  }),
-
-  createSchool: (name: string, token: string, location?: string) =>
-    api.post<{ school: School }>('/admin/schools', { name, location }, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
-
-  updateSchool: (schoolId: number, name: string, token: string, location?: string) =>
-    api.put<{ school: School }>(`/admin/schools/${schoolId}`, { name, location }, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
-
-  deleteSchool: (schoolId: number, token: string, cascadeUsers?: boolean) =>
-    api.delete(`/admin/schools/${schoolId}${cascadeUsers ? '?cascadeUsers=true' : ''}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
+  getSchools: () => api.get<{ schools: School[] }>('/schools'),
+  getSchool: (schoolId: number) => api.get<{ school: School }>(`/schools/${schoolId}`),
+  createSchool: (name: string, location?: string) =>
+    api.post<{ school: School }>('/admin/schools', { name, location }),
 };
 
-// Class endpoints (public read-only)
+// Class endpoints
 export const classAPI = {
-  getClasses: () => api.get<{ classes: Class[] }>('/classes'),
-
   getClass: (classId: number) => api.get<{ class: Class }>(`/classes/${classId}`),
-
   getClassMembers: (classId: number) =>
     api.get<{ members: (User & { profile: Profile | null })[] }>(`/classes/${classId}/members`),
 };
 
-// Admin class endpoints (requires admin token)
+// Admin class endpoints
 export const adminClassAPI = {
-  getClasses: (token: string) => api.get<{ classes: Class[] }>('/admin/classes', {
-    headers: { Authorization: `Bearer ${token}` }
-  }),
+  getClasses: (schoolId: number) =>
+    api.get<{ classes: Class[] }>(`/schools/${schoolId}/classes`),
 
-  getClass: (classId: number, token: string) => api.get<{ class: Class }>(`/admin/classes/${classId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  }),
+  createClass: (school_id: number, year: number) =>
+    api.post<{ class: Class }>(`/admin/schools/${school_id}/classes`, { year }),
 
-  createClass: (school_id: number, year: number, token: string) =>
-    api.post<{ class: Class }>('/admin/classes', { school_id, year }, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
+  getClassUsers: (classId: number) =>
+    api.get(`/admin/classes/${classId}/users`),
 
-  updateClass: (classId: number, school_id: number, year: number, token: string) =>
-    api.put<{ class: Class }>(`/admin/classes/${classId}`, { school_id, year }, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
-
-  deleteClass: (classId: number, token: string, cascadeUsers?: boolean) =>
-    api.delete(`/admin/classes/${classId}${cascadeUsers ? '?cascadeUsers=true' : ''}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
+  createRegistrationLink: (schoolId: number, classId: number) =>
+    api.post('/admin/registration-links', { schoolId, classId }),
 };
 
-// Admin endpoints
+// Admin user endpoints
 export const adminAPI = {
-  seedAdmin: (password: string) =>
-    api.post('/admin/seed', { password }),
-
   getUsers: () => api.get<{ users: (User & { profile: Profile | null })[] }>('/admin/users'),
+
+  updateUser: (userId: number, data: { is_class_admin?: boolean; class_id?: number }) =>
+    api.put(`/admin/users/${userId}`, data),
+
+  deleteUser: (userId: number) =>
+    api.delete(`/admin/users/${userId}`),
+};
+
+// Comment endpoints
+export const commentAPI = {
+  getComments: (userId: number) =>
+    api.get(`/users/${userId}/comments`),
+
+  getPendingComments: (userId: number) =>
+    api.get(`/users/${userId}/comments/pending`),
+
+  createComment: (targetUserId: number, content: string, commenterId: number) =>
+    api.post(`/users/${targetUserId}/comments`, { content, commenterId }),
+
+  updateComment: (commentId: number, data: { published?: boolean; content?: string }) =>
+    api.put(`/comments/${commentId}`, data),
+
+  deleteComment: (commentId: number) =>
+    api.delete(`/comments/${commentId}`),
+};
+
+// Event endpoints
+export const eventAPI = {
+  getEvents: (classId: number) =>
+    api.get(`/classes/${classId}/events`),
+
+  getEvent: (eventId: number) =>
+    api.get(`/events/${eventId}`),
+
+  createEvent: (classId: number, data: { title: string; description?: string; event_date: string; location?: string }) =>
+    api.post(`/admin/classes/${classId}/events`, data),
+
+  updateEvent: (eventId: number, data: { title?: string; description?: string; event_date?: string; location?: string }) =>
+    api.put(`/events/${eventId}`, data),
+
+  deleteEvent: (eventId: number) =>
+    api.delete(`/events/${eventId}`),
 };

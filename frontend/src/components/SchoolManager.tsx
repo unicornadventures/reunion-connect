@@ -26,7 +26,7 @@ const SchoolManager: React.FC = () => {
     if (!currentUser?.id) return;
     setLoading(true);
     try {
-      const response = await adminSchoolAPI.getSchools(String(currentUser.id));
+      const response = await adminSchoolAPI.getSchools();
       setSchools(response.data.schools);
       setError(null);
     } catch (err: any) {
@@ -41,10 +41,10 @@ const SchoolManager: React.FC = () => {
     e.preventDefault();
     try {
       if (editingId) {
-        await adminSchoolAPI.updateSchool(editingId, newSchoolName, String(currentUser?.id), newSchoolLocation);
+        await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation);
         setEditingId(null);
       } else {
-        await adminSchoolAPI.createSchool(newSchoolName, String(currentUser?.id), newSchoolLocation);
+        await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation);
       }
       setNewSchoolName('');
       setNewSchoolLocation('');
@@ -85,7 +85,7 @@ const SchoolManager: React.FC = () => {
 
     // Otherwise, proceed with normal deletion
     try {
-      await adminSchoolAPI.deleteSchool(deleteModal.id, String(currentUser?.id), false);
+      setError('School deletion is not supported in this version.');
       setDeleteModal({ isOpen: false, id: null });
       fetchSchools();
     } catch (err: any) {
@@ -97,7 +97,7 @@ const SchoolManager: React.FC = () => {
   const handleConfirmUserDeletion = async () => {
     if (userDeletionWarning.schoolId === null) return;
     try {
-      await adminSchoolAPI.deleteSchool(userDeletionWarning.schoolId, String(currentUser?.id), true);
+      setError('School deletion is not supported in this version.');
       setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 });
       setPendingCascadeDelete(false);
       fetchSchools();

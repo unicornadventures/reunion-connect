@@ -4,7 +4,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -14,7 +14,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -24,7 +24,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -34,7 +34,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -44,7 +44,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -54,7 +54,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -64,7 +64,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -74,7 +74,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -84,7 +84,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -94,7 +94,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -104,7 +104,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -114,7 +114,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -124,7 +124,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -134,7 +134,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -144,7 +144,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -154,7 +154,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -164,7 +164,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -174,7 +174,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -184,7 +184,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -194,7 +194,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -204,7 +204,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -214,7 +214,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -224,7 +224,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -234,7 +234,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -244,7 +244,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -254,7 +254,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -264,7 +264,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -274,7 +274,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -284,7 +284,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -294,7 +294,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -304,7 +304,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -314,7 +314,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -324,7 +324,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
@@ -334,7 +334,7 @@
     "DB_HOST": "postgres",
     "DB_PORT": "5432",
     "DB_NAME": "class_reunion",
-    "DB_USER": "admin",
+    "DB_USER": "postgres",
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
