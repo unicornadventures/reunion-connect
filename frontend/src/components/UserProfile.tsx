@@ -233,6 +233,14 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
               )}
             </div>
             <h2 className="text-2xl font-bold text-[#333333]">{displayName}</h2>
+            {profile?.nickname && (
+              <div className="text-sm text-[#666666] mt-1">"{profile.nickname}"</div>
+            )}
+            {(profile?.former_first_name || profile?.former_last_name) && (
+              <div className="text-xs text-[#999999] mt-1">
+                Formerly: {[profile.former_first_name, profile.former_last_name].filter(Boolean).join(' ')}
+              </div>
+            )}
 
             {isOwnProfile && (
               <div className="mt-5 space-y-2">
@@ -324,14 +332,68 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
           <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-[0_1px_3px_rgba(0,0,0,0.1)] p-6">
             <h3 className="text-lg font-bold text-[#333333] mb-4">About</h3>
             {editMode && isOwnProfile ? (
-              <div>
-                <textarea
-                  value={editData.bio || ''}
-                  onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
-                  className="w-full border border-[#DDDDDD] rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-[#4CAF50] resize-vertical min-h-[100px]"
-                  placeholder="Tell your classmates what you've been up to..."
-                />
-                <div className="flex gap-3 mt-3">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-[#999999] block mb-1">First Name</label>
+                    <input
+                      type="text"
+                      value={editData.first_name || ''}
+                      onChange={(e) => setEditData({ ...editData, first_name: e.target.value })}
+                      className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50]"
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-[#999999] block mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      value={editData.last_name || ''}
+                      onChange={(e) => setEditData({ ...editData, last_name: e.target.value })}
+                      className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50]"
+                      placeholder="Last name"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#999999] block mb-1">Nickname</label>
+                  <input
+                    type="text"
+                    value={editData.nickname || ''}
+                    onChange={(e) => setEditData({ ...editData, nickname: e.target.value })}
+                    className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50]"
+                    placeholder="What did everyone call you?"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#999999] block mb-1">Former Name <span className="font-normal">(if your name has changed)</span></label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      value={editData.former_first_name || ''}
+                      onChange={(e) => setEditData({ ...editData, former_first_name: e.target.value })}
+                      className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50]"
+                      placeholder="Former first name"
+                    />
+                    <input
+                      type="text"
+                      value={editData.former_last_name || ''}
+                      onChange={(e) => setEditData({ ...editData, former_last_name: e.target.value })}
+                      className="w-full border border-[#DDDDDD] rounded px-2 py-2 text-sm focus:outline-none focus:border-[#4CAF50]"
+                      placeholder="Former last name"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#999999] block mb-1">Bio</label>
+                  <textarea
+                    value={editData.bio || ''}
+                    onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                    className="w-full border border-[#DDDDDD] rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-[#4CAF50] resize-vertical min-h-[100px]"
+                    placeholder="Tell your classmates what you've been up to..."
+                  />
+                </div>
+                <div className="flex gap-3">
                   <button
                     onClick={handleProfileUpdate}
                     disabled={loading}

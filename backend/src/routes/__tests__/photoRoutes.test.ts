@@ -15,7 +15,7 @@ const mockDb = {
       then_photo_url: 'https://example.com/john_then.jpg',
       now_photo_url: 'https://example.com/john_now.jpg',
       bio: '',
-      nickname_school: '',
+      nickname: '',
       created_at: new Date(),
       updated_at: new Date()
     },
@@ -27,7 +27,7 @@ const mockDb = {
       then_photo_url: null,
       now_photo_url: null,
       bio: '',
-      nickname_school: '',
+      nickname: '',
       created_at: new Date(),
       updated_at: new Date()
     }
@@ -110,7 +110,7 @@ describe('Photo Routes', () => {
         then_photo_url: 'https://example.com/john_then.jpg',
         now_photo_url: 'https://example.com/john_now.jpg',
         bio: '',
-        nickname_school: '',
+        nickname: '',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -122,7 +122,7 @@ describe('Photo Routes', () => {
         then_photo_url: null,
         now_photo_url: null,
         bio: '',
-        nickname_school: '',
+        nickname: '',
         created_at: new Date(),
         updated_at: new Date()
       }

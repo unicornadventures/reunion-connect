@@ -51,7 +51,7 @@ router.get('/:id/members', async (req, res) => {
 
   try {
     const result = await query(`
-      SELECT u.id, u.email, p.first_name, p.last_name, p.nickname_school
+      SELECT u.id, u.email, p.first_name, p.last_name, p.nickname
       FROM class_user cu
       JOIN users u ON cu.user_id = u.id
       LEFT JOIN profiles p ON u.id = p.user_id
@@ -93,7 +93,7 @@ router.get('/:id/directory', async (req, res) => {
         u.email,
         p.first_name,
         p.last_name,
-        p.nickname_school,
+        p.nickname,
         p.now_photo_url,
         p.then_photo_url
       FROM class_user cu
@@ -141,7 +141,7 @@ router.get('/:id/recently-joined', async (req, res) => {
         u.created_at,
         p.first_name,
         p.last_name,
-        p.nickname_school,
+        p.nickname,
         p.now_photo_url,
         p.then_photo_url
       FROM class_user cu

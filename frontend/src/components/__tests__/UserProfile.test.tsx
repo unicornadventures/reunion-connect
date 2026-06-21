@@ -19,7 +19,7 @@ const mockProfile = {
     user_id: 1,
     first_name: 'John',
     last_name: 'Doe',
-    nickname_school: 'Johnny',
+    nickname: 'Johnny',
     bio: 'Software engineer',
     then_photo_url: 'https://example.com/then.jpg',
     now_photo_url: 'https://example.com/now.jpg',

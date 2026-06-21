@@ -84,7 +84,9 @@ describe('Type Definitions', () => {
         user_id: 1,
         first_name: 'John',
         last_name: 'Doe',
-        nickname_school: 'Johnny',
+        nickname: 'Johnny',
+        former_first_name: null,
+        former_last_name: null,
         bio: 'Test bio',
         then_photo_url: 'http://example.com/then.jpg',
         now_photo_url: 'http://example.com/now.jpg',
@@ -96,7 +98,7 @@ describe('Type Definitions', () => {
       expect(profile.user_id).toBe(1);
       expect(profile.first_name).toBe('John');
       expect(profile.last_name).toBe('Doe');
-      expect(profile.nickname_school).toBe('Johnny');
+      expect(profile.nickname).toBe('Johnny');
       expect(profile.bio).toBe('Test bio');
       expect(profile.then_photo_url).toBe('http://example.com/then.jpg');
       expect(profile.now_photo_url).toBe('http://example.com/now.jpg');
@@ -108,7 +110,9 @@ describe('Type Definitions', () => {
         user_id: 2,
         first_name: null,
         last_name: null,
-        nickname_school: null,
+        nickname: null,
+        former_first_name: null,
+        former_last_name: null,
         bio: null,
         then_photo_url: null,
         now_photo_url: null,
@@ -118,7 +122,7 @@ describe('Type Definitions', () => {
 
       expect(profile.first_name).toBeNull();
       expect(profile.last_name).toBeNull();
-      expect(profile.nickname_school).toBeNull();
+      expect(profile.nickname).toBeNull();
       expect(profile.bio).toBeNull();
       expect(profile.then_photo_url).toBeNull();
       expect(profile.now_photo_url).toBeNull();

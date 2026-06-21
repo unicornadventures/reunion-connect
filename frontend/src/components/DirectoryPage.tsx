@@ -8,7 +8,9 @@ interface DirectoryUser {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  nickname_school: string | null;
+  nickname: string | null;
+  former_first_name: string | null;
+  former_last_name: string | null;
   now_photo_url: string | null;
 }
 
@@ -149,8 +151,8 @@ const DirectoryPage: React.FC = () => {
                 <div className="text-sm font-semibold text-[#333333] leading-tight">
                   {user.first_name} {user.last_name}
                 </div>
-                {user.nickname_school && (
-                  <div className="text-xs text-[#666666] mt-1">{user.nickname_school}</div>
+                {user.nickname && (
+                  <div className="text-xs text-[#666666] mt-1">"{user.nickname}"</div>
                 )}
                 <div className="text-xs text-[#999999] mt-0.5">{user.email}</div>
               </div>

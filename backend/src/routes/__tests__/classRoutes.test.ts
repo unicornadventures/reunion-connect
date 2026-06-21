@@ -15,9 +15,9 @@ const mockDb = {
     { id: 3, email: 'user3@example.com', created_at: new Date() }
   ],
   profiles: [
-    { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe', nickname_school: '', now_photo_url: null, then_photo_url: null },
-    { id: 2, user_id: 2, first_name: 'Jane', last_name: 'Smith', nickname_school: '', now_photo_url: null, then_photo_url: null },
-    { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson', nickname_school: 'Bobby', now_photo_url: 'https://example.com/bob_now.jpg', then_photo_url: 'https://example.com/bob_then.jpg' }
+    { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe', nickname: '', now_photo_url: null, then_photo_url: null },
+    { id: 2, user_id: 2, first_name: 'Jane', last_name: 'Smith', nickname: '', now_photo_url: null, then_photo_url: null },
+    { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson', nickname: 'Bobby', now_photo_url: 'https://example.com/bob_now.jpg', then_photo_url: 'https://example.com/bob_then.jpg' }
   ],
   classUsers: [
     { id: 1, class_id: 1, user_id: 1 },
@@ -66,7 +66,7 @@ jest.mock('../../db', () => ({
     }
 
     // GET class members
-    if (sql.includes('SELECT u.id, u.email, p.first_name, p.last_name, p.nickname_school') && sql.includes('class_user')) {
+    if (sql.includes('SELECT u.id, u.email, p.first_name, p.last_name, p.nickname') && sql.includes('class_user')) {
       const classId = Number(params?.[0]);
       const members = mockDb.classUsers
         .filter(cu => cu.class_id === classId)
@@ -78,7 +78,7 @@ jest.mock('../../db', () => ({
             email: user.email,
             first_name: profile.first_name,
             last_name: profile.last_name,
-            nickname_school: profile.nickname_school
+            nickname: profile.nickname
           } : null;
         })
         .filter(Boolean);
@@ -106,7 +106,7 @@ jest.mock('../../db', () => ({
             email: user.email,
             first_name: profile.first_name,
             last_name: profile.last_name,
-            nickname_school: profile.nickname_school,
+            nickname: profile.nickname,
             now_photo_url: profile.now_photo_url,
             then_photo_url: profile.then_photo_url
           } : null;
@@ -136,7 +136,7 @@ jest.mock('../../db', () => ({
             created_at: user.created_at,
             first_name: profile.first_name,
             last_name: profile.last_name,
-            nickname_school: profile.nickname_school,
+            nickname: profile.nickname,
             now_photo_url: profile.now_photo_url,
             then_photo_url: profile.then_photo_url
           } : null;

@@ -71,7 +71,9 @@ export async function initializeDatabase() {
         user_id INT REFERENCES users(id) ON DELETE CASCADE NOT NULL UNIQUE,
         first_name VARCHAR(100),
         last_name VARCHAR(100),
-        nickname_school VARCHAR(100),
+        nickname VARCHAR(100),
+        former_first_name VARCHAR(100),
+        former_last_name VARCHAR(100),
         bio TEXT,
         then_photo_url VARCHAR(255),
         now_photo_url VARCHAR(255),
@@ -81,6 +83,22 @@ export async function initializeDatabase() {
     `;
     await query(createProfileTable);
     console.log('✅ Table "profiles" ensured.');
+
+    // Rename nickname_school → nickname on existing databases
+    await query(`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'profiles' AND column_name = 'nickname_school'
+        ) THEN
+          ALTER TABLE profiles RENAME COLUMN nickname_school TO nickname;
+        END IF;
+      END $$;
+    `);
+
+    await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nickname VARCHAR(100)`);
+    await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS former_first_name VARCHAR(100)`);
+    await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS former_last_name VARCHAR(100)`);
 
     // 5. Junction Table: Class to User (Many-to-Many)
     // Check if table exists and has the right schema

@@ -9,7 +9,7 @@ interface DirectoryUser {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  nickname_school: string | null;
+  nickname: string | null;
   now_photo_url: string | null;
 }
 

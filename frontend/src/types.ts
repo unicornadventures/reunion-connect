@@ -13,7 +13,9 @@ export interface Profile {
   user_id: number;
   first_name: string | null;
   last_name: string | null;
-  nickname_school: string | null;
+  nickname: string | null;
+  former_first_name: string | null;
+  former_last_name: string | null;
   bio: string | null;
   then_photo_url: string | null;
   now_photo_url: string | null;

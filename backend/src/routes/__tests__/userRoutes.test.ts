@@ -14,7 +14,7 @@ const mockDb = {
       first_name: 'John',
       last_name: 'Doe',
       bio: 'Test bio',
-      nickname_school: 'Johnny',
+      nickname: 'Johnny',
       then_photo_url: 'http://example.com/then.jpg',
       now_photo_url: 'http://example.com/now.jpg',
       created_at: new Date(),
@@ -26,7 +26,7 @@ const mockDb = {
       first_name: 'Jane',
       last_name: 'Smith',
       bio: '',
-      nickname_school: '',
+      nickname: '',
       then_photo_url: '',
       now_photo_url: '',
       created_at: new Date(),
@@ -38,7 +38,7 @@ const mockDb = {
       first_name: 'Bob',
       last_name: 'Johnson',
       bio: '',
-      nickname_school: '',
+      nickname: '',
       then_photo_url: '',
       now_photo_url: '',
       created_at: new Date(),
@@ -114,7 +114,7 @@ jest.mock('../../db', () => ({
         first_name: params?.[1],
         last_name: params?.[2],
         bio: '',
-        nickname_school: '',
+        nickname: '',
         then_photo_url: '',
         now_photo_url: '',
         created_at: new Date(),
@@ -143,13 +143,13 @@ jest.mock('../../db', () => ({
       const profile = mockDb.profiles.find(p => p.user_id === userId);
       if (profile) {
         // Handle different update fields
-        if (sql.includes('bio') && sql.includes('nickname_school')) {
+        if (sql.includes('bio') && sql.includes('nickname')) {
           profile.bio = params?.[0];
-          profile.nickname_school = params?.[1];
+          profile.nickname = params?.[1];
         } else if (sql.includes('bio')) {
           profile.bio = params?.[0];
-        } else if (sql.includes('nickname_school')) {
-          profile.nickname_school = params?.[0];
+        } else if (sql.includes('nickname')) {
+          profile.nickname = params?.[0];
         }
         profile.updated_at = new Date();
         return { rows: [profile] };
@@ -373,11 +373,11 @@ describe('User Routes', () => {
       expect(response.body.profile.bio).toBe('Updated bio');
     });
 
-    it('should update nickname_school field', async () => {
+    it('should update nickname field', async () => {
       const response = await request(app)
         .put('/api/users/1/profile')
         .send({
-          nickname_school: 'JD'
+          nickname: 'JD'
         });
 
       expect([200, 400]).toContain(response.status);
@@ -669,25 +669,25 @@ describe('User Routes', () => {
       expect(response.body.error).toContain('Email already in use');
     });
 
-    it('should update nickname_school only', async () => {
+    it('should update nickname only', async () => {
       const response = await request(app)
         .put('/api/users/1/profile')
-        .send({ nickname_school: 'Johnny Jr' });
+        .send({ nickname: 'Johnny Jr' });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('profile');
-      expect(response.body.profile.nickname_school).toBe('Johnny Jr');
+      expect(response.body.profile.nickname).toBe('Johnny Jr');
     });
 
-    it('should update both bio and nickname_school', async () => {
+    it('should update both bio and nickname', async () => {
       const response = await request(app)
         .put('/api/users/1/profile')
-        .send({ bio: 'New bio', nickname_school: 'JD' });
+        .send({ bio: 'New bio', nickname: 'JD' });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('profile');
       expect(response.body.profile.bio).toBe('New bio');
-      expect(response.body.profile.nickname_school).toBe('JD');
+      expect(response.body.profile.nickname).toBe('JD');
     });
 
     it('should handle user not found', async () => {

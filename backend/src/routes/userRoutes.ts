@@ -205,7 +205,7 @@ router.post('/:userId/assign-class', async (req: any, res) => {
 // PUT /api/users/:userId/profile - Update user profile and email
 router.put('/:userId/profile', async (req: any, res) => {
   const { userId } = req.params;
-  const { bio, nickname_school, email } = req.body;
+  const { bio, nickname, email } = req.body;
 
   try {
     // Check if user exists
@@ -249,9 +249,9 @@ router.put('/:userId/profile', async (req: any, res) => {
       paramCount++;
     }
 
-    if (nickname_school !== undefined) {
-      updateFields.push(`nickname_school = $${paramCount}`);
-      updateValues.push(nickname_school);
+    if (nickname !== undefined) {
+      updateFields.push(`nickname = $${paramCount}`);
+      updateValues.push(nickname);
       paramCount++;
     }
 
