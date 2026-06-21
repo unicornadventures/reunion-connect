@@ -62,6 +62,9 @@ export const adminSchoolAPI = {
   getSchool: (schoolId: number) => api.get<{ school: School }>(`/schools/${schoolId}`),
   createSchool: (name: string, location?: string) =>
     api.post<{ school: School }>('/admin/schools', { name, location }),
+
+  deleteSchool: (schoolId: number) =>
+    api.delete(`/admin/schools/${schoolId}`),
 };
 
 // Class endpoints
@@ -81,6 +84,9 @@ export const adminClassAPI = {
 
   getClassUsers: (classId: number) =>
     api.get(`/admin/classes/${classId}/users`),
+
+  deleteClass: (classId: number) =>
+    api.delete(`/admin/classes/${classId}`),
 
   createRegistrationLink: (schoolId: number, classId: number) =>
     api.post('/admin/registration-links', { schoolId, classId }),

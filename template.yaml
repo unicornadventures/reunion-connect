@@ -407,6 +407,27 @@ Resources:
             Path: /api/admin/schools
             Method: POST
 
+  DeleteSchoolFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-delete-school-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/schools.deleteSchoolHandler
+      Runtime: nodejs18.x
+      Events:
+        DeleteSchool:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}
+            Method: DELETE
+        OptionsDeleteSchool:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}
+            Method: OPTIONS
+
   ListClassesFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -451,6 +472,33 @@ Resources:
             RestApiId: !Ref ClassYearAPI
             Path: /api/admin/schools/{schoolId}/classes
             Method: POST
+        OptionsClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes
+            Method: OPTIONS
+
+  DeleteClassFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-delete-class-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.deleteClassHandler
+      Runtime: nodejs18.x
+      Events:
+        DeleteClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/classes/{classId}
+            Method: DELETE
+        OptionsDeleteClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/classes/{classId}
+            Method: OPTIONS
 
   GetClassMembersFunction:
     Type: AWS::Serverless::Function

@@ -17,13 +17,10 @@ const SchoolManager: React.FC = () => {
   const [pendingCascadeDelete, setPendingCascadeDelete] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.id) {
-      fetchSchools();
-    }
-  }, [currentUser?.id]);
+    fetchSchools();
+  }, []);
 
   const fetchSchools = async () => {
-    if (!currentUser?.id) return;
     setLoading(true);
     try {
       const response = await adminSchoolAPI.getSchools();
@@ -64,30 +61,12 @@ const SchoolManager: React.FC = () => {
     setDeleteModal({ isOpen: true, id });
   };
 
-  const handleConfirmDelete = async (cascadeUsers?: boolean) => {
+  const handleConfirmDelete = async () => {
     if (deleteModal.id === null) return;
-
-    // If cascadeUsers is true, show a warning modal first
-    if (cascadeUsers) {
-      // Find the school to get an estimate of users to delete
-      const school = schools.find((s) => s.id === deleteModal.id);
-      if (school) {
-        setUserDeletionWarning({
-          isOpen: true,
-          schoolId: deleteModal.id,
-          userCount: 0, // Will be calculated on backend, but we can show a warning anyway
-        });
-        setPendingCascadeDelete(true);
-      }
-      setDeleteModal({ isOpen: false, id: null });
-      return;
-    }
-
-    // Otherwise, proceed with normal deletion
     try {
-      setError('School deletion is not supported in this version.');
+      await adminSchoolAPI.deleteSchool(deleteModal.id);
+      setSchools(prev => prev.filter(s => s.id !== deleteModal.id));
       setDeleteModal({ isOpen: false, id: null });
-      fetchSchools();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete school.');
       setDeleteModal({ isOpen: false, id: null });
@@ -95,17 +74,8 @@ const SchoolManager: React.FC = () => {
   };
 
   const handleConfirmUserDeletion = async () => {
-    if (userDeletionWarning.schoolId === null) return;
-    try {
-      setError('School deletion is not supported in this version.');
-      setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 });
-      setPendingCascadeDelete(false);
-      fetchSchools();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete school.');
-      setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 });
-      setPendingCascadeDelete(false);
-    }
+    setUserDeletionWarning({ isOpen: false, schoolId: null, userCount: 0 });
+    setPendingCascadeDelete(false);
   };
 
   const handleCancelUserDeletion = () => {
@@ -179,17 +149,19 @@ const SchoolManager: React.FC = () => {
 
       <ConfirmModal
         isOpen={deleteModal.isOpen}
-        title="Delete School"
-        message="Are you sure you want to delete this school? This action cannot be undone."
+        title={`Delete ${schools.find(s => s.id === deleteModal.id)?.name || 'School'}`}
+        message="This is permanent and cannot be undone."
         details={[
-          'All classes associated with this school',
-          'All user-class assignments for those classes'
+          'All class years for this school',
+          'All members assigned to those classes',
+          'All member profiles and account information',
+          'All comments written by or about those members',
+          'All photographs uploaded by those members',
+          'All events associated with those classes',
         ]}
-        confirmText="Delete"
+        confirmText="Delete School"
         cancelText="Cancel"
         isDangerous={true}
-        showCheckbox={true}
-        checkboxLabel="Also delete all users assigned to this school"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />

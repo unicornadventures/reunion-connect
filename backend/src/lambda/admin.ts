@@ -1,6 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { encodeRegistrationHash } from '../utils/registrationLink.js';
+
+const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -51,13 +55,30 @@ export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
       return errorResponse(400, 'User ID required.');
     }
 
-    // Check if user exists
     const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
     if (userCheck.rows.length === 0) {
       return errorResponse(404, 'User not found.');
     }
 
-    // Delete user (cascade will handle related records)
+    // Delete S3 photos before removing the user
+    const profileResult = await query(
+      'SELECT then_photo_url, now_photo_url FROM profiles WHERE user_id = $1',
+      [userId]
+    );
+    if (profileResult.rows.length > 0) {
+      const { then_photo_url, now_photo_url } = profileResult.rows[0];
+      for (const key of [then_photo_url, now_photo_url]) {
+        if (key) {
+          try {
+            await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+          } catch (err) {
+            console.error(`Failed to delete S3 object ${key}:`, err);
+          }
+        }
+      }
+    }
+
+    // Delete user — cascade removes profile, comments, tokens
     await query('DELETE FROM users WHERE id = $1', [userId]);
 
     return response(200, { message: 'User deleted successfully.' });

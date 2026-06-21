@@ -338,5 +338,25 @@
     "DB_PASSWORD": "testpass",
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
+  },
+  "DeleteClassFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "postgres",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
+  "DeleteSchoolFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "postgres",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
   }
 }
