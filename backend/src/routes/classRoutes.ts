@@ -14,6 +14,34 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/classes/:id/events — must come before /:id
+router.get('/:id/events', async (req, res) => {
+  const { id } = req.params;
+  const { schoolId } = req.query as { schoolId?: string };
+
+  try {
+    const params: any[] = [id];
+    let schoolFilter = '';
+    if (schoolId) {
+      params.push(schoolId);
+      schoolFilter = ` AND school_id = $${params.length}`;
+    }
+
+    const result = await query(
+      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+       FROM events
+       WHERE class_id = $1${schoolFilter}
+       ORDER BY event_date ASC, event_time ASC NULLS LAST;`,
+      params
+    );
+
+    res.status(200).json({ events: result.rows });
+  } catch (error) {
+    console.error('Get Class Events Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // GET /api/classes/:id/members — must come before /:id
 router.get('/:id/members', async (req, res) => {
   const { id } = req.params;

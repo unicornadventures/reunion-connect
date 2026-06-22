@@ -369,4 +369,40 @@ router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
   }
 });
 
+// POST /api/admin/schools/:schoolId/classes/:classId/events
+router.post('/:schoolId/classes/:classId/events', async (req, res) => {
+  const { schoolId, classId } = req.params;
+  const { title, description, event_date, location } = req.body;
+
+  if (!title || !event_date) {
+    return res.status(400).json({ error: 'title and event_date are required.' });
+  }
+
+  try {
+    const linkCheck = await query(
+      'SELECT 1 FROM class_school WHERE class_id = $1 AND school_id = $2',
+      [classId, schoolId]
+    );
+    if (linkCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class is not linked to this school.' });
+    }
+
+    const eventDateTime = new Date(event_date);
+    const eventDateOnly = eventDateTime.toISOString().split('T')[0];
+    const eventTimeOnly = eventDateTime.toISOString().split('T')[1].substring(0, 8);
+
+    const result = await query(
+      `INSERT INTO events (class_id, school_id, event_name, description, event_date, event_time, location)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+      [classId, schoolId, title, description || null, eventDateOnly, eventTimeOnly, location || null]
+    );
+
+    res.status(201).json({ event: result.rows[0] });
+  } catch (error) {
+    console.error('Create school event error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as adminSchoolRoutes };

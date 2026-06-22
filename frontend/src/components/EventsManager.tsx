@@ -68,7 +68,7 @@ const EventsManager: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const r = await eventAPI.listEvents(classId);
+      const r = await eventAPI.listEvents(classId, selectedSchoolId ?? undefined);
       setEvents(r.data.events || []);
     } catch {
       setError('Failed to load events.');
@@ -94,7 +94,7 @@ const EventsManager: React.FC = () => {
       if (editingId !== null) {
         await eventAPI.updateEvent(editingId, payload);
       } else {
-        await eventAPI.createEvent(selectedClassId, payload);
+        await eventAPI.createEvent(selectedSchoolId, selectedClassId, payload);
       }
       setForm(EMPTY_FORM);
       setEditingId(null);

@@ -15,23 +15,31 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
   response(statusCode, { error: message });
 
 /**
- * Lambda handler for GET /api/classes/{classId}/events
+ * Lambda handler for GET /api/classes/{classId}/events?schoolId={schoolId}
  */
 export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
     const { classId } = event.pathParameters || {};
+    const schoolId = event.queryStringParameters?.schoolId;
 
     if (!classId) {
       return errorResponse(400, 'Class ID required.');
     }
 
+    const params: any[] = [classId];
+    let schoolFilter = '';
+    if (schoolId) {
+      params.push(schoolId);
+      schoolFilter = ` AND school_id = $${params.length}`;
+    }
+
     const result = await query(
-      `SELECT id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
        FROM events
-       WHERE class_id = $1
-       ORDER BY event_date DESC;`,
-      [classId]
+       WHERE class_id = $1${schoolFilter}
+       ORDER BY event_date ASC, event_time ASC NULLS LAST;`,
+      params
     );
 
     return response(200, { events: result.rows });
@@ -54,7 +62,8 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
     }
 
     const result = await query(
-      'SELECT id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at FROM events WHERE id = $1',
+      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+       FROM events WHERE id = $1`,
       [eventId]
     );
 
@@ -70,34 +79,35 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
 };
 
 /**
- * Lambda handler for POST /api/admin/classes/{classId}/events
+ * Lambda handler for POST /api/admin/schools/{schoolId}/classes/{classId}/events
  */
 export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
-    const { classId } = event.pathParameters || {};
+    const { schoolId, classId } = event.pathParameters || {};
     const { title, description, event_date, location } = JSON.parse(event.body || '{}');
 
-    if (!classId || !title || !event_date) {
-      return errorResponse(400, 'Class ID, title, and event_date are required.');
+    if (!schoolId || !classId || !title || !event_date) {
+      return errorResponse(400, 'schoolId, classId, title, and event_date are required.');
     }
 
-    // Verify class exists
-    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [classId]);
-    if (classCheck.rows.length === 0) {
-      return errorResponse(404, 'Class not found.');
+    const linkCheck = await query(
+      'SELECT 1 FROM class_school WHERE class_id = $1 AND school_id = $2',
+      [classId, schoolId]
+    );
+    if (linkCheck.rows.length === 0) {
+      return errorResponse(404, 'Class is not linked to this school.');
     }
 
-    // Parse event_date ISO string into date and time components
     const eventDateTime = new Date(event_date);
     const eventDateOnly = eventDateTime.toISOString().split('T')[0];
     const eventTimeOnly = eventDateTime.toISOString().split('T')[1].substring(0, 8);
 
     const result = await query(
-      `INSERT INTO events (class_id, event_name, description, event_date, event_time, location)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
-      [classId, title, description || null, eventDateOnly, eventTimeOnly, location || null]
+      `INSERT INTO events (class_id, school_id, event_name, description, event_date, event_time, location)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+      [classId, schoolId, title, description || null, eventDateOnly, eventTimeOnly, location || null]
     );
 
     return response(201, { event: result.rows[0] });
@@ -120,13 +130,11 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(400, 'Event ID required.');
     }
 
-    // Check if event exists
     const eventCheck = await query('SELECT id FROM events WHERE id = $1', [eventId]);
     if (eventCheck.rows.length === 0) {
       return errorResponse(404, 'Event not found.');
     }
 
-    // Parse event_date ISO string into date and time components if provided
     let eventDateOnly = null;
     let eventTimeOnly = null;
     if (event_date) {
@@ -144,7 +152,7 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
            location = COALESCE($5, location),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $6
-       RETURNING id, class_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
       [title, description, eventDateOnly, eventTimeOnly, location, eventId]
     );
 

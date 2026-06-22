@@ -184,6 +184,9 @@ export async function initializeDatabase() {
       WHERE cu.class_id = cs.class_id AND cu.school_id IS NULL;
     `);
 
+    // Scope events to a specific school (not just a class year)
+    await query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS school_id INT REFERENCES schools(id) ON DELETE CASCADE;`);
+
     // 7. Events
     await query(`
       CREATE TABLE IF NOT EXISTS events (

@@ -142,14 +142,14 @@ export const commentAPI = {
 
 // Event endpoints
 export const eventAPI = {
-  getEvents: (classId: number) =>
-    api.get(`/classes/${classId}/events`),
+  listEvents: (classId: number, schoolId?: number) =>
+    api.get(`/classes/${classId}/events`, { params: schoolId ? { schoolId } : undefined }),
 
   getEvent: (eventId: number) =>
     api.get(`/events/${eventId}`),
 
-  createEvent: (classId: number, data: { title: string; description?: string; event_date: string; location?: string }) =>
-    api.post(`/admin/classes/${classId}/events`, data),
+  createEvent: (schoolId: number, classId: number, data: { title: string; description?: string; event_date: string; location?: string }) =>
+    api.post(`/admin/schools/${schoolId}/classes/${classId}/events`, data),
 
   updateEvent: (eventId: number, data: { title?: string; description?: string; event_date?: string; location?: string }) =>
     api.put(`/events/${eventId}`, data),

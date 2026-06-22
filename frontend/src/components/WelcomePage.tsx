@@ -83,7 +83,9 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
       const messageResponse = await api.get(`/classes/${userClass.id}/message-count`);
       setMessageCount(messageResponse.data.count || 0);
 
-      const eventsResponse = await api.get(`/classes/${userClass.id}/events`);
+      const eventsResponse = await api.get(`/classes/${userClass.id}/events`, {
+        params: userClass.school_id ? { schoolId: userClass.school_id } : undefined,
+      });
       const events: Array<{ event_date: string }> = eventsResponse.data.events || [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);

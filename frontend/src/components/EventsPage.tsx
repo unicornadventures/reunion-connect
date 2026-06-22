@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
+import { eventAPI } from '../apiClient';
 
 interface Event {
   id: number;
@@ -14,6 +15,7 @@ interface Event {
 interface ClassInfo {
   id: number;
   year: number;
+  school_id?: number;
   school_name?: string;
 }
 
@@ -88,7 +90,7 @@ const EventsPage: React.FC = () => {
       const classResponse = await api.get(`/users/${currentUser.user_id}/class`);
       const userClass = classResponse.data.class;
       setClassInfo(userClass);
-      const eventsResponse = await api.get(`/classes/${userClass.id}/events`);
+      const eventsResponse = await eventAPI.listEvents(userClass.id, userClass.school_id);
       setEvents(eventsResponse.data.events || []);
       setError(null);
     } catch (err: any) {

@@ -650,8 +650,14 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/admin/classes/{classId}/events
+            Path: /api/admin/schools/{schoolId}/classes/{classId}/events
             Method: POST
+        PostEventOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/{classId}/events
+            Method: OPTIONS
 
   UpdateEventFunction:
     Type: AWS::Serverless::Function
