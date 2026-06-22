@@ -4,11 +4,11 @@ import api from '../api';
 
 interface Event {
   id: number;
-  event_name: string;
+  title: string;
   event_date: string;
-  event_time: string;
-  location: string;
-  description?: string;
+  event_time: string | null;
+  location: string | null;
+  description?: string | null;
 }
 
 interface ClassInfo {
@@ -36,7 +36,7 @@ const EventsPage: React.FC = () => {
       const classResponse = await api.get(`/users/${currentUser.user_id}/class`);
       const userClass = classResponse.data.class;
       setClassInfo(userClass);
-      const eventsResponse = await api.get(`/events/class/${userClass.id}/events`);
+      const eventsResponse = await api.get(`/classes/${userClass.id}/events`);
       setEvents(eventsResponse.data.events || []);
       setError(null);
     } catch (err: any) {
@@ -84,10 +84,10 @@ const EventsPage: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {events.map((event) => {
-            const eventDate = new Date(event.event_date);
+            const eventDate = new Date(event.event_date + 'T12:00:00');
             const month = eventDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
             const day = eventDate.getDate();
-            const timeStr = event.event_time.slice(0, 5);
+            const timeStr = event.event_time ? event.event_time.slice(0, 5) : null;
 
             return (
               <div
@@ -95,24 +95,25 @@ const EventsPage: React.FC = () => {
                 className="bg-white rounded-lg border border-[#E2E8F0] p-6 hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200"
               >
                 <div className="flex gap-5">
-                  {/* Date badge */}
                   <div className="flex-shrink-0 bg-[#0E2240] rounded px-4 py-4 text-center min-w-[72px]">
                     <div className="font-display text-3xl font-bold text-[#E8A93E] leading-none">{day}</div>
                     <div className="text-[10px] text-white/60 font-semibold tracking-[0.15em] uppercase mt-1">{month}</div>
                   </div>
-
-                  {/* Event details */}
                   <div className="flex-1">
-                    <h3 className="text-base font-semibold text-[#0E2240] mb-3">{event.event_name}</h3>
+                    <h3 className="text-base font-semibold text-[#0E2240] mb-3">{event.title}</h3>
                     <div className="space-y-1.5">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[9px] font-bold text-[#94A3B8] tracking-[0.15em] uppercase w-12">Time</span>
-                        <span className="text-sm text-[#64748B]">{timeStr}</span>
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[9px] font-bold text-[#94A3B8] tracking-[0.15em] uppercase w-12">Where</span>
-                        <span className="text-sm text-[#64748B]">{event.location}</span>
-                      </div>
+                      {timeStr && (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[9px] font-bold text-[#94A3B8] tracking-[0.15em] uppercase w-12">Time</span>
+                          <span className="text-sm text-[#64748B]">{timeStr}</span>
+                        </div>
+                      )}
+                      {event.location && (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[9px] font-bold text-[#94A3B8] tracking-[0.15em] uppercase w-12">Where</span>
+                          <span className="text-sm text-[#64748B]">{event.location}</span>
+                        </div>
+                      )}
                     </div>
                     {event.description && (
                       <p className="text-sm text-[#64748B] mt-3 leading-relaxed">{event.description}</p>

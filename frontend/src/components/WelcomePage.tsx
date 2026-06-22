@@ -83,8 +83,18 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
       const messageResponse = await api.get(`/classes/${userClass.id}/message-count`);
       setMessageCount(messageResponse.data.count || 0);
 
-      const daysResponse = await api.get(`/events/class/${userClass.id}/days-until-next`);
-      setDaysUntilNextEvent(daysResponse.data.daysUntil);
+      const eventsResponse = await api.get(`/classes/${userClass.id}/events`);
+      const events: Array<{ event_date: string }> = eventsResponse.data.events || [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const future = events
+        .map(e => new Date(e.event_date))
+        .filter(d => d >= today)
+        .sort((a, b) => a.getTime() - b.getTime());
+      if (future.length > 0) {
+        const diff = Math.ceil((future[0].getTime() - today.getTime()) / 86400000);
+        setDaysUntilNextEvent(diff);
+      }
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
