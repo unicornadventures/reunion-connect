@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
+import { dbReady } from './init.js';
 import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -24,6 +25,7 @@ const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
  */
 export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId, photoType } = event.pathParameters || {};
 
     if (!userId || !photoType || !['then', 'now'].includes(photoType)) {
@@ -62,6 +64,7 @@ export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const deletePhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId, photoType } = event.pathParameters || {};
 
     if (!userId || !photoType || !['then', 'now'].includes(photoType)) {
@@ -106,6 +109,7 @@ export const deletePhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { photoKey } = event.pathParameters || {};
 
     if (!photoKey) {

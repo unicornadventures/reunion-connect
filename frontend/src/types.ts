@@ -2,9 +2,10 @@
 
 export interface User {
   id: number;
-  email: string;
+  email: string | null;
   is_admin: boolean;
   is_class_admin?: boolean;
+  is_deceased?: boolean;
   created_at: string;
 }
 

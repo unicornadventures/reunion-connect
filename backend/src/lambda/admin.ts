@@ -1,7 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { query } from '../db.js';
 import { encodeRegistrationHash } from '../utils/registrationLink.js';
+import { dbReady } from './init.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
@@ -23,6 +26,7 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const getAdminUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const result = await query(`
       SELECT
         u.id,
@@ -49,6 +53,7 @@ export const getAdminUsersHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId } = event.pathParameters || {};
 
     if (!userId) {
@@ -93,6 +98,7 @@ export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
  */
 export const getClassUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { classId } = event.pathParameters || {};
     const page = parseInt(event.queryStringParameters?.page || '1', 10);
     const pageSize = parseInt(event.queryStringParameters?.pageSize || '10', 10);
@@ -124,7 +130,7 @@ export const getClassUsersHandler = async (event: APIGatewayProxyEvent): Promise
     // Get paginated results
     const offset = (page - 1) * pageSize;
     const result = await query(
-      `SELECT u.id, u.email, p.first_name, p.last_name
+      `SELECT u.id, u.email, u.is_deceased, p.first_name, p.last_name
        FROM class_user cu
        JOIN users u ON cu.user_id = u.id
        LEFT JOIN profiles p ON u.id = p.user_id
@@ -146,6 +152,7 @@ export const getClassUsersHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const updateUserClassAdminHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId } = event.pathParameters || {};
     const { is_class_admin } = JSON.parse(event.body || '{}');
 
@@ -175,19 +182,145 @@ export const updateUserClassAdminHandler = async (event: APIGatewayProxyEvent): 
 };
 
 /**
+ * Lambda handler for POST /api/admin/schools/{schoolId}/classes/{classId}/users
+ */
+export const createUserHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
+  try {
+    await dbReady;
+    const { schoolId, classId } = event.pathParameters || {};
+    const { email, original_first_name, original_last_name, first_name, last_name, is_deceased } =
+      JSON.parse(event.body || '{}');
+
+    if (!schoolId || !classId) return errorResponse(400, 'schoolId and classId required.');
+    if (!first_name?.trim() || !last_name?.trim()) {
+      return errorResponse(400, 'first_name and last_name are required.');
+    }
+
+    const resolvedEmail = email?.trim().toLowerCase() || null;
+
+    if (resolvedEmail) {
+      const existing = await query('SELECT id FROM users WHERE email = $1', [resolvedEmail]);
+      if (existing.rows.length > 0) {
+        return errorResponse(409, 'A user with this email already exists.');
+      }
+    }
+
+    const tempPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+
+    const userResult = await query(
+      'INSERT INTO users (email, password, is_deceased) VALUES ($1, $2, $3) RETURNING id, email, is_deceased',
+      [resolvedEmail, tempPassword, is_deceased ?? false]
+    );
+    const user = userResult.rows[0];
+
+    await query(
+      `INSERT INTO profiles (user_id, first_name, last_name, former_first_name, former_last_name)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [user.id, first_name.trim(), last_name.trim(), original_first_name?.trim() || null, original_last_name?.trim() || null]
+    );
+
+    await query(
+      'INSERT INTO class_user (class_id, user_id, school_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+      [classId, user.id, schoolId]
+    );
+
+    return response(201, { user: { id: user.id, email: user.email, first_name, last_name, is_deceased: user.is_deceased } });
+  } catch (error: any) {
+    console.error('Create user handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for POST /api/admin/schools/{schoolId}/classes/{classId}/users/import
+ */
+export const importUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
+  try {
+    await dbReady;
+    const { schoolId, classId } = event.pathParameters || {};
+    const { users } = JSON.parse(event.body || '{}');
+
+    if (!schoolId || !classId) return errorResponse(400, 'schoolId and classId required.');
+    if (!Array.isArray(users) || users.length === 0) {
+      return errorResponse(400, 'users array is required.');
+    }
+    if (users.length > 500) {
+      return errorResponse(400, 'Maximum 500 users per import.');
+    }
+
+    const created: { first_name: string; last_name: string }[] = [];
+    const skipped: { index: number; name: string; reason: string }[] = [];
+
+    for (let i = 0; i < users.length; i++) {
+      const { email, original_first_name, original_last_name, first_name, last_name } = users[i];
+
+      if (!first_name?.trim() || !last_name?.trim()) {
+        skipped.push({ index: i, name: `Row ${i + 1}`, reason: 'Missing first or last name' });
+        continue;
+      }
+
+      const resolvedEmail = email?.trim().toLowerCase() || null;
+
+      try {
+        if (resolvedEmail) {
+          const existing = await query('SELECT id FROM users WHERE email = $1', [resolvedEmail]);
+          if (existing.rows.length > 0) {
+            skipped.push({ index: i, name: `${first_name} ${last_name}`, reason: 'Email already exists' });
+            continue;
+          }
+        }
+
+        const tempPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+
+        const userResult = await query(
+          'INSERT INTO users (email, password, is_deceased) VALUES ($1, $2, $3) RETURNING id',
+          [resolvedEmail, tempPassword, users[i].is_deceased ?? false]
+        );
+
+        await query(
+          `INSERT INTO profiles (user_id, first_name, last_name, former_first_name, former_last_name)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [userResult.rows[0].id, first_name.trim(), last_name.trim(),
+           original_first_name?.trim() || null, original_last_name?.trim() || null]
+        );
+
+        await query(
+          'INSERT INTO class_user (class_id, user_id, school_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [classId, userResult.rows[0].id, schoolId]
+        );
+
+        created.push({ first_name: first_name.trim(), last_name: last_name.trim() });
+      } catch {
+        skipped.push({ index: i, name: `${first_name} ${last_name}`, reason: 'Database error' });
+      }
+    }
+
+    return response(201, { created: created.length, skipped });
+  } catch (error: any) {
+    console.error('Import users handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for POST /api/admin/registration-links
  */
 export const createRegistrationLinkHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { classId, schoolId } = JSON.parse(event.body || '{}');
 
     if (!classId || !schoolId) {
       return errorResponse(400, 'Missing required fields: classId and schoolId.');
     }
 
-    // Verify class exists
+    // Verify class is linked to this school
     const classResult = await query(
-      'SELECT id, year FROM classes WHERE id = $1 AND school_id = $2',
+      `SELECT c.id, c.year FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       WHERE c.id = $1 AND cs.school_id = $2`,
       [classId, schoolId]
     );
 

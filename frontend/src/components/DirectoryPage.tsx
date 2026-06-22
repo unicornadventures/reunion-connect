@@ -5,7 +5,8 @@ import api from '../api';
 
 interface DirectoryUser {
   id: number;
-  email: string;
+  email: string | null;
+  is_deceased: boolean;
   first_name: string | null;
   last_name: string | null;
   nickname: string | null;
@@ -78,8 +79,11 @@ const DirectoryPage: React.FC = () => {
   const filtered = users.filter(u =>
     (u.first_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
     (u.last_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (u.former_last_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
     (u.email?.toLowerCase() || '').includes(search.toLowerCase())
   );
+  const living = filtered.filter(u => !u.is_deceased);
+  const deceased = filtered.filter(u => u.is_deceased);
 
   if (loading) {
     return (
@@ -124,46 +128,101 @@ const DirectoryPage: React.FC = () => {
           {search ? `No classmates match "${search}"` : 'No classmates found yet.'}
         </div>
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-          {filtered.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => navigate(`/user/${user.id}`)}
-              className="bg-white rounded-lg border border-[#E2E8F0] p-5 text-center hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[190px]"
-            >
-              {user.now_photo_url ? (
-                <img
-                  src={user.now_photo_url}
-                  alt={`${user.first_name} ${user.last_name}`}
-                  className="w-14 h-14 rounded-full object-cover"
-                />
-              ) : (
-                <div
-                  className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
-                  style={{
-                    width: 56,
-                    height: 56,
-                    fontSize: 20,
-                    background: getColorForInitials(getInitials(user.first_name, user.last_name)),
-                  }}
+        <>
+          {living.length > 0 && (
+            <div className="grid gap-4 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+              {living.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => navigate(`/user/${user.id}`)}
+                  className="bg-white rounded-lg border border-[#E2E8F0] p-5 text-center hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[190px]"
                 >
-                  {getInitials(user.first_name, user.last_name)}
-                </div>
-              )}
-              <div className="w-full">
-                <div className="font-display text-sm font-bold text-[#0E2240] uppercase tracking-wide leading-tight">
-                  {user.last_name || user.first_name || 'Alumni'}
-                </div>
-                {user.first_name && user.last_name && (
-                  <div className="text-xs text-[#64748B] mt-0.5">{user.first_name}</div>
-                )}
-                {user.nickname && (
-                  <div className="text-[10px] text-[#94A3B8] mt-0.5">"{user.nickname}"</div>
-                )}
+                  {user.now_photo_url ? (
+                    <img
+                      src={user.now_photo_url}
+                      alt={`${user.first_name} ${user.last_name}`}
+                      className="w-14 h-14 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
+                      style={{
+                        width: 56,
+                        height: 56,
+                        fontSize: 20,
+                        background: getColorForInitials(getInitials(user.first_name, user.last_name)),
+                      }}
+                    >
+                      {getInitials(user.first_name, user.last_name)}
+                    </div>
+                  )}
+                  <div className="w-full">
+                    <div className="font-display text-sm font-bold text-[#0E2240] uppercase tracking-wide leading-tight">
+                      {user.last_name || user.first_name || 'Alumni'}
+                    </div>
+                    {user.first_name && user.last_name && (
+                      <div className="text-xs text-[#64748B] mt-0.5">{user.first_name}</div>
+                    )}
+                    {user.nickname && (
+                      <div className="text-[10px] text-[#94A3B8] mt-0.5">"{user.nickname}"</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {deceased.length > 0 && (
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <div className="h-px flex-1 bg-[#E2E8F0]" />
+                <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#94A3B8]">In Memoriam</span>
+                <div className="h-px flex-1 bg-[#E2E8F0]" />
               </div>
-            </button>
-          ))}
-        </div>
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+                {deceased.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => navigate(`/user/${user.id}`)}
+                    className="bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] p-5 text-center hover:border-[#94A3B8] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[190px] opacity-75"
+                  >
+                    {user.now_photo_url ? (
+                      <img
+                        src={user.now_photo_url}
+                        alt={`${user.first_name} ${user.last_name}`}
+                        className="w-14 h-14 rounded-full object-cover grayscale"
+                      />
+                    ) : (
+                      <div
+                        className="flex items-center justify-center rounded-full font-bold flex-shrink-0"
+                        style={{
+                          width: 56,
+                          height: 56,
+                          fontSize: 20,
+                          background: '#CBD5E1',
+                          color: '#64748B',
+                        }}
+                      >
+                        {getInitials(user.first_name, user.last_name)}
+                      </div>
+                    )}
+                    <div className="w-full">
+                      <div className="font-display text-sm font-bold text-[#64748B] uppercase tracking-wide leading-tight">
+                        {user.last_name || user.first_name || 'Alumni'}
+                      </div>
+                      {user.first_name && user.last_name && (
+                        <div className="text-xs text-[#94A3B8] mt-0.5">{user.first_name}</div>
+                      )}
+                      {user.nickname && (
+                        <div className="text-[10px] text-[#CBD5E1] mt-0.5">"{user.nickname}"</div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

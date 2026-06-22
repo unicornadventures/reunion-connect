@@ -302,6 +302,48 @@ Resources:
             Path: /api/admin/classes/{classId}/users
             Method: GET
 
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-user-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.createUserHandler
+      Runtime: nodejs18.x
+      Events:
+        PostUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/{classId}/users
+            Method: POST
+        OptionsCreateUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/{classId}/users
+            Method: OPTIONS
+
+  ImportUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-import-users-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.importUsersHandler
+      Runtime: nodejs18.x
+      Events:
+        PostImport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/{classId}/users/import
+            Method: POST
+        OptionsImport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/{classId}/users/import
+            Method: OPTIONS
+
   CreateRegistrationLinkFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -428,6 +470,21 @@ Resources:
             Path: /api/admin/schools/{schoolId}
             Method: OPTIONS
 
+  ListAllClassesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-all-classes-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.listAllClassesHandler
+      Runtime: nodejs18.x
+      Events:
+        GetAllClasses:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/classes
+            Method: GET
+
   ListClassesFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -457,6 +514,27 @@ Resources:
             RestApiId: !Ref ClassYearAPI
             Path: /api/classes/{classId}
             Method: GET
+
+  BulkLinkClassesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-bulk-link-classes-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.bulkLinkClassesHandler
+      Runtime: nodejs18.x
+      Events:
+        BulkLinkClasses:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/bulk
+            Method: POST
+        OptionsBulkLinkClasses:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}/classes/bulk
+            Method: OPTIONS
 
   CreateClassFunction:
     Type: AWS::Serverless::Function
@@ -491,13 +569,13 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/admin/classes/{classId}
+            Path: /api/admin/schools/{schoolId}/classes/{classId}
             Method: DELETE
         OptionsDeleteClass:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/admin/classes/{classId}
+            Path: /api/admin/schools/{schoolId}/classes/{classId}
             Method: OPTIONS
 
   GetClassMembersFunction:
@@ -513,6 +591,21 @@ Resources:
           Properties:
             RestApiId: !Ref ClassYearAPI
             Path: /api/classes/{classId}/members
+            Method: GET
+
+  GetClassDirectoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-class-directory-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.getClassDirectoryHandler
+      Runtime: nodejs18.x
+      Events:
+        GetDirectory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/classes/{classId}/directory
             Method: GET
 
   ListEventsFunction:

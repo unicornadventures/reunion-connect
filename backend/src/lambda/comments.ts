@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
+import { dbReady } from './init.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -47,6 +48,7 @@ async function canModerateComments(userId: number, commenterId: number, targetUs
  */
 export const createCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { targetUserId } = event.pathParameters || {};
     const { commenterId, content } = JSON.parse(event.body || '{}');
 
@@ -81,6 +83,7 @@ export const createCommentHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { targetUserId } = event.pathParameters || {};
 
     if (!targetUserId) {
@@ -107,6 +110,7 @@ export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { targetUserId } = event.pathParameters || {};
     const requesterId = event.queryStringParameters?.requesterId;
 
@@ -147,6 +151,7 @@ export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Pr
  */
 export const updateCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { commentId } = event.pathParameters || {};
     const { content, published, requesterId } = JSON.parse(event.body || '{}');
 
@@ -228,6 +233,7 @@ export const updateCommentHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const deleteCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { commentId } = event.pathParameters || {};
 
     if (!commentId) {

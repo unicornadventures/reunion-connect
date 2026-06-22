@@ -58,16 +58,19 @@ router.post('/login', async (req, res) => {
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
 
-      // Return safe data (Never send user.password back)
       res.status(200).json({
-        id: user.id,
-        email: user.email,
-        is_admin: user.is_admin,
-        created_at: user.created_at,
-        profile,
-        user_id: user.id,
-        first_name: profile?.first_name || '',
-        last_name: profile?.last_name || ''
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          is_admin: user.is_admin,
+          is_class_admin: user.is_class_admin,
+          created_at: user.created_at,
+          profile: profile || null,
+          user_id: user.id,
+          first_name: profile?.first_name || '',
+          last_name: profile?.last_name || ''
+        }
       });
     } else {
       res.status(401).json({ error: 'Invalid credentials.' });

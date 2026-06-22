@@ -1,4 +1,4 @@
-import { query } from './db.ts';
+import { query } from './db.js';
 
 export async function initializeDatabase() {
   console.log('🔨 Starting database initialization...');
@@ -115,6 +115,9 @@ export async function initializeDatabase() {
 
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_class_admin BOOLEAN DEFAULT FALSE;`);
     await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;`);
+    await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deceased BOOLEAN DEFAULT FALSE NOT NULL;`);
+    // Allow email to be null for admin-created roster entries (no login needed)
+    await query(`ALTER TABLE users ALTER COLUMN email DROP NOT NULL;`);
 
     // 5. Profiles
     await query(`

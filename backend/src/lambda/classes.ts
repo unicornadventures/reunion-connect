@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
+import { dbReady } from './init.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
@@ -43,6 +44,7 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listAllClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const result = await query('SELECT id, year FROM classes ORDER BY year DESC;');
     return response(200, { classes: result.rows });
   } catch (error: any) {
@@ -56,17 +58,48 @@ export const listAllClassesHandler = async (event: APIGatewayProxyEvent): Promis
  */
 export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { schoolId } = event.pathParameters || {};
 
     if (!schoolId) {
       return errorResponse(400, 'School ID required.');
     }
 
+    const currentYear = new Date().getFullYear();
+
+    // Auto-link the current year for any school that is already set up.
+    // This ensures new calendar years are picked up without manual intervention.
+    const currentYearLinked = await query(
+      `SELECT 1 FROM class_school cs
+       JOIN classes c ON cs.class_id = c.id
+       WHERE cs.school_id = $1 AND c.year = $2`,
+      [schoolId, currentYear]
+    );
+
+    if (currentYearLinked.rows.length === 0) {
+      // Only auto-link if the school already has at least one year configured
+      const hasAny = await query(
+        'SELECT 1 FROM class_school WHERE school_id = $1 LIMIT 1',
+        [schoolId]
+      );
+      if (hasAny.rows.length > 0) {
+        const classRow = await query('SELECT id FROM classes WHERE year = $1', [currentYear]);
+        if (classRow.rows.length > 0) {
+          await query(
+            'INSERT INTO class_school (class_id, school_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [classRow.rows[0].id, schoolId]
+          );
+        }
+      }
+    }
+
     const result = await query(
-      `SELECT c.id, c.year
+      `SELECT c.id, c.year, COUNT(cu.user_id)::int AS member_count
        FROM classes c
        JOIN class_school cs ON c.id = cs.class_id
+       LEFT JOIN class_user cu ON c.id = cu.class_id AND cu.school_id = cs.school_id
        WHERE cs.school_id = $1
+       GROUP BY c.id, c.year
        ORDER BY c.year DESC;`,
       [schoolId]
     );
@@ -83,6 +116,7 @@ export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { classId } = event.pathParameters || {};
 
     if (!classId) {
@@ -116,6 +150,7 @@ export const getClassHandler = async (event: APIGatewayProxyEvent): Promise<APIG
 export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
+    await dbReady;
     const { schoolId } = event.pathParameters || {};
     const { year } = JSON.parse(event.body || '{}');
 
@@ -153,11 +188,61 @@ export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<A
 };
 
 /**
+ * Lambda handler for POST /api/admin/schools/{schoolId}/classes/bulk
+ */
+export const bulkLinkClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return optionsResponse();
+  try {
+    await dbReady;
+    const { schoolId } = event.pathParameters || {};
+    const { startYear } = JSON.parse(event.body || '{}');
+    const currentYear = new Date().getFullYear();
+
+    if (!schoolId) return errorResponse(400, 'School ID required.');
+    if (!startYear || startYear < 1950 || startYear > currentYear) {
+      return errorResponse(400, `startYear must be between 1950 and ${currentYear}.`);
+    }
+
+    const schoolCheck = await query('SELECT id FROM schools WHERE id = $1', [schoolId]);
+    if (schoolCheck.rows.length === 0) return errorResponse(404, 'School not found.');
+
+    const classRows = await query(
+      'SELECT id, year FROM classes WHERE year >= $1 AND year <= $2 ORDER BY year DESC;',
+      [startYear, currentYear]
+    );
+
+    for (const row of classRows.rows) {
+      await query(
+        'INSERT INTO class_school (class_id, school_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;',
+        [row.id, schoolId]
+      );
+    }
+
+    const linked = await query(
+      `SELECT c.id, c.year, COUNT(cu.user_id)::int AS member_count
+       FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       LEFT JOIN class_user cu ON c.id = cu.class_id AND cu.school_id = cs.school_id
+       WHERE cs.school_id = $1
+       GROUP BY c.id, c.year
+       ORDER BY c.year DESC;`,
+      [schoolId]
+    );
+
+    return response(201, { classes: linked.rows });
+  } catch (error: any) {
+    console.error('Bulk link classes handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for DELETE /api/admin/schools/{schoolId}/classes/{classId}
  */
 export const deleteClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
+    await dbReady;
     const { schoolId, classId } = event.pathParameters || {};
     const cascadeUsers = event.queryStringParameters?.cascadeUsers === 'true';
 
@@ -207,10 +292,58 @@ export const deleteClassHandler = async (event: APIGatewayProxyEvent): Promise<A
 };
 
 /**
+ * Lambda handler for GET /api/classes/{classId}/directory
+ */
+export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    await dbReady;
+    const { classId } = event.pathParameters || {};
+    const userId = event.queryStringParameters?.userId;
+
+    if (!classId) return errorResponse(400, 'Class ID required.');
+    if (!userId) return errorResponse(400, 'User ID is required.');
+
+    const memberCheck = await query(
+      'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
+      [userId, classId]
+    );
+    if (memberCheck.rows.length === 0) {
+      return errorResponse(403, 'Access denied. You are not in this class.');
+    }
+
+    const result = await query(
+      `SELECT
+         u.id,
+         u.email,
+         u.is_deceased,
+         p.first_name,
+         p.last_name,
+         p.nickname,
+         p.former_first_name,
+         p.former_last_name,
+         p.now_photo_url,
+         p.then_photo_url
+       FROM class_user cu
+       JOIN users u ON cu.user_id = u.id
+       LEFT JOIN profiles p ON u.id = p.user_id
+       WHERE cu.class_id = $1
+       ORDER BY p.last_name ASC, p.first_name ASC;`,
+      [classId]
+    );
+
+    return response(200, { users: result.rows });
+  } catch (error: any) {
+    console.error('Get class directory handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for GET /api/classes/{classId}/members
  */
 export const getClassMembersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { classId } = event.pathParameters || {};
 
     if (!classId) {

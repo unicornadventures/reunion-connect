@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
+import { dbReady } from './init.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -18,6 +19,7 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { classId } = event.pathParameters || {};
 
     if (!classId) {
@@ -44,6 +46,7 @@ export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<AP
  */
 export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { eventId } = event.pathParameters || {};
 
     if (!eventId) {
@@ -71,6 +74,7 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
  */
 export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { classId } = event.pathParameters || {};
     const { title, description, event_date, location } = JSON.parse(event.body || '{}');
 
@@ -108,6 +112,7 @@ export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { eventId } = event.pathParameters || {};
     const { title, description, event_date, location } = JSON.parse(event.body || '{}');
 
@@ -155,6 +160,7 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const deleteEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { eventId } = event.pathParameters || {};
 
     if (!eventId) {

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { query } from '../db.js';
 import { decodeRegistrationHash } from '../utils/registrationLink.js';
+import { dbReady } from './init.js';
 
 // Utility to create response objects
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
@@ -25,6 +26,7 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { email, password } = JSON.parse(event.body || '{}');
 
     if (!email || !password) {
@@ -73,6 +75,7 @@ export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGate
  */
 export const registerHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { first_name, last_name, email, password, schoolId, classId } = JSON.parse(event.body || '{}');
 
     if (!email || !password) {
@@ -113,15 +116,17 @@ export const registerHandler = async (event: APIGatewayProxyEvent): Promise<APIG
     // Auto-enroll in class if schoolId and classId provided
     if (schoolId && classId) {
       const classExists = await query(
-        'SELECT id FROM classes WHERE id = $1 AND school_id = $2',
+        `SELECT c.id FROM classes c
+         JOIN class_school cs ON c.id = cs.class_id
+         WHERE c.id = $1 AND cs.school_id = $2`,
         [classId, schoolId]
       );
       if (classExists.rows.length > 0) {
         await query(
-          `INSERT INTO class_user (class_id, user_id)
-           VALUES ($1, $2)
+          `INSERT INTO class_user (class_id, user_id, school_id)
+           VALUES ($1, $2, $3)
            ON CONFLICT DO NOTHING;`,
-          [classId, newUser.id]
+          [classId, newUser.id, schoolId]
         );
       }
     }
@@ -156,6 +161,7 @@ export const getRegistrationLinkHandler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { hash } = event.pathParameters || {};
 
     if (!hash) {
@@ -175,10 +181,12 @@ export const getRegistrationLinkHandler = async (
       return errorResponse(404, 'School not found.');
     }
 
-    const classResult = await query('SELECT id, year FROM classes WHERE id = $1 AND school_id = $2', [
-      classId,
-      schoolId
-    ]);
+    const classResult = await query(
+      `SELECT c.id, c.year FROM classes c
+       JOIN class_school cs ON c.id = cs.class_id
+       WHERE c.id = $1 AND cs.school_id = $2`,
+      [classId, schoolId]
+    );
     if (classResult.rows.length === 0) {
       return errorResponse(404, 'Class not found.');
     }
@@ -198,6 +206,7 @@ export const getRegistrationLinkHandler = async (
  */
 export const forgotPasswordHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { email } = JSON.parse(event.body || '{}');
 
     if (!email) {
@@ -241,6 +250,7 @@ export const forgotPasswordHandler = async (event: APIGatewayProxyEvent): Promis
  */
 export const resetPasswordHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { token, newPassword } = JSON.parse(event.body || '{}');
 
     if (!token || !newPassword) {

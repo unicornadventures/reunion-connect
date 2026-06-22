@@ -83,11 +83,29 @@ export const adminClassAPI = {
   createClass: (schoolId: number, year: number) =>
     api.post<{ class: Class }>(`/admin/schools/${schoolId}/classes`, { year }),
 
+  bulkLinkClasses: (schoolId: number, startYear: number) =>
+    api.post<{ classes: { id: number; year: number; member_count: number }[] }>(
+      `/admin/schools/${schoolId}/classes/bulk`,
+      { startYear }
+    ),
+
   getClassUsers: (classId: number) =>
     api.get(`/admin/classes/${classId}/users`),
 
   unlinkClass: (schoolId: number, classId: number) =>
     api.delete(`/admin/schools/${schoolId}/classes/${classId}`),
+
+  createUser: (schoolId: number, classId: number, data: {
+    first_name: string; last_name: string;
+    original_first_name?: string; original_last_name?: string; email?: string;
+  }) => api.post(`/admin/schools/${schoolId}/classes/${classId}/users`, data),
+
+  importUsers: (schoolId: number, classId: number, users: {
+    first_name: string; last_name: string;
+    original_first_name?: string; original_last_name?: string; email?: string;
+  }[]) => api.post<{ created: number; skipped: { index: number; name: string; reason: string }[] }>(
+    `/admin/schools/${schoolId}/classes/${classId}/users/import`, { users }
+  ),
 
   createRegistrationLink: (schoolId: number, classId: number) =>
     api.post('/admin/registration-links', { schoolId, classId }),

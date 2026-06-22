@@ -58,9 +58,12 @@ router.get('/:id/directory', async (req, res) => {
       SELECT
         u.id,
         u.email,
+        u.is_deceased,
         p.first_name,
         p.last_name,
         p.nickname,
+        p.former_first_name,
+        p.former_last_name,
         p.now_photo_url,
         p.then_photo_url
       FROM class_user cu

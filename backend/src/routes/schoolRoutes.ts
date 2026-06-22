@@ -24,11 +24,35 @@ router.get('/:id/classes', async (req, res) => {
       return res.status(404).json({ error: 'School not found.' });
     }
 
+    const currentYear = new Date().getFullYear();
+
+    const currentYearLinked = await query(
+      `SELECT 1 FROM class_school cs
+       JOIN classes c ON cs.class_id = c.id
+       WHERE cs.school_id = $1 AND c.year = $2`,
+      [id, currentYear]
+    );
+
+    if (currentYearLinked.rows.length === 0) {
+      const hasAny = await query('SELECT 1 FROM class_school WHERE school_id = $1 LIMIT 1', [id]);
+      if (hasAny.rows.length > 0) {
+        const classRow = await query('SELECT id FROM classes WHERE year = $1', [currentYear]);
+        if (classRow.rows.length > 0) {
+          await query(
+            'INSERT INTO class_school (class_id, school_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [classRow.rows[0].id, id]
+          );
+        }
+      }
+    }
+
     const result = await query(
-      `SELECT c.id, c.year
+      `SELECT c.id, c.year, COUNT(cu.user_id)::int AS member_count
        FROM classes c
        JOIN class_school cs ON c.id = cs.class_id
+       LEFT JOIN class_user cu ON c.id = cu.class_id AND cu.school_id = cs.school_id
        WHERE cs.school_id = $1
+       GROUP BY c.id, c.year
        ORDER BY c.year DESC;`,
       [id]
     );

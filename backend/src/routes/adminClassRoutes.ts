@@ -27,7 +27,7 @@ router.get('/:id/users', requireSuperAdmin, async (req: any, res) => {
 
   try {
     const result = await query(`
-      SELECT u.id, u.email, p.first_name, p.last_name
+      SELECT u.id, u.email, u.is_deceased, p.first_name, p.last_name
       FROM class_user cu
       JOIN users u ON cu.user_id = u.id
       LEFT JOIN profiles p ON u.id = p.user_id

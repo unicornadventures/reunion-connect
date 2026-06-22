@@ -267,8 +267,10 @@ describe('Auth Routes', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('email');
+      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user).toHaveProperty('id');
+      expect(response.body.user).toHaveProperty('email');
     });
 
     it('should reject login with invalid password', async () => {

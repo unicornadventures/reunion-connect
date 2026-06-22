@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
+import { dbReady } from './init.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
@@ -34,6 +35,7 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listSchoolsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const result = await query(`
       SELECT id, name, location, created_at
       FROM schools
@@ -52,6 +54,7 @@ export const listSchoolsHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getSchoolHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { schoolId } = event.pathParameters || {};
 
     if (!schoolId) {
@@ -76,6 +79,7 @@ export const getSchoolHandler = async (event: APIGatewayProxyEvent): Promise<API
  */
 export const createSchoolHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { name, location } = JSON.parse(event.body || '{}');
 
     if (!name) {
@@ -90,15 +94,6 @@ export const createSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
     );
 
     const school = result.rows[0];
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let year = 1950; year <= currentYear; year++) {
-      years.push(year);
-    }
-
-    for (const year of years) {
-      await query('INSERT INTO classes (school_id, year) VALUES ($1, $2)', [school.id, year]);
-    }
 
     await query('COMMIT');
 
@@ -126,6 +121,7 @@ export const deleteSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
     };
   }
   try {
+    await dbReady;
     const { schoolId } = event.pathParameters || {};
 
     if (!schoolId) {
@@ -137,14 +133,13 @@ export const deleteSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
       return errorResponse(404, 'School not found.');
     }
 
-    // Collect all users across all classes of this school and their photo keys
+    // Collect all users belonging to this school via class_user.school_id
     const usersResult = await query(
       `SELECT DISTINCT u.id, p.then_photo_url, p.now_photo_url
-       FROM classes c
-       JOIN class_user cu ON c.id = cu.class_id
+       FROM class_user cu
        JOIN users u ON cu.user_id = u.id
        LEFT JOIN profiles p ON u.id = p.user_id
-       WHERE c.school_id = $1`,
+       WHERE cu.school_id = $1`,
       [schoolId]
     );
 

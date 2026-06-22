@@ -1,5 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
+import { dbReady } from './init.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -18,6 +19,7 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId } = event.pathParameters || {};
 
     if (!userId) {
@@ -68,6 +70,7 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
  */
 export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId } = event.pathParameters || {};
     const { first_name, last_name, nickname, former_first_name, former_last_name, bio, email } = JSON.parse(event.body || '{}');
 
@@ -142,6 +145,7 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const getUserClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const { userId } = event.pathParameters || {};
 
     if (!userId) {
@@ -149,10 +153,10 @@ export const getUserClassHandler = async (event: APIGatewayProxyEvent): Promise<
     }
 
     const result = await query(
-      `SELECT c.id, c.year, c.school_id, s.name as school_name, s.location
+      `SELECT c.id, c.year, cu.school_id, s.name as school_name, s.location
        FROM class_user cu
        JOIN classes c ON cu.class_id = c.id
-       JOIN schools s ON c.school_id = s.id
+       LEFT JOIN schools s ON cu.school_id = s.id
        WHERE cu.user_id = $1
        LIMIT 1`,
       [userId]
@@ -174,6 +178,7 @@ export const getUserClassHandler = async (event: APIGatewayProxyEvent): Promise<
  */
 export const listUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    await dbReady;
     const page = parseInt(event.queryStringParameters?.page || '1', 10);
     const pageSize = parseInt(event.queryStringParameters?.pageSize || '20', 10);
     const offset = (page - 1) * pageSize;
