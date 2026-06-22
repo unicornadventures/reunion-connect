@@ -99,4 +99,22 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/schools/:schoolId/classes/:classId/events
+router.get('/:schoolId/classes/:classId/events', async (req, res) => {
+  const { schoolId, classId } = req.params;
+  try {
+    const result = await query(
+      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+       FROM events
+       WHERE class_id = $1 AND school_id = $2
+       ORDER BY event_date ASC, event_time ASC NULLS LAST;`,
+      [classId, schoolId]
+    );
+    res.status(200).json({ events: result.rows });
+  } catch (error) {
+    console.error('Get School Class Events Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as schoolRoutes };

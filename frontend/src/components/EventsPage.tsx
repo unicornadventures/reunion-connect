@@ -90,7 +90,7 @@ const EventsPage: React.FC = () => {
       const classResponse = await api.get(`/users/${currentUser.user_id}/class`);
       const userClass = classResponse.data.class;
       setClassInfo(userClass);
-      const eventsResponse = await eventAPI.listEvents(userClass.id, userClass.school_id);
+      const eventsResponse = await eventAPI.listEvents(userClass.school_id, userClass.id);
       setEvents(eventsResponse.data.events || []);
       setError(null);
     } catch (err: any) {

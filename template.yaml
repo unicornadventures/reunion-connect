@@ -620,7 +620,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/classes/{classId}/events
+            Path: /api/schools/{schoolId}/classes/{classId}/events
             Method: GET
 
   GetEventFunction:

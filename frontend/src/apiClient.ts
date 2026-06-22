@@ -142,8 +142,8 @@ export const commentAPI = {
 
 // Event endpoints
 export const eventAPI = {
-  listEvents: (classId: number, schoolId?: number) =>
-    api.get(`/classes/${classId}/events`, { params: schoolId ? { schoolId } : undefined }),
+  listEvents: (schoolId: number, classId: number) =>
+    api.get(`/schools/${schoolId}/classes/${classId}/events`),
 
   getEvent: (eventId: number) =>
     api.get(`/events/${eventId}`),

@@ -68,7 +68,7 @@ const EventsManager: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const r = await eventAPI.listEvents(classId, selectedSchoolId ?? undefined);
+      const r = await eventAPI.listEvents(selectedSchoolId!, classId);
       setEvents(r.data.events || []);
     } catch {
       setError('Failed to load events.');

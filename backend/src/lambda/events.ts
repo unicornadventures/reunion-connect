@@ -15,31 +15,23 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
   response(statusCode, { error: message });
 
 /**
- * Lambda handler for GET /api/classes/{classId}/events?schoolId={schoolId}
+ * Lambda handler for GET /api/schools/{schoolId}/classes/{classId}/events
  */
 export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
-    const { classId } = event.pathParameters || {};
-    const schoolId = event.queryStringParameters?.schoolId;
+    const { schoolId, classId } = event.pathParameters || {};
 
-    if (!classId) {
-      return errorResponse(400, 'Class ID required.');
-    }
-
-    const params: any[] = [classId];
-    let schoolFilter = '';
-    if (schoolId) {
-      params.push(schoolId);
-      schoolFilter = ` AND school_id = $${params.length}`;
+    if (!schoolId || !classId) {
+      return errorResponse(400, 'schoolId and classId are required.');
     }
 
     const result = await query(
       `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
        FROM events
-       WHERE class_id = $1${schoolFilter}
+       WHERE class_id = $1 AND school_id = $2
        ORDER BY event_date ASC, event_time ASC NULLS LAST;`,
-      params
+      [classId, schoolId]
     );
 
     return response(200, { events: result.rows });
