@@ -18,7 +18,13 @@ const mockDb = {
   classes: [
     { id: 1, school_id: 1, year: 2020, created_at: new Date() },
     { id: 2, school_id: 1, year: 2021, created_at: new Date() }
-  ]
+  ],
+  classYears: [
+    { id: 10, year: 2020 },
+    { id: 11, year: 2021 },
+    { id: 12, year: 2022 }
+  ],
+  events: [] as any[]
 };
 
 jest.mock('../../middleware/adminAuth', () => ({
@@ -49,11 +55,18 @@ jest.mock('../../db', () => ({
       return { rows: sorted };
     }
 
-    // GET single school
+    // GET single school (full row)
     if (sql.includes('SELECT * FROM schools WHERE id')) {
       const schoolId = Number(params?.[0]);
       const school = mockDb.schools.find(s => s.id === schoolId);
       return { rows: school ? [school] : [] };
+    }
+
+    // School existence check (id only)
+    if (sql.includes('SELECT id FROM schools WHERE id')) {
+      const schoolId = Number(params?.[0]);
+      const school = mockDb.schools.find(s => s.id === schoolId);
+      return { rows: school ? [{ id: school.id }] : [] };
     }
 
     // GET users for cascading delete
@@ -109,6 +122,74 @@ jest.mock('../../db', () => ({
       return { rows: [] };
     }
 
+    // GET classes by year range (for bulk link)
+    if (sql.includes('SELECT id, year FROM classes WHERE year >=')) {
+      const startYear = Number(params?.[0]);
+      const endYear = Number(params?.[1]);
+      const filtered = mockDb.classYears.filter(c => c.year >= startYear && c.year <= endYear);
+      return { rows: filtered };
+    }
+
+    // INSERT class_school link
+    if (sql.includes('INSERT INTO class_school')) {
+      return { rows: [] };
+    }
+
+    // GET linked classes with member count (for bulk result)
+    if (sql.includes('COUNT(cu.user_id)::int AS member_count') && sql.includes('class_school')) {
+      return { rows: mockDb.classYears.map(c => ({ id: c.id, year: c.year, member_count: 0 })) };
+    }
+
+    // Check class_school link (for event creation)
+    if (sql.includes('SELECT 1 FROM class_school WHERE class_id')) {
+      const classId = Number(params?.[0]);
+      const schoolId = Number(params?.[1]);
+      const linked = mockDb.classes.some(c => c.id === classId && c.school_id === schoolId);
+      return { rows: linked ? [{ '?column?': 1 }] : [] };
+    }
+
+    // Check email uniqueness
+    if (sql.includes('SELECT id FROM users WHERE email')) {
+      const email = params?.[0];
+      const user = mockDb.users.find(u => u.email === email);
+      return { rows: user ? [{ id: user.id }] : [] };
+    }
+
+    // INSERT user
+    if (sql.includes('INSERT INTO users (email, password, is_deceased)')) {
+      const newUser = { id: mockDb.users.length + 1, email: params?.[0], is_deceased: params?.[2] ?? false };
+      mockDb.users.push({ ...newUser, created_at: new Date() });
+      return { rows: [newUser] };
+    }
+
+    // INSERT profiles
+    if (sql.includes('INSERT INTO profiles')) {
+      return { rows: [] };
+    }
+
+    // INSERT class_user
+    if (sql.includes('INSERT INTO class_user')) {
+      return { rows: [] };
+    }
+
+    // INSERT events
+    if (sql.includes('INSERT INTO events')) {
+      const event = {
+        id: mockDb.events.length + 1,
+        class_id: Number(params?.[0]),
+        school_id: Number(params?.[1]),
+        title: params?.[2],
+        description: params?.[3] || null,
+        event_date: params?.[4],
+        event_time: params?.[5],
+        location: params?.[6] || null,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      mockDb.events.push(event);
+      return { rows: [event] };
+    }
+
     return { rows: [] };
   })
 }));
@@ -133,6 +214,20 @@ describe('Admin School Routes', () => {
       { id: 2, name: 'Central High', location: 'Central, NE', created_at: new Date(), updated_at: new Date() },
       { id: 3, name: 'East High', location: 'East, NE', created_at: new Date(), updated_at: new Date() }
     ];
+    mockDb.users = [
+      { id: 1, email: 'user1@example.com', created_at: new Date() },
+      { id: 2, email: 'user2@example.com', created_at: new Date() }
+    ];
+    mockDb.classes = [
+      { id: 1, school_id: 1, year: 2020, created_at: new Date() },
+      { id: 2, school_id: 1, year: 2021, created_at: new Date() }
+    ];
+    mockDb.classYears = [
+      { id: 10, year: 2020 },
+      { id: 11, year: 2021 },
+      { id: 12, year: 2022 }
+    ];
+    mockDb.events = [];
 
     app = express();
     app.use(express.json());
@@ -331,6 +426,244 @@ describe('Admin School Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
+    });
+  });
+
+  describe('POST /api/admin/schools/:id/classes/bulk', () => {
+    it('should link class years in bulk', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/bulk')
+        .send({ startYear: 2020 });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('classes');
+      expect(Array.isArray(response.body.classes)).toBe(true);
+    });
+
+    it('should reject missing startYear', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/bulk')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject startYear before 1950', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/bulk')
+        .send({ startYear: 1949 });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 404 for non-existent school', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/999/classes/bulk')
+        .send({ startYear: 2020 });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/admin/schools/:id/classes/:classId/users', () => {
+    it('should create a user in a class', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users')
+        .send({
+          first_name: 'Jane',
+          last_name: 'Smith',
+          email: 'jane.smith@example.com'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('user');
+      expect(response.body.user.email).toBe('jane.smith@example.com');
+    });
+
+    it('should create a user without email', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users')
+        .send({
+          first_name: 'John',
+          last_name: 'Doe'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('user');
+    });
+
+    it('should reject missing first_name', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users')
+        .send({
+          last_name: 'Doe'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject missing last_name', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users')
+        .send({
+          first_name: 'John'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject duplicate email', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users')
+        .send({
+          first_name: 'Dupe',
+          last_name: 'User',
+          email: 'user1@example.com'
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/admin/schools/:id/classes/:classId/users/import', () => {
+    it('should import multiple users', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users/import')
+        .send({
+          users: [
+            { first_name: 'Alice', last_name: 'Wonder' },
+            { first_name: 'Bob', last_name: 'Builder' }
+          ]
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('created');
+      expect(response.body.created).toBe(2);
+      expect(response.body).toHaveProperty('skipped');
+      expect(response.body.skipped.length).toBe(0);
+    });
+
+    it('should skip users with missing names', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users/import')
+        .send({
+          users: [
+            { first_name: 'Alice', last_name: 'Wonder' },
+            { last_name: 'NoFirst' },
+            { first_name: 'NoLast' }
+          ]
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.created).toBe(1);
+      expect(response.body.skipped.length).toBe(2);
+    });
+
+    it('should skip users with duplicate email', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users/import')
+        .send({
+          users: [
+            { first_name: 'Dupe', last_name: 'User', email: 'user1@example.com' }
+          ]
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.created).toBe(0);
+      expect(response.body.skipped.length).toBe(1);
+      expect(response.body.skipped[0].reason).toBe('Email already exists');
+    });
+
+    it('should reject empty users array', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users/import')
+        .send({ users: [] });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject more than 500 users', async () => {
+      const users = Array.from({ length: 501 }, (_, i) => ({
+        first_name: `First${i}`,
+        last_name: `Last${i}`
+      }));
+
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/users/import')
+        .send({ users });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('POST /api/admin/schools/:schoolId/classes/:classId/events', () => {
+    it('should create an event for a school class', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/events')
+        .send({
+          title: 'Reunion Dinner',
+          event_date: '2026-07-15T18:00:00.000Z',
+          location: 'Grand Hotel',
+          description: 'Annual reunion dinner'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('event');
+      expect(response.body.event.title).toBe('Reunion Dinner');
+    });
+
+    it('should create event without optional fields', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/events')
+        .send({
+          title: 'Quick Meetup',
+          event_date: '2026-08-01T12:00:00.000Z'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.event.title).toBe('Quick Meetup');
+    });
+
+    it('should reject missing title', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/events')
+        .send({
+          event_date: '2026-07-15T18:00:00.000Z'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject missing event_date', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/events')
+        .send({
+          title: 'No Date Event'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 404 when class is not linked to school', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/999/events')
+        .send({
+          title: 'Orphan Event',
+          event_date: '2026-07-15T18:00:00.000Z'
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
     });
   });
 

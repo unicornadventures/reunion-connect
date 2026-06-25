@@ -5,6 +5,20 @@ const mockDb = {
   schools: [
     { id: 1, name: 'Lincoln High School', location: 'Lincoln, NE', created_at: new Date(), updated_at: new Date() },
     { id: 2, name: 'Central High School', location: 'Central, NE', created_at: new Date(), updated_at: new Date() }
+  ],
+  events: [
+    {
+      id: 1,
+      class_id: 1,
+      school_id: 1,
+      title: 'Reunion Dinner',
+      description: 'Annual reunion dinner',
+      event_date: '2026-07-15',
+      event_time: '18:00:00',
+      location: 'Grand Hotel',
+      created_at: new Date(),
+      updated_at: new Date()
+    }
   ]
 };
 
@@ -20,6 +34,12 @@ jest.mock('../../db', () => ({
       return { rows: school ? [school] : [] };
     }
 
+    if (sql.includes('SELECT id FROM schools WHERE id')) {
+      const schoolId = Number(params?.[0]);
+      const school = mockDb.schools.find(s => s.id === schoolId);
+      return { rows: school ? [{ id: school.id }] : [] };
+    }
+
     if (sql.includes('INSERT INTO schools')) {
       const school = {
         id: mockDb.schools.length + 1,
@@ -30,6 +50,13 @@ jest.mock('../../db', () => ({
       };
       mockDb.schools.push(school);
       return { rows: [school] };
+    }
+
+    if (sql.includes('FROM events') && sql.includes('WHERE class_id') && sql.includes('school_id')) {
+      const classId = Number(params?.[0]);
+      const schoolId = Number(params?.[1]);
+      const events = mockDb.events.filter(e => e.class_id === classId && e.school_id === schoolId);
+      return { rows: events };
     }
 
     return { rows: [] };
@@ -50,6 +77,20 @@ describe('School Routes', () => {
     mockDb.schools = [
       { id: 1, name: 'Lincoln High School', location: 'Lincoln, NE', created_at: new Date(), updated_at: new Date() },
       { id: 2, name: 'Central High School', location: 'Central, NE', created_at: new Date(), updated_at: new Date() }
+    ];
+    mockDb.events = [
+      {
+        id: 1,
+        class_id: 1,
+        school_id: 1,
+        title: 'Reunion Dinner',
+        description: 'Annual reunion dinner',
+        event_date: '2026-07-15',
+        event_time: '18:00:00',
+        location: 'Grand Hotel',
+        created_at: new Date(),
+        updated_at: new Date()
+      }
     ];
 
     app = express();
@@ -142,6 +183,69 @@ describe('School Routes', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.school.name).toBe('East High School');
+    });
+  });
+
+  describe('GET /api/schools/:schoolId/classes/:classId/events', () => {
+    it('should return events for a school class', async () => {
+      const response = await request(app).get('/api/schools/1/classes/1/events');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('events');
+      expect(Array.isArray(response.body.events)).toBe(true);
+      expect(response.body.events.length).toBe(1);
+    });
+
+    it('should return events with required fields', async () => {
+      const response = await request(app).get('/api/schools/1/classes/1/events');
+
+      expect(response.status).toBe(200);
+      const event = response.body.events[0];
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('title');
+      expect(event).toHaveProperty('event_date');
+      expect(event).toHaveProperty('event_time');
+      expect(event).toHaveProperty('location');
+    });
+
+    it('should return empty array for class with no events', async () => {
+      const response = await request(app).get('/api/schools/1/classes/999/events');
+
+      expect(response.status).toBe(200);
+      expect(response.body.events).toEqual([]);
+    });
+
+    it('should only return events matching both school and class', async () => {
+      mockDb.events.push({
+        id: 2,
+        class_id: 2,
+        school_id: 1,
+        title: 'Different Class Event',
+        description: null,
+        event_date: '2026-09-01',
+        event_time: '10:00:00',
+        location: 'Somewhere',
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+
+      const response = await request(app).get('/api/schools/1/classes/1/events');
+
+      expect(response.status).toBe(200);
+      expect(response.body.events.length).toBe(1);
+      expect(response.body.events[0].class_id).toBe(1);
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/schools/1/classes/1/events');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 
