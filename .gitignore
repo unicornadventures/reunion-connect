@@ -32,3 +32,4 @@ yarn.lock
 dist/
 build/
 localstack_tmp/
+.aws-sam/
