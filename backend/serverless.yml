@@ -1,0 +1,70 @@
+service: reunion-connect-backend
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  environment:
+    DB_HOST: "database-1.cluster-cezswsoi8m3o.us-east-1.rds.amazonaws.com"
+    DB_USER: "postgres"
+    DB_NAME: "reunion-connect-devdb"
+    DB_PORT: "5432"
+    S3_BUCKET_NAME: !Ref ReunionConnectPrivateFileBucket
+    S3_ENDPOINT: ""
+
+    # 🎯 CLEAN ESCAPE: Pass the raw locator string cleanly as a standard environment property
+    DATABASE_SECRET_ARN: "arn:aws:secretsmanager:us-east-1:372666940943:secret:rds!cluster-2d5d0cb2-d055-41d4-a1fe-52b8a6bc0510-omNjhn"
+
+
+  vpc:
+    securityGroupIds: [sg-09cee94df867cf754]
+    subnetIds:
+      - subnet-0dfdb663652cba578
+      - subnet-08320caa36be4fa6c
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource:
+            - !Sub "arn:aws:s3:::${ReunionConnectPrivateFileBucket}"
+            - !Sub "arn:aws:s3:::${ReunionConnectPrivateFileBucket}/*"
+
+functions:
+  api:
+    handler: app.handler
+    events:
+      - httpApi: '*'
+
+resources:
+  Resources:
+    # This logical ID is now referenced uniformly everywhere above
+    ReunionConnectPrivateFileBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Sub "reunion-connect-file-storage-${AWS::AccountId}"
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: false
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: false
+        LifecycleConfiguration:
+          Rules:
+            - Id: AbortIncompleteMultipartUploads
+              Status: Enabled
+              AbortIncompleteMultipartUpload:
+                DaysAfterInitiation: 7
+
+    PublicDirectoryReadPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref ReunionConnectPrivateFileBucket # FIXED: Kept names matching
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: PublicReadForSpecificDirectory
+              Effect: Allow
+              Principal: "*"
+              Action: "s3:GetObject"
+              Resource: !Sub "arn:aws:s3:::${ReunionConnectPrivateFileBucket}/public/*"

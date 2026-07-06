@@ -6,7 +6,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 dotenv.config();
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT || 'http://localhost:4566';
-const BUCKET_NAME = 'class-reunion-photos';
+const BUCKET_NAME = process.env.S3_BUCKET_NAME;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 const s3Client = new S3Client({

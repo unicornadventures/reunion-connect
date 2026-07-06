@@ -66,7 +66,7 @@ export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGate
     });
   } catch (error: any) {
     console.error('Login handler error:', error);
-    return errorResponse(500, 'Internal server error.');
+    return errorResponse(500, 'Internal server error (auth.ts).');
   }
 };
 
