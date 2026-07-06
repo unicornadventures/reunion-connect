@@ -191,7 +191,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/reunion-connect-backend/dev/1783306000836-2026-07-06T02:46:40.836Z/reunion-connect-backend.zip"
+          "S3Key": "serverless/reunion-connect-backend/dev/1783307301912-2026-07-06T03:08:21.912Z/reunion-connect-backend.zip"
         },
         "Handler": "app.handler",
         "Runtime": "nodejs20.x",
@@ -231,14 +231,14 @@
         "ApiLogGroup"
       ]
     },
-    "ApiLambdaVersion6LY0zKyP0GGwm7RJTKe6ty69M821Yy1P32V6MvGg": {
+    "ApiLambdaVersionIrCLfXZI66w6h5ylQjNopHI2sYP55YTVsjPz8lj1hOA": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "ApiLambdaFunction"
         },
-        "CodeSha256": "JYto971L106B/zyROiO4eiNI8D0H7onkDLafX1e83UQ="
+        "CodeSha256": "MPaLe5ezCgc5BdbJpuG9bDf9SXtKaBKxB3fgmceI5f4="
       }
     },
     "HttpApi": {
@@ -396,7 +396,7 @@
     "ApiLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "ApiLambdaVersion6LY0zKyP0GGwm7RJTKe6ty69M821Yy1P32V6MvGg"
+        "Ref": "ApiLambdaVersionIrCLfXZI66w6h5ylQjNopHI2sYP55YTVsjPz8lj1hOA"
       },
       "Export": {
         "Name": "sls-reunion-connect-backend-dev-ApiLambdaFunctionQualifiedArn"

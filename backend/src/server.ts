@@ -37,6 +37,10 @@ app.use(express.json());
 app.use(cookieParser());
 
 // 2. API Routes
+app.get('/pulse', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/users', photoRoutes);
