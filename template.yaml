@@ -149,6 +149,22 @@ Resources:
             Path: /api/auth/reset-password
             Method: POST
 
+  # Health Check
+  PulseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-pulse-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/pulse.pulseHandler
+      Runtime: nodejs18.x
+      Events:
+        GetPulse:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /pulse
+            Method: GET
+
   # User Routes
   GetUserProfileFunction:
     Type: AWS::Serverless::Function

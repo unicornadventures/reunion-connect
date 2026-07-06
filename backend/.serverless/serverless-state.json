@@ -6,7 +6,7 @@
     },
     "provider": {
       "name": "aws",
-      "runtime": "nodejs20.x",
+      "runtime": "nodejs22.x",
       "environment": {
         "DB_HOST": "database-1.cluster-cezswsoi8m3o.us-east-1.rds.amazonaws.com",
         "DB_USER": "postgres",
@@ -232,10 +232,10 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/reunion-connect-backend/dev/1783307301912-2026-07-06T03:08:21.912Z/reunion-connect-backend.zip"
+                "S3Key": "serverless/reunion-connect-backend/dev/1783308215092-2026-07-06T03:23:35.092Z/reunion-connect-backend.zip"
               },
               "Handler": "app.handler",
-              "Runtime": "nodejs20.x",
+              "Runtime": "nodejs22.x",
               "FunctionName": "reunion-connect-backend-dev-api",
               "MemorySize": 1024,
               "Timeout": 6,
@@ -271,14 +271,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersionIrCLfXZI66w6h5ylQjNopHI2sYP55YTVsjPz8lj1hOA": {
+          "ApiLambdaVersionDbkYeSLplqs1nL7gqK1EBuScfZXqTps8qwFqWprzcw4": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "MPaLe5ezCgc5BdbJpuG9bDf9SXtKaBKxB3fgmceI5f4="
+              "CodeSha256": "6R3myzKtKNVz8bdbt0rEnrj6uVDBiVYnw+G4e7o3o8U="
             }
           },
           "HttpApi": {
@@ -433,7 +433,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersionIrCLfXZI66w6h5ylQjNopHI2sYP55YTVsjPz8lj1hOA"
+              "Ref": "ApiLambdaVersionDbkYeSLplqs1nL7gqK1EBuScfZXqTps8qwFqWprzcw4"
             },
             "Export": {
               "Name": "sls-reunion-connect-backend-dev-ApiLambdaFunctionQualifiedArn"
@@ -558,6 +558,19 @@
         }
       }
     },
+    "custom": {
+      "esbuild": {
+        "bundle": true,
+        "minify": false,
+        "sourcemap": true,
+        "target": "node22",
+        "platform": "node",
+        "concurrency": 10
+      }
+    },
+    "plugins": [
+      "serverless-esbuild"
+    ],
     "pluginsData": {},
     "functions": {
       "api": {
@@ -572,9 +585,9 @@
         "package": {},
         "memory": 1024,
         "timeout": 6,
-        "runtime": "nodejs20.x",
+        "runtime": "nodejs22.x",
         "vpc": {},
-        "versionLogicalId": "ApiLambdaVersionIrCLfXZI66w6h5ylQjNopHI2sYP55YTVsjPz8lj1hOA"
+        "versionLogicalId": "ApiLambdaVersionDbkYeSLplqs1nL7gqK1EBuScfZXqTps8qwFqWprzcw4"
       }
     },
     "resources": {
@@ -633,6 +646,12 @@
     "serviceFilename": "serverless.yml",
     "initialServerlessConfig": {
       "service": "reunion-connect-backend",
+      "plugins": {
+        "$ref": "$[\"service\"][\"plugins\"]"
+      },
+      "custom": {
+        "$ref": "$[\"service\"][\"custom\"]"
+      },
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
       },
@@ -644,11 +663,10 @@
       }
     },
     "layers": {},
-    "isDashboardMonitoringPreconfigured": false,
-    "artifact": "/Users/crgdncn/Code/ClassYear/backend/.serverless/reunion-connect-backend.zip"
+    "isDashboardMonitoringPreconfigured": false
   },
   "package": {
-    "artifactDirectoryName": "serverless/reunion-connect-backend/dev/1783307301912-2026-07-06T03:08:21.912Z",
+    "artifactDirectoryName": "serverless/reunion-connect-backend/dev/1783308215092-2026-07-06T03:23:35.092Z",
     "artifact": "reunion-connect-backend.zip"
   }
 }

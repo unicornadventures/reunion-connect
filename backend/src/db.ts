@@ -4,13 +4,13 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// 🚨 Step backwards out of "src" and "backend" to reach your root folder
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootEnvPath = path.resolve(__dirname, '../../.env');
-
-// Force dotenv to load the root file explicitly
-dotenv.config({ path: rootEnvPath });
+// In Lambda, env vars are injected by the runtime — skip dotenv entirely.
+// Locally, walk up two directories to find the root .env file.
+if (!process.env.LAMBDA_TASK_ROOT) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+}
 
 // 🔬 Debug Log: Confirm the system reads your root configuration
 console.log("🔍 DB Debug Init - Password Loaded:", process.env.DB_PASSWORD ? "YES (secret)" : "NO (undefined)");
