@@ -373,3 +373,50 @@ export const createRegistrationLinkHandler = async (event: APIGatewayProxyEvent)
     return errorResponse(500, 'Internal server error.');
   }
 };
+
+/**
+ * Lambda handler for POST /api/admin/users/{userId}/password-link
+ * Mints a set-password URL an admin can share with a user. Reuses the
+ * reset-password token flow and page, but with a 7-day invite-style expiry.
+ */
+export const createPasswordLinkHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
+    await dbReady;
+    const { userId } = event.pathParameters || {};
+
+    if (!userId) {
+      return errorResponse(400, 'User ID required.');
+    }
+
+    const userCheck = await query('SELECT id, email FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return errorResponse(404, 'User not found.');
+    }
+    if (!userCheck.rows[0].email) {
+      return errorResponse(400, 'User has no email on file and cannot log in. Add an email first.');
+    }
+
+    // Replace any outstanding token for this user
+    await query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    await query(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [userId, hash, expiresAt]
+    );
+
+    const passwordSetupUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+
+    return response(200, { passwordSetupUrl, expiresAt });
+  } catch (error: any) {
+    console.error('Create password link handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};

@@ -477,6 +477,22 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  CreatePasswordLinkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-password-link-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.createPasswordLinkHandler
+      Events:
+        PostPasswordLink:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/users/{userId}/password-link
+            Method: POST
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
   UpdateProfileFunction:
     Type: AWS::Serverless::Function
     Properties:

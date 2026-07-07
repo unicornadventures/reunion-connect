@@ -120,6 +120,9 @@ export const adminAPI = {
 
   deleteUser: (userId: number) =>
     api.delete(`/admin/users/${userId}`),
+
+  createPasswordLink: (userId: number) =>
+    api.post<{ passwordSetupUrl: string; expiresAt: string }>(`/admin/users/${userId}/password-link`),
 };
 
 // Comment endpoints

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { adminClassAPI } from '../apiClient';
+import { adminAPI, adminClassAPI } from '../apiClient';
 import ConfirmModal from './ConfirmModal';
 import UserDeletionWarning from './UserDeletionWarning';
 
@@ -97,6 +97,25 @@ const UsersManager: React.FC = () => {
 
   // List state
   const [users, setUsers] = useState<User[]>([]);
+
+  // Set-password link state
+  const [pwLink, setPwLink] = useState<{ userId: number; url: string } | null>(null);
+  const [pwLinkLoading, setPwLinkLoading] = useState<number | null>(null);
+  const [pwLinkCopied, setPwLinkCopied] = useState(false);
+
+  const handlePasswordLink = async (userId: number) => {
+    setPwLinkLoading(userId);
+    setPwLinkCopied(false);
+    try {
+      const res = await adminAPI.createPasswordLink(userId);
+      setPwLink({ userId, url: res.data.passwordSetupUrl });
+    } catch {
+      setError('Failed to generate password link.');
+      setPwLink(null);
+    } finally {
+      setPwLinkLoading(null);
+    }
+  };
   const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -525,34 +544,59 @@ const UsersManager: React.FC = () => {
             <>
               <div className="bg-white border border-[#E2E8F0] rounded-lg overflow-hidden mb-5">
                 {users.map((user, idx) => (
-                  <div key={user.id}
-                    className={`flex items-center justify-between px-5 py-4 ${idx < users.length - 1 ? 'border-b border-[#E2E8F0]' : ''}`}
-                  >
-                    <button onClick={() => navigate(`/admin/user/${user.id}`)}
-                      className="text-left bg-transparent border-none cursor-pointer hover:opacity-80 transition-opacity">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-[#0E2240]">
-                          {user.last_name}, {user.first_name}
-                        </span>
-                        {user.is_deceased && (
-                          <span className="text-[10px] font-semibold text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.5 rounded tracking-wide">DECEASED</span>
-                        )}
-                        {!user.email && !user.is_deceased && (
-                          <span className="text-[10px] font-semibold text-[#94A3B8] bg-[#F8FAFC] border border-[#E2E8F0] px-1.5 py-0.5 rounded tracking-wide">NOT REGISTERED</span>
-                        )}
-                      </div>
-                      <div className="text-xs text-[#94A3B8] mt-0.5">{user.email || 'No email on file'}</div>
-                    </button>
-                    <div className="flex gap-2">
+                  <div key={user.id} className={idx < users.length - 1 ? 'border-b border-[#E2E8F0]' : ''}>
+                    <div className="flex items-center justify-between px-5 py-4">
                       <button onClick={() => navigate(`/admin/user/${user.id}`)}
-                        className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none">
-                        View
+                        className="text-left bg-transparent border-none cursor-pointer hover:opacity-80 transition-opacity">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[#0E2240]">
+                            {user.last_name}, {user.first_name}
+                          </span>
+                          {user.is_deceased && (
+                            <span className="text-[10px] font-semibold text-[#64748B] bg-[#F1F5F9] px-1.5 py-0.5 rounded tracking-wide">DECEASED</span>
+                          )}
+                          {!user.email && !user.is_deceased && (
+                            <span className="text-[10px] font-semibold text-[#94A3B8] bg-[#F8FAFC] border border-[#E2E8F0] px-1.5 py-0.5 rounded tracking-wide">NOT REGISTERED</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[#94A3B8] mt-0.5">{user.email || 'No email on file'}</div>
                       </button>
-                      <button onClick={() => setDeleteModal({ isOpen: true, userId: user.id })}
-                        className="px-3 py-1.5 bg-[#f44336] text-white rounded text-xs font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none">
-                        Delete
-                      </button>
+                      <div className="flex gap-2">
+                        {user.email && !user.is_deceased && (
+                          <button onClick={() => handlePasswordLink(user.id)} disabled={pwLinkLoading === user.id}
+                            className="px-3 py-1.5 bg-[#0E2240] text-white rounded text-xs font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none">
+                            {pwLinkLoading === user.id ? 'Generating…' : 'Password Link'}
+                          </button>
+                        )}
+                        <button onClick={() => navigate(`/admin/user/${user.id}`)}
+                          className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none">
+                          View
+                        </button>
+                        <button onClick={() => setDeleteModal({ isOpen: true, userId: user.id })}
+                          className="px-3 py-1.5 bg-[#f44336] text-white rounded text-xs font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none">
+                          Delete
+                        </button>
+                      </div>
                     </div>
+                    {pwLink?.userId === user.id && (
+                      <div className="mx-5 mb-4 p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded">
+                        <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.1em] uppercase mb-1.5">
+                          Set-password link — valid 7 days
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input readOnly value={pwLink.url} onFocus={e => e.target.select()}
+                            className="flex-1 text-xs text-[#0E2240] bg-white border border-[#E2E8F0] rounded px-2 py-1.5 font-mono" />
+                          <button onClick={() => { navigator.clipboard.writeText(pwLink.url); setPwLinkCopied(true); }}
+                            className="px-3 py-1.5 bg-[#0E2240] text-white rounded text-xs font-semibold hover:opacity-90 cursor-pointer transition-opacity border-none">
+                            {pwLinkCopied ? 'Copied!' : 'Copy'}
+                          </button>
+                          <button onClick={() => setPwLink(null)}
+                            className="px-2 py-1.5 bg-transparent text-[#94A3B8] text-xs font-bold cursor-pointer border-none hover:opacity-70">
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
