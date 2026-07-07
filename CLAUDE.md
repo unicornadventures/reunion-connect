@@ -91,6 +91,10 @@ Three role levels enforced in both frontend routing and backend:
 
 JWT is returned from login and stored in `localStorage`. The frontend injects it as `Bearer <token>` on every API call. The Express server uses `authenticateToken` middleware (`src/utils/auth.ts`). Lambda handlers validate the token inline. Cookies are enabled globally via `axios.defaults.withCredentials = true` (see `App.tsx`).
 
+### Admin Seeding (deployed AWS)
+
+The global admin (`admin@reunion.com`) is seeded on Lambda cold start by `backend/src/lambda/init.ts`: after schema migrations run, it fetches the password from the SSM SecureString parameter named by the `ADMIN_SEED_PASSWORD_PARAM` env var (default `/classyear/dev/admin-seed-password`, configurable via the `AdminSeedPasswordParam` template parameter) and calls `seedAdminUser()`. Seeding is skipped if the SSM parameter doesn't exist and is a no-op if the admin user already exists — it never overwrites an existing admin's password. Never put the password itself in the repo (samconfig.toml, template.yaml, env-vars.json); only parameter names belong in tracked files. The Express dev server does not seed automatically — call `seedAdminUser()` manually against the local Docker DB if needed.
+
 ### SAM/Lambda Local Setup
 
 `env-vars.json` at the root provides environment variables for each Lambda function (DB credentials, JWT secret). The SAM local command connects Lambda containers to the `classyear_local` Docker network where PostgreSQL runs as hostname `postgres`. The Docker socket path is hardcoded in `samconfig.toml` — update if running on a different machine.
@@ -115,4 +119,4 @@ AWS_S3_BUCKET=classyear-dev
 AWS_REGION=us-east-1
 ```
 
-Default test admin: `testadmin@example.com` / `admin123` (seeded by `backend/src/seed.ts`).
+Deployed admin: `admin@reunion.com`, password in SSM SecureString `/classyear/dev/admin-seed-password` (see Admin Seeding above). Local databases have no seeded admin unless you run `seedAdminUser()` yourself.
