@@ -115,19 +115,6 @@ const Login: React.FC = () => {
               Forgot your password?
             </button>
           </div>
-
-          <div className="mt-5 pt-5 border-t border-[#E2E8F0] text-center">
-            <p className="text-sm text-[#64748B]">
-              Not registered yet?{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/register')}
-                className="text-[#E8A93E] font-semibold hover:opacity-80 transition-opacity bg-transparent border-none cursor-pointer"
-              >
-                Sign up here
-              </button>
-            </p>
-          </div>
         </div>
 
         <p className="text-xs text-[#94A3B8]">Secure access for alumni only</p>

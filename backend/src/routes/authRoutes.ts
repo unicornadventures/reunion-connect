@@ -141,6 +141,7 @@ router.get('/registration-link/:hash', async (req, res) => {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
+  return res.status(403).json({ error: 'Registration is currently disabled.' });
   const { email, password, confirmPassword, firstName, lastName, schoolId, classId } = req.body;
 
   if (!email || !password || !confirmPassword) {

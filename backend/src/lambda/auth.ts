@@ -74,6 +74,7 @@ export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGate
  * Lambda handler for POST /api/auth/register
  */
 export const registerHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  return errorResponse(403, 'Registration is currently disabled.');
   try {
     await dbReady;
     const { first_name, last_name, email, password, schoolId, classId } = JSON.parse(event.body || '{}');
