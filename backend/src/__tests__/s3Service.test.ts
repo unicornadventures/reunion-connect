@@ -1,3 +1,5 @@
+process.env.S3_BUCKET_NAME = 'class-reunion-photos';
+
 // Mock AWS SDK BEFORE importing s3Service
 const mockSend = jest.fn();
 jest.mock('@aws-sdk/client-s3', () => ({

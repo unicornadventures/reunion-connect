@@ -13,6 +13,6 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["app.ts", "src/lambda/**/*", "src/db.ts", "src/schema.ts", "src/utils/**/*", "src/types.ts"],
+  "include": ["app.ts", "src/lambda/**/*", "src/db.ts", "src/schema.ts", "src/seed.ts", "src/utils/**/*", "src/types.ts"],
   "exclude": ["node_modules"]
 }

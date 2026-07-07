@@ -32,8 +32,13 @@ async function getPool(): Promise<InstanceType<typeof Pool>> {
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
     password,
+    // Aurora/RDS Postgres enforces SSL (rds.force_ssl); the RDS CA isn't in
+    // Node's trust store, so skip chain verification rather than bundle it.
+    ssl: process.env.DATABASE_SECRET_ARN ? { rejectUnauthorized: false } : undefined,
     port: parseInt(process.env.DB_PORT ?? '5432', 10),
-    connectionTimeoutMillis: 5000,
+    // A paused Aurora Serverless v2 cluster takes ~15s to resume on first
+    // connection, so the timeout must comfortably exceed that.
+    connectionTimeoutMillis: parseInt(process.env.DB_CONNECT_TIMEOUT_MS ?? '30000', 10),
     idleTimeoutMillis: 30000,
   });
 

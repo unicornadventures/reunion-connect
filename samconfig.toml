@@ -15,9 +15,13 @@ parameter_overrides = "Environment=dev UseLocalStack=true DBPassword=testpass JW
 [default.deploy]
 [default.deploy.parameters]
 stack_name = "classyear-serverless"
-s3_bucket = "classyear-serverless-artifacts"
-s3_prefix = "classyear-sam"
-region = "us-east-1"
-confirm_changeset = false
+s3_prefix = "classyear-serverless"
+confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Environment=dev UseLocalStack=false DBPassword=changeme JWTSecret=change-me-in-production FrontendURL=https://classyear.example.com"
+parameter_overrides = "Environment=\"dev\" FrontendURL=\"https://reunion-connect.org\" UseLocalStack=\"false\" VPC=\"vpc-021940e171925bd53\" PrivateSubnet1=\"subnet-0dfdb663652cba578\" PrivateSubnet2=\"subnet-08320caa36be4fa6c\" PrivateRouteTable=\"rtb-06b3ba09c86210f60\""
+resolve_s3 = true
+disable_rollback = true
+image_repositories = []
+
+[default.global.parameters]
+region = "us-east-1"

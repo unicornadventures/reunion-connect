@@ -44,12 +44,12 @@ async function canModerateComments(userId: number, commenterId: number, targetUs
 }
 
 /**
- * Lambda handler for POST /api/users/{targetUserId}/comments
+ * Lambda handler for POST /api/users/{userId}/comments
  */
 export const createCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
-    const { targetUserId } = event.pathParameters || {};
+    const { userId: targetUserId } = event.pathParameters || {};
     const { commenterId, content } = JSON.parse(event.body || '{}');
 
     if (!targetUserId || !commenterId || !content) {
@@ -79,12 +79,12 @@ export const createCommentHandler = async (event: APIGatewayProxyEvent): Promise
 };
 
 /**
- * Lambda handler for GET /api/users/{targetUserId}/comments
+ * Lambda handler for GET /api/users/{userId}/comments
  */
 export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
-    const { targetUserId } = event.pathParameters || {};
+    const { userId: targetUserId } = event.pathParameters || {};
 
     if (!targetUserId) {
       return errorResponse(400, 'Target user ID required.');
@@ -106,12 +106,12 @@ export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<A
 };
 
 /**
- * Lambda handler for GET /api/users/{targetUserId}/comments/pending
+ * Lambda handler for GET /api/users/{userId}/comments/pending
  */
 export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
-    const { targetUserId } = event.pathParameters || {};
+    const { userId: targetUserId } = event.pathParameters || {};
     const requesterId = event.queryStringParameters?.requesterId;
 
     if (!targetUserId || !requesterId) {

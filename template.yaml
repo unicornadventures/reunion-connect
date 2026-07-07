@@ -7,17 +7,26 @@ Globals:
     Timeout: 30
     Runtime: nodejs24.x
     Tracing: Active
+    VpcConfig: !If
+      - CreateRDS
+      - SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      - !Ref AWS::NoValue
     Environment:
       Variables:
         NODE_ENV: !Ref Environment
-        DB_HOST: !If [IsLocalStack, 'postgres', !GetAtt RDSInstance.Endpoint.Address]
+        DB_HOST: !If [IsLocalStack, 'postgres', !GetAtt RDSCluster.Endpoint.Address]
         DB_PORT: '5432'
         DB_NAME: class_reunion
-        DB_USER: admin
+        DB_USER: classyear_admin
         JWT_SECRET: !Ref JWTSecret
+        ADMIN_SEED_PASSWORD_PARAM: !If [IsLocalStack, !Ref 'AWS::NoValue', !Ref AdminSeedPasswordParam]
         FRONTEND_URL: !Ref FrontendURL
-        DATABASE_SECRET_ARN: !Ref DatabaseSecretArn
         S3_BUCKET_NAME: !Ref ReunionConnectPrivateFileBucket
+        DATABASE_SECRET_ARN: !If [IsLocalStack, !Ref 'AWS::NoValue', !GetAtt RDSCluster.MasterUserSecret.SecretArn]
 
 Parameters:
   Environment:
@@ -33,6 +42,11 @@ Parameters:
     NoEcho: true
     Description: JWT secret for token signing
 
+  AdminSeedPasswordParam:
+    Type: String
+    Default: '/classyear/dev/admin-seed-password'
+    Description: Name of the SSM SecureString parameter holding the admin seed password; seeding is skipped if the parameter does not exist
+
   FrontendURL:
     Type: String
     Default: http://localhost:5173
@@ -46,11 +60,6 @@ Parameters:
       - 'false'
     Description: Whether to use LocalStack (true) or AWS (false)
 
-  DatabaseSecretArn:
-    Type: String
-    Default: ''
-    Description: ARN of the Secrets Manager secret for RDS credentials
-
   VPC:
     Type: AWS::EC2::VPC::Id
     Description: VPC ID for RDS and Lambda security groups (required when UseLocalStack=false)
@@ -63,18 +72,21 @@ Parameters:
     Type: AWS::EC2::Subnet::Id
     Description: Second private subnet for RDS (required when UseLocalStack=false)
 
+  PrivateRouteTable:
+    Type: String
+    Description: Route table of the private subnets, for the S3 gateway endpoint (required when UseLocalStack=false)
+
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
   IsLocalStack: !Equals [!Ref UseLocalStack, 'true']
   CreateRDS: !Not [!Condition IsLocalStack]
-  HasDatabaseSecretArn: !Not [!Equals [!Ref DatabaseSecretArn, '']]
 
 Resources:
   # S3 Storage Bucket with public read restricted to /public/ prefix
   ReunionConnectPrivateFileBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "reunion-connect-file-storage-${AWS::AccountId}"
+      BucketName: !Sub "classyear-file-storage-${AWS::AccountId}-${Environment}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: false
@@ -105,10 +117,22 @@ Resources:
           - Effect: Allow
             Action:
               - secretsmanager:GetSecretValue
-            Resource: !If
-              - HasDatabaseSecretArn
-              - !Ref DatabaseSecretArn
-              - "arn:aws:secretsmanager:*:*:secret:*"
+            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:*"
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+            Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/classyear/*"
+          # ENI management so functions can run inside the VPC (SAM may not
+          # auto-attach AWSLambdaVPCAccessExecutionRole when VpcConfig is conditional)
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeSubnets
+              - ec2:AssignPrivateIpAddresses
+              - ec2:UnassignPrivateIpAddresses
+            Resource: '*'
 
   # API Gateway
   ClassYearAPI:
@@ -248,7 +272,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/users/{targetUserId}/comments
+            Path: /api/users/{userId}/comments
             Method: POST
       Policies:
         - !Ref LambdaSecretsManagerPolicy
@@ -264,7 +288,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/users/{targetUserId}/comments
+            Path: /api/users/{userId}/comments
             Method: GET
       Policies:
         - !Ref LambdaSecretsManagerPolicy
@@ -280,7 +304,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/users/{targetUserId}/comments/pending
+            Path: /api/users/{userId}/comments/pending
             Method: GET
       Policies:
         - !Ref LambdaSecretsManagerPolicy
@@ -846,26 +870,40 @@ Resources:
             BucketName: !Ref ReunionConnectPrivateFileBucket
         - !Ref LambdaSecretsManagerPolicy
 
-  # Optional: RDS Database (only for AWS, not LocalStack)
-  RDSInstance:
-    Type: AWS::RDS::DBInstance
+  # Optional: Aurora Serverless v2 database (only for AWS, not LocalStack).
+  # MinCapacity 0 lets the cluster pause when idle (~15s resume on first
+  # connection) so cold-start behavior is observable in every environment.
+  RDSCluster:
+    Type: AWS::RDS::DBCluster
     Condition: CreateRDS
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
     Properties:
-      DBInstanceIdentifier: classyear-db-prod
-      Engine: postgres
-      EngineVersion: '17.2'
-      MasterUsername: admin
+      DBClusterIdentifier: !Sub 'classyear-${Environment}'
+      Engine: aurora-postgresql
+      EngineVersion: '17.9'
+      DatabaseName: class_reunion
+      MasterUsername: classyear_admin
       ManageMasterUserPassword: true
-      AllocatedStorage: '20'
-      StorageType: gp3
-      DBInstanceClass: db.t4g.medium
-      VPCSecurityGroups:
+      StorageEncrypted: true
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: 0
+        MaxCapacity: !If [IsProduction, 8, 2]
+        SecondsUntilAutoPause: 300
+      VpcSecurityGroupIds:
         - !Ref DBSecurityGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
-      PubliclyAccessible: false
       BackupRetentionPeriod: !If [IsProduction, 30, 1]
+
+  RDSWriterInstance:
+    Type: AWS::RDS::DBInstance
+    Condition: CreateRDS
+    Properties:
+      DBInstanceIdentifier: !Sub 'classyear-${Environment}-writer'
+      DBClusterIdentifier: !Ref RDSCluster
+      DBInstanceClass: db.serverless
+      Engine: aurora-postgresql
+      PubliclyAccessible: false
 
   DBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -886,6 +924,57 @@ Resources:
       GroupDescription: Security group for Lambda functions
       VpcId: !Ref VPC
 
+  # VPC endpoints so in-VPC Lambdas can reach AWS services without a NAT gateway
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateRDS
+    Properties:
+      GroupDescription: Allow HTTPS from Lambda functions to VPC endpoints
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  SecretsManagerVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateRDS
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  SSMVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateRDS
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+
+  S3VPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateRDS
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Condition: CreateRDS
@@ -905,7 +994,7 @@ Outputs:
   DatabaseEndpoint:
     Condition: CreateRDS
     Description: RDS Database endpoint
-    Value: !GetAtt RDSInstance.Endpoint.Address
+    Value: !GetAtt RDSCluster.Endpoint.Address
     Export:
       Name: !Sub '${AWS::StackName}-DatabaseEndpoint'
 
