@@ -76,10 +76,21 @@ Parameters:
     Type: String
     Description: Route table of the private subnets, for the S3 gateway endpoint (required when UseLocalStack=false)
 
+  DomainName:
+    Type: String
+    Default: reunion-connect.org
+    Description: Custom domain for the frontend
+
+  HostedZoneId:
+    Type: String
+    Default: Z0466195259YGZ44DUBMY
+    Description: Route53 hosted zone ID for DomainName
+
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
   IsLocalStack: !Equals [!Ref UseLocalStack, 'true']
   CreateRDS: !Not [!Condition IsLocalStack]
+  DeployFrontend: !Not [!Condition IsLocalStack]
 
 Resources:
   # S3 Storage Bucket with public read restricted to /public/ prefix
@@ -984,6 +995,116 @@ Resources:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
 
+  # ---------- Frontend hosting: S3 + CloudFront + ACM + Route53 ----------
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Condition: DeployFrontend
+    Properties:
+      BucketName: !Sub "classyear-frontend-${AWS::AccountId}-${Environment}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: DeployFrontend
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+
+  FrontendCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: DeployFrontend
+    Properties:
+      DomainName: !Ref DomainName
+      SubjectAlternativeNames:
+        - !Sub "www.${DomainName}"
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+        - DomainName: !Sub "www.${DomainName}"
+          HostedZoneId: !Ref HostedZoneId
+
+  FrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Condition: DeployFrontend
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "classyear-frontend-oac-${Environment}"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: DeployFrontend
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "ClassYear frontend (${Environment})"
+        Aliases:
+          - !Ref DomainName
+          - !Sub "www.${DomainName}"
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: FrontendS3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontendOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # managed CachingOptimized
+          Compress: true
+        # SPA fallback: S3 returns 403/404 for client-side routes; serve index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+        ViewerCertificate:
+          AcmCertificateArn: !Ref FrontendCertificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+  FrontendDNSRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: DeployFrontend
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+        - Name: !Ref DomainName
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt FrontendDistribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2  # CloudFront's fixed hosted zone ID
+        - Name: !Sub "www.${DomainName}"
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt FrontendDistribution.DomainName
+            HostedZoneId: Z2FDTNDATAQYW2
+
 Outputs:
   APIEndpoint:
     Description: API Gateway endpoint URL
@@ -1003,6 +1124,21 @@ Outputs:
     Value: !Ref ReunionConnectPrivateFileBucket
     Export:
       Name: !Sub '${AWS::StackName}-FileBucket'
+
+  FrontendURL:
+    Condition: DeployFrontend
+    Description: Frontend website URL
+    Value: !Sub 'https://${DomainName}'
+
+  FrontendBucketName:
+    Condition: DeployFrontend
+    Description: S3 bucket holding the built frontend
+    Value: !Ref FrontendBucket
+
+  FrontendDistributionId:
+    Condition: DeployFrontend
+    Description: CloudFront distribution ID (for cache invalidation)
+    Value: !Ref FrontendDistribution
 
   SAMLocalCommand:
     Description: Command to run SAM local server
