@@ -251,13 +251,17 @@ export const forgotPasswordHandler = async (event: APIGatewayProxyEvent): Promis
 export const resetPasswordHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     await dbReady;
-    const { token, newPassword } = JSON.parse(event.body || '{}');
+    const { token, password, confirmPassword } = JSON.parse(event.body || '{}');
 
-    if (!token || !newPassword) {
-      return errorResponse(400, 'Token and new password are required.');
+    if (!token || !password || !confirmPassword) {
+      return errorResponse(400, 'Token, password, and password confirmation are required.');
     }
 
-    if (newPassword.length < 6) {
+    if (password !== confirmPassword) {
+      return errorResponse(400, 'Passwords do not match.');
+    }
+
+    if (password.length < 6) {
       return errorResponse(400, 'Password must be at least 6 characters long.');
     }
 
@@ -275,7 +279,7 @@ export const resetPasswordHandler = async (event: APIGatewayProxyEvent): Promise
     }
 
     const userId = tokenResult.rows[0].user_id;
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Update user password
     await query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, userId]);
