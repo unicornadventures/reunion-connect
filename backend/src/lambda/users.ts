@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -19,6 +20,9 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId } = event.pathParameters || {};
 
@@ -70,12 +74,19 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
  */
 export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId } = event.pathParameters || {};
     const { first_name, last_name, nickname, former_first_name, former_last_name, bio, email } = JSON.parse(event.body || '{}');
 
     if (!userId) {
       return errorResponse(400, 'User ID required.');
+    }
+
+    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only edit your own profile.');
     }
 
     // Update email if provided
@@ -145,6 +156,9 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const getUserClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId } = event.pathParameters || {};
 
@@ -178,6 +192,9 @@ export const getUserClassHandler = async (event: APIGatewayProxyEvent): Promise<
  */
 export const listUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const page = parseInt(event.queryStringParameters?.page || '1', 10);
     const pageSize = parseInt(event.queryStringParameters?.pageSize || '20', 10);

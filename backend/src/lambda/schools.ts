@@ -2,6 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
@@ -35,6 +36,9 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listSchoolsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const result = await query(`
       SELECT id, name, location, created_at
@@ -54,6 +58,9 @@ export const listSchoolsHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getSchoolHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { schoolId } = event.pathParameters || {};
 
@@ -79,7 +86,12 @@ export const getSchoolHandler = async (event: APIGatewayProxyEvent): Promise<API
  */
 export const createSchoolHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { name, location } = JSON.parse(event.body || '{}');
 
     if (!name) {
@@ -121,7 +133,12 @@ export const deleteSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
     };
   }
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { schoolId } = event.pathParameters || {};
 
     if (!schoolId) {

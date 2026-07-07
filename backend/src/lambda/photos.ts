@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -25,11 +26,18 @@ const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
  */
 export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId, photoType } = event.pathParameters || {};
 
     if (!userId || !photoType || !['then', 'now'].includes(photoType)) {
       return errorResponse(400, 'Valid userId and photoType (then/now) required.');
+    }
+
+    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only manage your own photos.');
     }
 
     // Verify user exists
@@ -64,11 +72,18 @@ export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const deletePhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId, photoType } = event.pathParameters || {};
 
     if (!userId || !photoType || !['then', 'now'].includes(photoType)) {
       return errorResponse(400, 'Valid userId and photoType (then/now) required.');
+    }
+
+    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only manage your own photos.');
     }
 
     // Get current photo URL
@@ -109,6 +124,9 @@ export const deletePhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { photoKey } = event.pathParameters || {};
 

@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -48,11 +49,15 @@ async function canModerateComments(userId: number, commenterId: number, targetUs
  */
 export const createCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId: targetUserId } = event.pathParameters || {};
-    const { commenterId, content } = JSON.parse(event.body || '{}');
+    const { content } = JSON.parse(event.body || '{}');
+    const commenterId = authUser.id;
 
-    if (!targetUserId || !commenterId || !content) {
+    if (!targetUserId || !content) {
       return errorResponse(400, 'Missing required fields.');
     }
 
@@ -83,6 +88,9 @@ export const createCommentHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId: targetUserId } = event.pathParameters || {};
 
@@ -110,15 +118,17 @@ export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { userId: targetUserId } = event.pathParameters || {};
-    const requesterId = event.queryStringParameters?.requesterId;
 
-    if (!targetUserId || !requesterId) {
-      return errorResponse(400, 'targetUserId and requesterId required.');
+    if (!targetUserId) {
+      return errorResponse(400, 'targetUserId required.');
     }
 
-    const requesterIdNum = parseInt(String(requesterId));
+    const requesterIdNum = authUser.id;
     const targetUserIdNum = parseInt(String(targetUserId));
 
     // Get all comments for this profile
@@ -151,9 +161,13 @@ export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Pr
  */
 export const updateCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { commentId } = event.pathParameters || {};
-    const { content, published, requesterId } = JSON.parse(event.body || '{}');
+    const { content, published } = JSON.parse(event.body || '{}');
+    const requesterId = authUser.id;
 
     if (!commentId) {
       return errorResponse(400, 'Comment ID required.');
@@ -233,6 +247,9 @@ export const updateCommentHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const deleteCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { commentId } = event.pathParameters || {};
 
@@ -240,11 +257,23 @@ export const deleteCommentHandler = async (event: APIGatewayProxyEvent): Promise
       return errorResponse(400, 'Comment ID required.');
     }
 
-    const result = await query('DELETE FROM comments WHERE id = $1 RETURNING id;', [commentId]);
+    const commentResult = await query(
+      'SELECT id, target_user_id, commenter_id FROM comments WHERE id = $1',
+      [commentId]
+    );
 
-    if (result.rows.length === 0) {
+    if (commentResult.rows.length === 0) {
       return errorResponse(404, 'Comment not found.');
     }
+
+    const comment = commentResult.rows[0];
+    const isAuthorized = authUser.id === comment.commenter_id ||
+      await canModerateComments(authUser.id, comment.commenter_id, comment.target_user_id);
+    if (!isAuthorized) {
+      return errorResponse(403, 'Not authorized to delete this comment.');
+    }
+
+    await query('DELETE FROM comments WHERE id = $1;', [commentId]);
 
     return response(200, { message: 'Comment deleted successfully.' });
   } catch (error: any) {

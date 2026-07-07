@@ -2,6 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
@@ -44,6 +45,9 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listAllClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const result = await query('SELECT id, year FROM classes ORDER BY year DESC;');
     return response(200, { classes: result.rows });
@@ -58,6 +62,9 @@ export const listAllClassesHandler = async (event: APIGatewayProxyEvent): Promis
  */
 export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { schoolId } = event.pathParameters || {};
 
@@ -116,6 +123,9 @@ export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { classId } = event.pathParameters || {};
 
@@ -150,7 +160,12 @@ export const getClassHandler = async (event: APIGatewayProxyEvent): Promise<APIG
 export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { schoolId } = event.pathParameters || {};
     const { year } = JSON.parse(event.body || '{}');
 
@@ -193,7 +208,12 @@ export const createClassHandler = async (event: APIGatewayProxyEvent): Promise<A
 export const bulkLinkClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { schoolId } = event.pathParameters || {};
     const { startYear } = JSON.parse(event.body || '{}');
     const currentYear = new Date().getFullYear();
@@ -242,7 +262,12 @@ export const bulkLinkClassesHandler = async (event: APIGatewayProxyEvent): Promi
 export const deleteClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { schoolId, classId } = event.pathParameters || {};
     const cascadeUsers = event.queryStringParameters?.cascadeUsers === 'true';
 
@@ -296,19 +321,23 @@ export const deleteClassHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { classId } = event.pathParameters || {};
-    const userId = event.queryStringParameters?.userId;
 
     if (!classId) return errorResponse(400, 'Class ID required.');
-    if (!userId) return errorResponse(400, 'User ID is required.');
 
-    const memberCheck = await query(
-      'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
-      [userId, classId]
-    );
-    if (memberCheck.rows.length === 0) {
-      return errorResponse(403, 'Access denied. You are not in this class.');
+    // Membership is checked against the token identity, not a client-supplied id
+    if (!authUser.is_admin) {
+      const memberCheck = await query(
+        'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
+        [authUser.id, classId]
+      );
+      if (memberCheck.rows.length === 0) {
+        return errorResponse(403, 'Access denied. You are not in this class.');
+      }
     }
 
     const result = await query(
@@ -343,6 +372,9 @@ export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Pro
  */
 export const getClassMembersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { classId } = event.pathParameters || {};
 

@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -19,6 +20,9 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { schoolId, classId } = event.pathParameters || {};
 
@@ -46,6 +50,9 @@ export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<AP
  */
 export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
     const { eventId } = event.pathParameters || {};
 
@@ -74,7 +81,12 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
  * Lambda handler for POST /api/admin/schools/{schoolId}/classes/{classId}/events
  */
 export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { schoolId, classId } = event.pathParameters || {};
     const { title, description, event_date, location } = JSON.parse(event.body || '{}');
@@ -114,7 +126,12 @@ export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { eventId } = event.pathParameters || {};
     const { title, description, event_date, location } = JSON.parse(event.body || '{}');
 
@@ -160,7 +177,12 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const deleteEventHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
     await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     const { eventId } = event.pathParameters || {};
 
     if (!eventId) {

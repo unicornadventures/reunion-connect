@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { query } from '../db.js';
 import { encodeRegistrationHash } from '../utils/registrationLink.js';
 import { dbReady } from './init.js';
+import { getAuthUser } from './authUtils.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
@@ -26,6 +27,10 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const getAdminUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const result = await query(`
       SELECT
@@ -53,6 +58,10 @@ export const getAdminUsersHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { userId } = event.pathParameters || {};
 
@@ -98,6 +107,10 @@ export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
  */
 export const getClassUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { classId } = event.pathParameters || {};
     const page = parseInt(event.queryStringParameters?.page || '1', 10);
@@ -152,6 +165,10 @@ export const getClassUsersHandler = async (event: APIGatewayProxyEvent): Promise
  */
 export const updateUserClassAdminHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { userId } = event.pathParameters || {};
     const { is_class_admin } = JSON.parse(event.body || '{}');
@@ -187,6 +204,10 @@ export const updateUserClassAdminHandler = async (event: APIGatewayProxyEvent): 
 export const createUserHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return response(200, {});
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { schoolId, classId } = event.pathParameters || {};
     const { email, original_first_name, original_last_name, first_name, last_name, is_deceased } =
@@ -238,6 +259,10 @@ export const createUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
 export const importUsersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   if (event.httpMethod === 'OPTIONS') return response(200, {});
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { schoolId, classId } = event.pathParameters || {};
     const { users } = JSON.parse(event.body || '{}');
@@ -309,6 +334,10 @@ export const importUsersHandler = async (event: APIGatewayProxyEvent): Promise<A
  */
 export const createRegistrationLinkHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
     await dbReady;
     const { classId, schoolId } = JSON.parse(event.body || '{}');
 
