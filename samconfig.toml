@@ -16,7 +16,7 @@ parameter_overrides = "Environment=dev UseLocalStack=true DBPassword=testpass JW
 [default.deploy.parameters]
 stack_name = "classyear-serverless"
 s3_prefix = "classyear-serverless"
-confirm_changeset = true
+confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "Environment=\"dev\" FrontendURL=\"https://reunion-connect.org\" UseLocalStack=\"false\" VPC=\"vpc-021940e171925bd53\" PrivateSubnet1=\"subnet-0dfdb663652cba578\" PrivateSubnet2=\"subnet-08320caa36be4fa6c\" PrivateRouteTable=\"rtb-06b3ba09c86210f60\""
 resolve_s3 = true

@@ -144,6 +144,53 @@ router.put('/users/:userId', async (req, res) => {
   }
 });
 
+// PUT /api/admin/users/:userId/move-class
+router.put('/users/:userId/move-class', async (req, res) => {
+  const { userId } = req.params;
+  const { class_id } = req.body;
+
+  if (!class_id) {
+    return res.status(400).json({ error: 'class_id is required.' });
+  }
+
+  const userIdNum = parseInt(userId);
+  const classIdNum = parseInt(class_id);
+
+  try {
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userIdNum]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [classIdNum]);
+    if (classCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Class not found.' });
+    }
+
+    const currentAssignment = await query(
+      'SELECT class_id FROM class_user WHERE user_id = $1',
+      [userIdNum]
+    );
+    if (currentAssignment.rows.length > 0 && currentAssignment.rows[0].class_id === classIdNum) {
+      return res.status(400).json({ error: 'User is already in that class.' });
+    }
+
+    await query('BEGIN');
+    await query('DELETE FROM class_user WHERE user_id = $1', [userIdNum]);
+    await query(
+      'INSERT INTO class_user (class_id, user_id) VALUES ($1, $2)',
+      [classIdNum, userIdNum]
+    );
+    await query('COMMIT');
+
+    res.status(200).json({ message: 'User moved to new class successfully.' });
+  } catch (error) {
+    await query('ROLLBACK');
+    console.error('Move User Class Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // POST /api/admin/registration-links
 router.post('/registration-links', async (req, res) => {
   const { classId, schoolId } = req.body;

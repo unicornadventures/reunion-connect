@@ -121,6 +121,9 @@ export const adminAPI = {
   deleteUser: (userId: number) =>
     api.delete(`/admin/users/${userId}`),
 
+  moveUserClass: (userId: number, classId: number) =>
+    api.put(`/admin/users/${userId}/move-class`, { class_id: classId }),
+
   createPasswordLink: (userId: number) =>
     api.post<{ passwordSetupUrl: string; expiresAt: string }>(`/admin/users/${userId}/password-link`),
 };

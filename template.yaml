@@ -507,6 +507,22 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  MoveUserClassFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-move-user-class-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/admin.moveUserClassHandler
+      Events:
+        PutMoveUserClass:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/users/{userId}/move-class
+            Method: PUT
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
   UpdateProfileFunction:
     Type: AWS::Serverless::Function
     Properties:

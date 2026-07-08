@@ -39,7 +39,7 @@ export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGate
     );
 
     const user = userResult.rows[0];
-    if (!user) {
+    if (!user || !user.password) {
       return errorResponse(401, 'Invalid credentials.');
     }
 

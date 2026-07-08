@@ -229,11 +229,13 @@ export const createUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
       }
     }
 
-    const tempPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+    const password = resolvedEmail
+      ? await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10)
+      : null;
 
     const userResult = await query(
       'INSERT INTO users (email, password, is_deceased) VALUES ($1, $2, $3) RETURNING id, email, is_deceased',
-      [resolvedEmail, tempPassword, is_deceased ?? false]
+      [resolvedEmail, password, is_deceased ?? false]
     );
     const user = userResult.rows[0];
 
@@ -299,11 +301,13 @@ export const importUsersHandler = async (event: APIGatewayProxyEvent): Promise<A
           }
         }
 
-        const tempPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+        const password = resolvedEmail
+          ? await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10)
+          : null;
 
         const userResult = await query(
           'INSERT INTO users (email, password, is_deceased) VALUES ($1, $2, $3) RETURNING id',
-          [resolvedEmail, tempPassword, users[i].is_deceased ?? false]
+          [resolvedEmail, password, users[i].is_deceased ?? false]
         );
 
         await query(
@@ -417,6 +421,50 @@ export const createPasswordLinkHandler = async (event: APIGatewayProxyEvent): Pr
     return response(200, { passwordSetupUrl, expiresAt });
   } catch (error: any) {
     console.error('Create password link handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for PUT /api/admin/users/{userId}/move-class
+ */
+export const moveUserClassHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
+    await dbReady;
+    const { userId } = event.pathParameters || {};
+    if (!userId) return errorResponse(400, 'User ID required.');
+
+    const body = event.body ? JSON.parse(event.body) : {};
+    const { class_id } = body;
+    if (!class_id) return errorResponse(400, 'class_id is required.');
+
+    const userIdNum = parseInt(userId);
+    const classIdNum = parseInt(class_id);
+
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userIdNum]);
+    if (userCheck.rows.length === 0) return errorResponse(404, 'User not found.');
+
+    const classCheck = await query('SELECT id FROM classes WHERE id = $1', [classIdNum]);
+    if (classCheck.rows.length === 0) return errorResponse(404, 'Class not found.');
+
+    const currentAssignment = await query('SELECT class_id FROM class_user WHERE user_id = $1', [userIdNum]);
+    if (currentAssignment.rows.length > 0 && currentAssignment.rows[0].class_id === classIdNum) {
+      return errorResponse(400, 'User is already in that class.');
+    }
+
+    await query('BEGIN');
+    await query('DELETE FROM class_user WHERE user_id = $1', [userIdNum]);
+    await query('INSERT INTO class_user (class_id, user_id) VALUES ($1, $2)', [classIdNum, userIdNum]);
+    await query('COMMIT');
+
+    return response(200, { message: 'User moved to new class successfully.' });
+  } catch (error: any) {
+    await query('ROLLBACK');
+    console.error('Move user class handler error:', error);
     return errorResponse(500, 'Internal server error.');
   }
 };
