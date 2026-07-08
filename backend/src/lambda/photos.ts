@@ -47,14 +47,24 @@ export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(403, 'You can only manage your own photos.');
     }
 
-    // Verify user exists
-    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
+    // Verify user exists and get their school/class for S3 path
+    const userCheck = await query(
+      `SELECT u.id, cu.school_id, cu.class_id
+       FROM users u
+       LEFT JOIN class_user cu ON u.id = cu.user_id
+       WHERE u.id = $1
+       LIMIT 1`,
+      [userId]
+    );
     if (userCheck.rows.length === 0) {
       return errorResponse(404, 'User not found.');
     }
 
-    // Generate presigned URL for upload
-    const key = `photos/${userId}/${photoType}-${Date.now()}.jpg`;
+    const { school_id, class_id } = userCheck.rows[0];
+    const suffix = Date.now().toString(36);
+    const key = school_id && class_id
+      ? `${school_id}/${class_id}/${userId}-${photoType}-${suffix}.jpg`
+      : `photos/${userId}/${photoType}-${suffix}.jpg`;
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
