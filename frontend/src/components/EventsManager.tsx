@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { adminSchoolAPI, eventAPI } from '../apiClient';
+import { adminSchoolAPI, adminClassAPI, eventAPI } from '../apiClient';
 
 interface School {
   id: number;
@@ -50,7 +50,7 @@ const EventsManager: React.FC = () => {
 
   useEffect(() => {
     if (!selectedSchoolId) { setLinkedClasses([]); setSelectedClassId(null); return; }
-    adminSchoolAPI.getClasses(selectedSchoolId)
+    adminClassAPI.getClasses(selectedSchoolId)
       .then(r => {
         const classes = r.data.classes || [];
         setLinkedClasses(classes);
