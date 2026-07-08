@@ -280,6 +280,8 @@ Resources:
             Method: GET
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - S3ReadPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
 
   # Comment Routes
   CreateCommentFunction:
@@ -518,6 +520,8 @@ Resources:
             Method: PUT
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - S3ReadPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
 
   GetUserClassFunction:
     Type: AWS::Serverless::Function
@@ -766,6 +770,8 @@ Resources:
             Method: GET
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - S3ReadPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
 
   ListEventsFunction:
     Type: AWS::Serverless::Function
