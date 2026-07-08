@@ -412,6 +412,8 @@ Resources:
             Method: DELETE
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - S3CrudPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
 
   GetClassUsersFunction:
     Type: AWS::Serverless::Function
@@ -624,6 +626,8 @@ Resources:
             Method: OPTIONS
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - S3CrudPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
 
   ListAllClassesFunction:
     Type: AWS::Serverless::Function
@@ -738,6 +742,8 @@ Resources:
             Method: OPTIONS
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - S3CrudPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
 
   GetClassMembersFunction:
     Type: AWS::Serverless::Function
