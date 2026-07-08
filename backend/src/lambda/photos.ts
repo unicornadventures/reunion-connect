@@ -63,8 +63,8 @@ export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
     const { school_id, class_id } = userCheck.rows[0];
     const suffix = Date.now().toString(36);
     const key = school_id && class_id
-      ? `${school_id}/${class_id}/${userId}-${photoType}-${suffix}.jpg`
-      : `photos/${userId}/${photoType}-${suffix}.jpg`;
+      ? `photos/${school_id}/${class_id}/${userId}-${photoType}-${suffix}.jpg`
+      : `photos/other/${userId}-${photoType}-${suffix}.jpg`;
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
