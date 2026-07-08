@@ -23,6 +23,16 @@ export const authAPI = {
 
   getRegistrationLink: (hash: string) =>
     api.get(`/auth/registration-link/${hash}`),
+
+  claimSearch: (first_name: string, last_name: string) =>
+    api.post<{ matches: { id: number; first_name: string; last_name: string; maiden_name: string | null; class_year: number | null; school_name: string | null }[] }>(
+      '/auth/claim-search', { first_name, last_name }
+    ),
+
+  claimAccount: (user_id: number, email: string, password: string) =>
+    api.post<{ token: string; user: { user_id: number; email: string; is_admin: boolean; is_class_admin: boolean; profile: { first_name: string; last_name: string } | null } }>(
+      '/auth/claim-account', { user_id, email, password }
+    ),
 };
 
 // User endpoints

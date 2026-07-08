@@ -365,4 +365,79 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
+// POST /api/auth/claim-search
+router.post('/claim-search', async (req, res) => {
+  const { first_name, last_name } = req.body;
+  if (!first_name?.trim() || !last_name?.trim()) {
+    return res.status(400).json({ error: 'first_name and last_name are required.' });
+  }
+  try {
+    const result = await query(`
+      SELECT u.id, p.first_name, p.last_name, p.former_last_name AS maiden_name,
+             c.year AS class_year, s.name AS school_name
+      FROM users u
+      JOIN profiles p ON u.id = p.user_id
+      LEFT JOIN class_user cu ON u.id = cu.user_id
+      LEFT JOIN classes c ON cu.class_id = c.id
+      LEFT JOIN class_school cs ON c.id = cs.class_id
+      LEFT JOIN schools s ON cs.school_id = s.id
+      WHERE u.email IS NULL
+        AND p.first_name ILIKE $1
+        AND (p.last_name ILIKE $2 OR p.former_last_name ILIKE $2)
+      ORDER BY s.name, c.year
+    `, [first_name.trim(), last_name.trim()]);
+    res.json({ matches: result.rows });
+  } catch (error) {
+    console.error('Claim search error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// POST /api/auth/claim-account
+router.post('/claim-account', async (req, res) => {
+  const { user_id, email, password } = req.body;
+  if (!user_id || !email || !password) {
+    return res.status(400).json({ error: 'user_id, email, and password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  }
+  const normalizedEmail = email.toLowerCase().trim();
+  try {
+    const userResult = await query(
+      'SELECT id FROM users WHERE id = $1 AND email IS NULL', [user_id]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Account not found or already registered.' });
+    }
+    const emailCheck = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+    if (emailCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'This email is already registered.' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const updated = await query(
+      'UPDATE users SET email = $1, password = $2 WHERE id = $3 RETURNING id, email, is_admin, is_class_admin',
+      [normalizedEmail, hashedPassword, user_id]
+    );
+    const user = updated.rows[0];
+    const profileResult = await query(
+      'SELECT first_name, last_name FROM profiles WHERE user_id = $1', [user.id]
+    );
+    const profile = profileResult.rows[0] || null;
+    const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+    const token = jwt.sign(
+      { id: user.id, email: user.email, is_admin: user.is_admin, is_class_admin: user.is_class_admin },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    res.json({
+      token,
+      user: { user_id: user.id, email: user.email, is_admin: user.is_admin, is_class_admin: user.is_class_admin, profile }
+    });
+  } catch (error) {
+    console.error('Claim account error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 export { router as authRoutes };

@@ -247,6 +247,50 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  ClaimSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-claim-search-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.claimSearchHandler
+      Events:
+        PostClaimSearch:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/claim-search
+            Method: POST
+        OptionsClaimSearch:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/claim-search
+            Method: OPTIONS
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
+  ClaimAccountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-claim-account-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/auth.claimAccountHandler
+      Events:
+        PostClaimAccount:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/claim-account
+            Method: POST
+        OptionsClaimAccount:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/auth/claim-account
+            Method: OPTIONS
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
   # Health Check
   PulseFunction:
     Type: AWS::Serverless::Function

@@ -21,6 +21,7 @@ import DirectoryPage from './DirectoryPage';
 import UserCommentsPage from './UserCommentsPage';
 import EventsPage from './EventsPage';
 import EventsManager from './EventsManager';
+import JoinPage from './JoinPage';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();
@@ -33,6 +34,7 @@ const AppRouter: React.FC = () => {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/join" element={<JoinPage />} />
         <Route path="/register" element={<Registration />} />
         <Route path="/register/:hash" element={<RegisterWithLink />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

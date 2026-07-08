@@ -294,3 +294,88 @@ export const resetPasswordHandler = async (event: APIGatewayProxyEvent): Promise
     return errorResponse(500, 'Internal server error.');
   }
 };
+
+/**
+ * Lambda handler for POST /api/auth/claim-search
+ * Searches for unregistered (email-less) users by first + last/maiden name.
+ */
+export const claimSearchHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
+  try {
+    await dbReady;
+    const { first_name, last_name } = JSON.parse(event.body || '{}');
+    if (!first_name?.trim() || !last_name?.trim()) {
+      return errorResponse(400, 'first_name and last_name are required.');
+    }
+    const result = await query(`
+      SELECT u.id, p.first_name, p.last_name, p.former_last_name AS maiden_name,
+             c.year AS class_year, s.name AS school_name
+      FROM users u
+      JOIN profiles p ON u.id = p.user_id
+      LEFT JOIN class_user cu ON u.id = cu.user_id
+      LEFT JOIN classes c ON cu.class_id = c.id
+      LEFT JOIN class_school cs ON c.id = cs.class_id
+      LEFT JOIN schools s ON cs.school_id = s.id
+      WHERE u.email IS NULL
+        AND p.first_name ILIKE $1
+        AND (p.last_name ILIKE $2 OR p.former_last_name ILIKE $2)
+      ORDER BY s.name, c.year
+    `, [first_name.trim(), last_name.trim()]);
+    return response(200, { matches: result.rows });
+  } catch (error: any) {
+    console.error('Claim search handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for POST /api/auth/claim-account
+ * Sets email + password on an unregistered user, returns a JWT.
+ */
+export const claimAccountHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
+  try {
+    await dbReady;
+    const { user_id, email, password } = JSON.parse(event.body || '{}');
+    if (!user_id || !email || !password) {
+      return errorResponse(400, 'user_id, email, and password are required.');
+    }
+    if (password.length < 6) {
+      return errorResponse(400, 'Password must be at least 6 characters.');
+    }
+    const normalizedEmail = email.toLowerCase().trim();
+    const userResult = await query(
+      'SELECT id FROM users WHERE id = $1 AND email IS NULL', [user_id]
+    );
+    if (userResult.rows.length === 0) {
+      return errorResponse(404, 'Account not found or already registered.');
+    }
+    const emailCheck = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
+    if (emailCheck.rows.length > 0) {
+      return errorResponse(409, 'This email is already registered.');
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const updated = await query(
+      'UPDATE users SET email = $1, password = $2 WHERE id = $3 RETURNING id, email, is_admin, is_class_admin',
+      [normalizedEmail, hashedPassword, user_id]
+    );
+    const user = updated.rows[0];
+    const profileResult = await query(
+      'SELECT first_name, last_name FROM profiles WHERE user_id = $1', [user.id]
+    );
+    const profile = profileResult.rows[0] || null;
+    const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+    const token = jwt.sign(
+      { id: user.id, email: user.email, is_admin: user.is_admin, is_class_admin: user.is_class_admin },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    return response(200, {
+      token,
+      user: { user_id: user.id, email: user.email, is_admin: user.is_admin, is_class_admin: user.is_class_admin, profile }
+    });
+  } catch (error: any) {
+    console.error('Claim account handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
