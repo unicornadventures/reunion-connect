@@ -2,6 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
 import { getAuthUser } from './authUtils.js';
+import { resolvePhotoUrl } from './photos.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -45,6 +46,10 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 
     const row = userResult.rows[0];
+    const [thenUrl, nowUrl] = await Promise.all([
+      resolvePhotoUrl(row.then_photo_url),
+      resolvePhotoUrl(row.now_photo_url)
+    ]);
     return response(200, {
       user: {
         user_id: row.id,
@@ -59,8 +64,8 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
         former_first_name: row.former_first_name,
         former_last_name: row.former_last_name,
         bio: row.bio,
-        then_photo_url: row.then_photo_url,
-        now_photo_url: row.now_photo_url
+        then_photo_url: thenUrl,
+        now_photo_url: nowUrl
       }
     });
   } catch (error: any) {
@@ -127,6 +132,10 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
     }
 
     const row = result.rows[0];
+    const [thenUrl, nowUrl] = await Promise.all([
+      resolvePhotoUrl(row.then_photo_url),
+      resolvePhotoUrl(row.now_photo_url)
+    ]);
     return response(200, {
       user: {
         user_id: row.id,
@@ -141,8 +150,8 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
         former_first_name: row.former_first_name,
         former_last_name: row.former_last_name,
         bio: row.bio,
-        then_photo_url: row.then_photo_url,
-        now_photo_url: row.now_photo_url
+        then_photo_url: thenUrl,
+        now_photo_url: nowUrl
       }
     });
   } catch (error: any) {

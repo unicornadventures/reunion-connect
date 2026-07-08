@@ -20,7 +20,7 @@ confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "Environment=\"dev\" FrontendURL=\"https://reunion-connect.org\" UseLocalStack=\"false\" VPC=\"vpc-021940e171925bd53\" PrivateSubnet1=\"subnet-0dfdb663652cba578\" PrivateSubnet2=\"subnet-08320caa36be4fa6c\" PrivateRouteTable=\"rtb-06b3ba09c86210f60\""
 resolve_s3 = true
-disable_rollback = true
+disable_rollback = false
 image_repositories = []
 
 [default.global.parameters]

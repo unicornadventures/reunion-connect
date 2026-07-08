@@ -79,12 +79,20 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     if (!file || !isOwnProfile) return;
     setUploadingPhoto(photoType);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await api.post(`/users/${profileUserId}/photo/${photoType}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // Step 1: get presigned upload URL from our API
+      const response = await api.post(`/users/${profileUserId}/photo/${photoType}`);
+      const { presignedUrl } = response.data;
+
+      // Step 2: PUT the file directly to S3 using the presigned URL
+      const putRes = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': 'image/jpeg' }
       });
-      setData(prev => prev ? { ...prev, profile: response.data.profile } : null);
+      if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
+
+      // Step 3: refresh profile to reflect the new photo key
+      await fetchProfile();
       setError(null);
     } catch (err: any) {
       setError(`Photo upload failed: ${err.response?.data?.error || err.message}`);

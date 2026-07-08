@@ -103,6 +103,16 @@ Resources:
         BlockPublicPolicy: false
         IgnorePublicAcls: true
         RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - !Ref FrontendURL
+            AllowedMethods:
+              - PUT
+              - GET
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3600
 
   PublicDirectoryReadPolicy:
     Type: AWS::S3::BucketPolicy
@@ -890,7 +900,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/photos/{photoKey}/presigned
+            Path: /api/photos/presigned
             Method: GET
       Policies:
         - S3ReadPolicy:

@@ -18,7 +18,14 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
   response(statusCode, { error: message });
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
+const bucketName = process.env.S3_BUCKET_NAME || 'classyear-dev';
+
+/** Convert an S3 key stored in the DB to a short-lived presigned GET URL, or return null. */
+export async function resolvePhotoUrl(key: string | null | undefined): Promise<string | null> {
+  if (!key) return null;
+  const command = new GetObjectCommand({ Bucket: bucketName, Key: key });
+  return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+}
 
 /**
  * Lambda handler for POST /api/users/{userId}/photo/{photoType}
@@ -128,7 +135,7 @@ export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): 
     if (!authUser) return errorResponse(401, 'Authentication required.');
 
     await dbReady;
-    const { photoKey } = event.pathParameters || {};
+    const photoKey = event.queryStringParameters?.key;
 
     if (!photoKey) {
       return errorResponse(400, 'Photo key required.');

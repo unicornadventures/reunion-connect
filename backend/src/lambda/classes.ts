@@ -3,9 +3,10 @@ import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
 import { getAuthUser } from './authUtils.js';
+import { resolvePhotoUrl } from './photos.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
+const bucketName = process.env.S3_BUCKET_NAME || 'classyear-dev';
 
 async function deletePhotosFromS3(keys: (string | null)[]) {
   for (const key of keys) {
@@ -360,7 +361,13 @@ export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Pro
       [classId]
     );
 
-    return response(200, { users: result.rows });
+    const users = await Promise.all(result.rows.map(async (row) => ({
+      ...row,
+      now_photo_url: await resolvePhotoUrl(row.now_photo_url),
+      then_photo_url: await resolvePhotoUrl(row.then_photo_url)
+    })));
+
+    return response(200, { users });
   } catch (error: any) {
     console.error('Get class directory handler error:', error);
     return errorResponse(500, 'Internal server error.');
