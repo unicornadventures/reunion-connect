@@ -2,7 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
 import { getAuthUser } from './authUtils.js';
-import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
@@ -19,6 +19,26 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.S3_BUCKET_NAME || 'classyear-dev';
+
+/** Delete all S3 objects whose key begins with the given prefix (handles pagination). */
+export async function deleteS3Folder(prefix: string): Promise<void> {
+  let continuationToken: string | undefined;
+  do {
+    const listResult = await s3Client.send(new ListObjectsV2Command({
+      Bucket: bucketName,
+      Prefix: prefix,
+      ContinuationToken: continuationToken
+    }));
+    const objects = listResult.Contents ?? [];
+    if (objects.length > 0) {
+      await s3Client.send(new DeleteObjectsCommand({
+        Bucket: bucketName,
+        Delete: { Objects: objects.map(obj => ({ Key: obj.Key! })), Quiet: true }
+      }));
+    }
+    continuationToken = listResult.IsTruncated ? listResult.NextContinuationToken : undefined;
+  } while (continuationToken);
+}
 
 /** Convert an S3 key stored in the DB to a short-lived presigned GET URL, or return null. */
 export async function resolvePhotoUrl(key: string | null | undefined): Promise<string | null> {

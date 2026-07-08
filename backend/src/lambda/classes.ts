@@ -1,24 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
 import { getAuthUser } from './authUtils.js';
-import { resolvePhotoUrl } from './photos.js';
-
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const bucketName = process.env.S3_BUCKET_NAME || 'classyear-dev';
-
-async function deletePhotosFromS3(keys: (string | null)[]) {
-  for (const key of keys) {
-    if (key) {
-      try {
-        await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
-      } catch (err) {
-        console.error(`Failed to delete S3 object ${key}:`, err);
-      }
-    }
-  }
-}
+import { resolvePhotoUrl, deleteS3Folder } from './photos.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -285,17 +269,14 @@ export const deleteClassHandler = async (event: APIGatewayProxyEvent): Promise<A
     }
 
     if (cascadeUsers) {
+      // Delete all photos for this class in one S3 prefix sweep
+      await deleteS3Folder(`photos/${schoolId}/${classId}/`);
+
       const usersResult = await query(
-        `SELECT u.id, p.then_photo_url, p.now_photo_url
-         FROM class_user cu
-         JOIN users u ON cu.user_id = u.id
-         LEFT JOIN profiles p ON u.id = p.user_id
+        `SELECT u.id FROM class_user cu JOIN users u ON cu.user_id = u.id
          WHERE cu.class_id = $1 AND cu.school_id = $2`,
         [classId, schoolId]
       );
-
-      const photoKeys = usersResult.rows.flatMap(u => [u.then_photo_url, u.now_photo_url]);
-      await deletePhotosFromS3(photoKeys);
 
       if (usersResult.rows.length > 0) {
         const userIds = usersResult.rows.map(u => u.id);

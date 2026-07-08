@@ -8,7 +8,7 @@ import { dbReady } from './init.js';
 import { getAuthUser } from './authUtils.js';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const bucketName = process.env.AWS_S3_BUCKET || 'classyear-dev';
+const bucketName = process.env.S3_BUCKET_NAME || 'classyear-dev';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
