@@ -5,14 +5,19 @@ import { getAuthUser } from './authUtils.js';
 import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*'
-  },
+  headers: { 'Content-Type': 'application/json', ...corsHeaders },
   body: JSON.stringify(body)
 });
+
+const optionsResponse = (): APIGatewayProxyResult => ({ statusCode: 200, headers: corsHeaders, body: '' });
 
 const errorResponse = (statusCode: number, message: string): APIGatewayProxyResult =>
   response(statusCode, { error: message });
@@ -190,6 +195,7 @@ export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): 
  * Generate presigned URL for gallery photo upload and store the key.
  */
 export const uploadGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
@@ -273,6 +279,7 @@ export const listGalleryPhotosHandler = async (event: APIGatewayProxyEvent): Pro
  * Lambda handler for DELETE /api/users/{userId}/gallery/{photoId}
  */
 export const deleteGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return optionsResponse();
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
