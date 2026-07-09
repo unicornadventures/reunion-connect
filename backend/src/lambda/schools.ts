@@ -22,9 +22,6 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
  */
 export const listSchoolsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const authUser = getAuthUser(event);
-    if (!authUser) return errorResponse(401, 'Authentication required.');
-
     await dbReady;
     const result = await query(`
       SELECT id, name, location, created_at

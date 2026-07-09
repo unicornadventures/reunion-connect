@@ -47,9 +47,6 @@ export const listAllClassesHandler = async (event: APIGatewayProxyEvent): Promis
  */
 export const listClassesHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
-    const authUser = getAuthUser(event);
-    if (!authUser) return errorResponse(401, 'Authentication required.');
-
     await dbReady;
     const { schoolId } = event.pathParameters || {};
 

@@ -317,6 +317,7 @@ export const claimSearchHandler = async (event: APIGatewayProxyEvent): Promise<A
       LEFT JOIN class_school cs ON c.id = cs.class_id
       LEFT JOIN schools s ON cs.school_id = s.id
       WHERE u.email IS NULL
+        AND u.is_deceased = FALSE
         AND cu.class_id = $3
         AND p.first_name ILIKE $1
         AND (p.last_name ILIKE $2 OR p.former_last_name ILIKE $2)
