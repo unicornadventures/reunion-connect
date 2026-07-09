@@ -24,9 +24,9 @@ export const authAPI = {
   getRegistrationLink: (hash: string) =>
     api.get(`/auth/registration-link/${hash}`),
 
-  claimSearch: (first_name: string, last_name: string) =>
+  claimSearch: (first_name: string, last_name: string, class_id: number) =>
     api.post<{ matches: { id: number; first_name: string; last_name: string; maiden_name: string | null; class_year: number | null; school_name: string | null }[] }>(
-      '/auth/claim-search', { first_name, last_name }
+      '/auth/claim-search', { first_name, last_name, class_id }
     ),
 
   claimAccount: (user_id: number, email: string, password: string) =>

@@ -367,9 +367,9 @@ router.post('/verify-email', async (req, res) => {
 
 // POST /api/auth/claim-search
 router.post('/claim-search', async (req, res) => {
-  const { first_name, last_name } = req.body;
-  if (!first_name?.trim() || !last_name?.trim()) {
-    return res.status(400).json({ error: 'first_name and last_name are required.' });
+  const { first_name, last_name, class_id } = req.body;
+  if (!first_name?.trim() || !last_name?.trim() || !class_id) {
+    return res.status(400).json({ error: 'first_name, last_name, and class_id are required.' });
   }
   try {
     const result = await query(`
@@ -377,15 +377,16 @@ router.post('/claim-search', async (req, res) => {
              c.year AS class_year, s.name AS school_name
       FROM users u
       JOIN profiles p ON u.id = p.user_id
-      LEFT JOIN class_user cu ON u.id = cu.user_id
-      LEFT JOIN classes c ON cu.class_id = c.id
+      JOIN class_user cu ON u.id = cu.user_id
+      JOIN classes c ON cu.class_id = c.id
       LEFT JOIN class_school cs ON c.id = cs.class_id
       LEFT JOIN schools s ON cs.school_id = s.id
       WHERE u.email IS NULL
+        AND cu.class_id = $3
         AND p.first_name ILIKE $1
         AND (p.last_name ILIKE $2 OR p.former_last_name ILIKE $2)
-      ORDER BY s.name, c.year
-    `, [first_name.trim(), last_name.trim()]);
+      ORDER BY p.last_name, p.first_name
+    `, [first_name.trim(), last_name.trim(), class_id]);
     res.json({ matches: result.rows });
   } catch (error) {
     console.error('Claim search error:', error);

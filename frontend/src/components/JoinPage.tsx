@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { authAPI } from '../apiClient';
+import api from '../api';
 import { CurrentUser } from '../types';
 
+interface School { id: number; name: string; }
+interface Class  { id: number; year: number; }
 interface Match {
   id: number;
   first_name: string;
@@ -13,42 +16,79 @@ interface Match {
   school_name: string | null;
 }
 
+type Step = 'school' | 'search' | 'results' | 'claim';
+
 const inputClass = 'w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors';
 const labelClass = 'block text-sm font-semibold text-[#0E2240] mb-1.5';
+const selectClass = 'w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] bg-white transition-colors text-[#0E2240]';
 
 const JoinPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAppContext();
+  const [step, setStep] = useState<Step>('school');
 
-  const [step, setStep] = useState<'search' | 'results' | 'claim'>('search');
+  // Step 1: school + class
+  const [schools, setSchools] = useState<School[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
+  const [classesLoading, setClassesLoading] = useState(false);
 
-  // Step 1: search
+  // Step 2: name search
   const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [lastName, setLastName]   = useState('');
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
 
-  // Step 2: selected match
+  // Step 3: selected match
   const [selected, setSelected] = useState<Match | null>(null);
 
-  // Step 3: claim
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Step 4: claim
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [claiming, setClaiming] = useState(false);
-  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claiming, setClaiming]       = useState(false);
+  const [claimError, setClaimError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get('/schools')
+      .then(r => setSchools(r.data.schools || []))
+      .catch(() => {})
+      .finally(() => setSchoolsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSchoolId) { setClasses([]); setSelectedClassId(null); return; }
+    setClassesLoading(true);
+    api.get(`/schools/${selectedSchoolId}/classes`)
+      .then(r => setClasses(r.data.classes || []))
+      .catch(() => {})
+      .finally(() => setClassesLoading(false));
+  }, [selectedSchoolId]);
+
+  const selectedSchool = schools.find(s => s.id === selectedSchoolId);
+  const selectedClass  = classes.find(c => c.id === selectedClassId);
+
+  const handleSchoolNext = () => {
+    if (selectedSchoolId && selectedClassId) setStep('search');
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedClassId) return;
     setSearchError(null);
     setSearching(true);
     try {
-      const res = await authAPI.claimSearch(firstName.trim(), lastName.trim());
+      const res = await authAPI.claimSearch(firstName.trim(), lastName.trim(), selectedClassId);
       const found = res.data.matches;
       setMatches(found);
       if (found.length === 0) {
-        setSearchError('No unregistered record found matching that name. Please check your spelling or contact the administrator.');
+        setSearchError('No unregistered record found matching that name. Check your spelling or try your maiden name.');
+      } else if (found.length === 1) {
+        setSelected(found[0]);
+        setStep('claim');
       } else {
         setStep('results');
       }
@@ -68,14 +108,8 @@ const JoinPage: React.FC = () => {
     e.preventDefault();
     if (!selected) return;
     setClaimError(null);
-    if (password !== confirmPassword) {
-      setClaimError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 6) {
-      setClaimError('Password must be at least 6 characters.');
-      return;
-    }
+    if (password !== confirmPassword) { setClaimError('Passwords do not match.'); return; }
+    if (password.length < 6) { setClaimError('Password must be at least 6 characters.'); return; }
     setClaiming(true);
     try {
       const res = await authAPI.claimAccount(selected.id, email.trim(), password);
@@ -115,18 +149,68 @@ const JoinPage: React.FC = () => {
 
         <div className="w-full bg-white rounded-lg px-10 py-10 shadow-sm border border-[#E2E8F0]">
 
-          {/* Step 1: Search */}
+          {/* Step 1: School + class year */}
+          {step === 'school' && (
+            <>
+              <h2 className="text-xl font-semibold text-[#0E2240] mb-2">Get started</h2>
+              <p className="text-sm text-[#64748B] mb-7">Select your school and graduation year.</p>
+              <div className="space-y-5">
+                <div>
+                  <label className={labelClass}>School</label>
+                  {schoolsLoading ? (
+                    <div className="text-sm text-[#94A3B8]">Loading…</div>
+                  ) : (
+                    <select
+                      value={selectedSchoolId ?? ''}
+                      onChange={e => { setSelectedSchoolId(e.target.value ? parseInt(e.target.value) : null); setSelectedClassId(null); }}
+                      className={selectClass}
+                    >
+                      <option value="">— Select school —</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  )}
+                </div>
+                {selectedSchoolId && (
+                  <div>
+                    <label className={labelClass}>Graduation year</label>
+                    {classesLoading ? (
+                      <div className="text-sm text-[#94A3B8]">Loading…</div>
+                    ) : (
+                      <select
+                        value={selectedClassId ?? ''}
+                        onChange={e => setSelectedClassId(e.target.value ? parseInt(e.target.value) : null)}
+                        className={selectClass}
+                      >
+                        <option value="">— Select year —</option>
+                        {classes.map(c => <option key={c.id} value={c.id}>Class of {c.year}</option>)}
+                      </select>
+                    )}
+                  </div>
+                )}
+                <button
+                  onClick={handleSchoolNext}
+                  disabled={!selectedSchoolId || !selectedClassId}
+                  className={`w-full font-semibold py-3 rounded text-sm transition-opacity mt-1 ${!selectedSchoolId || !selectedClassId ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}
+                >
+                  Continue
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Step 2: Name search */}
           {step === 'search' && (
             <>
-              <h2 className="text-xl font-semibold text-[#0E2240] mb-2">Find your name</h2>
-              <p className="text-sm text-[#64748B] mb-7">
-                Enter the name you graduated under to find your record and create your account.
-              </p>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-[#0E2240]">Find your name</h2>
+                  <p className="text-xs text-[#94A3B8] mt-0.5">{selectedSchool?.name} · Class of {selectedClass?.year}</p>
+                </div>
+                <button onClick={() => setStep('school')} className="text-xs text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer">Change</button>
+              </div>
               <form onSubmit={handleSearch} className="space-y-5">
                 {searchError && (
-                  <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">
-                    {searchError}
-                  </div>
+                  <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">{searchError}</div>
                 )}
                 <div>
                   <label className={labelClass}>First name</label>
@@ -147,13 +231,11 @@ const JoinPage: React.FC = () => {
             </>
           )}
 
-          {/* Step 2: Results */}
+          {/* Step 3: Multiple results */}
           {step === 'results' && (
             <>
               <h2 className="text-xl font-semibold text-[#0E2240] mb-2">Is this you?</h2>
-              <p className="text-sm text-[#64748B] mb-6">
-                Select your name from the list below.
-              </p>
+              <p className="text-sm text-[#64748B] mb-6">Select your name from the list below.</p>
               <div className="space-y-2 mb-6">
                 {matches.map(m => (
                   <button key={m.id} onClick={() => handleSelect(m)}
@@ -162,11 +244,6 @@ const JoinPage: React.FC = () => {
                       {m.first_name} {m.last_name}
                       {m.maiden_name && <span className="font-normal text-[#64748B] ml-1">(née {m.maiden_name})</span>}
                     </div>
-                    {(m.school_name || m.class_year) && (
-                      <div className="text-xs text-[#94A3B8] mt-0.5">
-                        {m.school_name}{m.school_name && m.class_year ? ' · ' : ''}{m.class_year ? `Class of ${m.class_year}` : ''}
-                      </div>
-                    )}
                   </button>
                 ))}
               </div>
@@ -177,7 +254,7 @@ const JoinPage: React.FC = () => {
             </>
           )}
 
-          {/* Step 3: Claim */}
+          {/* Step 4: Claim */}
           {step === 'claim' && selected && (
             <>
               <div className="bg-[#F6F8FC] border border-[#E2E8F0] rounded-lg px-4 py-3 mb-6">
@@ -194,9 +271,7 @@ const JoinPage: React.FC = () => {
               </div>
               <form onSubmit={handleClaim} className="space-y-5">
                 {claimError && (
-                  <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">
-                    {claimError}
-                  </div>
+                  <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm">{claimError}</div>
                 )}
                 <div>
                   <label className={labelClass}>Email</label>
@@ -218,9 +293,9 @@ const JoinPage: React.FC = () => {
                   {claiming ? 'Creating account…' : 'Create my account'}
                 </button>
               </form>
-              <button onClick={() => setStep('results')}
+              <button onClick={() => setStep(matches.length > 1 ? 'results' : 'search')}
                 className="mt-4 text-sm text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer transition-colors">
-                ← Choose a different name
+                ← {matches.length > 1 ? 'Choose a different name' : 'Search again'}
               </button>
             </>
           )}

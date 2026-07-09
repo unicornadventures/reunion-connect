@@ -303,24 +303,25 @@ export const claimSearchHandler = async (event: APIGatewayProxyEvent): Promise<A
   if (event.httpMethod === 'OPTIONS') return response(200, {});
   try {
     await dbReady;
-    const { first_name, last_name } = JSON.parse(event.body || '{}');
-    if (!first_name?.trim() || !last_name?.trim()) {
-      return errorResponse(400, 'first_name and last_name are required.');
+    const { first_name, last_name, class_id } = JSON.parse(event.body || '{}');
+    if (!first_name?.trim() || !last_name?.trim() || !class_id) {
+      return errorResponse(400, 'first_name, last_name, and class_id are required.');
     }
     const result = await query(`
       SELECT u.id, p.first_name, p.last_name, p.former_last_name AS maiden_name,
              c.year AS class_year, s.name AS school_name
       FROM users u
       JOIN profiles p ON u.id = p.user_id
-      LEFT JOIN class_user cu ON u.id = cu.user_id
-      LEFT JOIN classes c ON cu.class_id = c.id
+      JOIN class_user cu ON u.id = cu.user_id
+      JOIN classes c ON cu.class_id = c.id
       LEFT JOIN class_school cs ON c.id = cs.class_id
       LEFT JOIN schools s ON cs.school_id = s.id
       WHERE u.email IS NULL
+        AND cu.class_id = $3
         AND p.first_name ILIKE $1
         AND (p.last_name ILIKE $2 OR p.former_last_name ILIKE $2)
-      ORDER BY s.name, c.year
-    `, [first_name.trim(), last_name.trim()]);
+      ORDER BY p.last_name, p.first_name
+    `, [first_name.trim(), last_name.trim(), class_id]);
     return response(200, { matches: result.rows });
   } catch (error: any) {
     console.error('Claim search handler error:', error);
