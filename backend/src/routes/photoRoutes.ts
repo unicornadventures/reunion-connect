@@ -107,4 +107,57 @@ router.put('/:userId/photo/:photoType', async (req, res) => {
   }
 });
 
+// GET /api/users/:userId/gallery
+router.get('/:userId/gallery', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await query(
+      'SELECT id, s3_key, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
+      [userId]
+    );
+    res.status(200).json({ photos: result.rows.map(r => ({ id: r.id, url: r.s3_key, created_at: r.created_at })) });
+  } catch (error) {
+    console.error('List gallery photos error:', error);
+    res.status(500).json({ error: 'Could not fetch gallery photos.' });
+  }
+});
+
+// POST /api/users/:userId/gallery - returns presigned URL (dev: returns placeholder URL)
+router.post('/:userId/gallery', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const countResult = await query('SELECT COUNT(*) FROM gallery_photos WHERE user_id = $1', [userId]);
+    if (parseInt(countResult.rows[0].count, 10) >= 9) {
+      return res.status(400).json({ error: 'Gallery limit of 9 photos reached.' });
+    }
+    const suffix = Date.now().toString(36);
+    const key = `photos/other/${userId}-gallery-${suffix}.jpg`;
+    const insertResult = await query(
+      'INSERT INTO gallery_photos (user_id, s3_key) VALUES ($1, $2) RETURNING id',
+      [userId, key]
+    );
+    const presignedUrl = await generatePresignedUrl(parseInt(userId), `gallery-${suffix}.jpg`);
+    res.status(200).json({ presignedUrl, key, id: insertResult.rows[0].id });
+  } catch (error) {
+    console.error('Upload gallery photo error:', error);
+    res.status(500).json({ error: 'Could not initiate gallery upload.' });
+  }
+});
+
+// DELETE /api/users/:userId/gallery/:photoId
+router.delete('/:userId/gallery/:photoId', async (req, res) => {
+  const { userId, photoId } = req.params;
+  try {
+    const result = await query(
+      'DELETE FROM gallery_photos WHERE id = $1 AND user_id = $2 RETURNING id',
+      [photoId, userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Photo not found.' });
+    res.status(200).json({ message: 'Gallery photo deleted.' });
+  } catch (error) {
+    console.error('Delete gallery photo error:', error);
+    res.status(500).json({ error: 'Could not delete gallery photo.' });
+  }
+});
+
 export { router as photoRoutes };

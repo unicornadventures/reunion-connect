@@ -99,10 +99,12 @@ export const getCommentsHandler = async (event: APIGatewayProxyEvent): Promise<A
     }
 
     const result = await query(
-      `SELECT id, target_user_id, commenter_id, content, published, created_at, updated_at
-       FROM comments
-       WHERE target_user_id = $1 AND published = true
-       ORDER BY created_at DESC;`,
+      `SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+              p.first_name AS commenter_first_name, p.last_name AS commenter_last_name
+       FROM comments c
+       LEFT JOIN profiles p ON c.commenter_id = p.user_id
+       WHERE c.target_user_id = $1 AND c.published = true
+       ORDER BY c.created_at DESC;`,
       [targetUserId]
     );
 
@@ -133,10 +135,12 @@ export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Pr
 
     // Get all comments for this profile
     const result = await query(
-      `SELECT id, target_user_id, commenter_id, content, published, created_at, updated_at
-       FROM comments
-       WHERE target_user_id = $1
-       ORDER BY published ASC, created_at DESC;`,
+      `SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+              p.first_name AS commenter_first_name, p.last_name AS commenter_last_name
+       FROM comments c
+       LEFT JOIN profiles p ON c.commenter_id = p.user_id
+       WHERE c.target_user_id = $1
+       ORDER BY c.published ASC, c.created_at DESC;`,
       [targetUserIdNum]
     );
 
@@ -213,6 +217,8 @@ export const updateCommentHandler = async (event: APIGatewayProxyEvent): Promise
     if (content !== undefined) {
       updateFields.push(`content = $${paramCount++}`);
       params.push(content);
+      // Edited comments go back to pending moderation
+      updateFields.push(`published = false`);
     }
 
     if (published !== undefined) {

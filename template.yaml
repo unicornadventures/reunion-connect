@@ -979,6 +979,72 @@ Resources:
             BucketName: !Ref ReunionConnectPrivateFileBucket
         - !Ref LambdaSecretsManagerPolicy
 
+  UploadGalleryPhotoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-upload-gallery-photo-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.uploadGalleryPhotoHandler
+      Events:
+        PostGalleryPhoto:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/gallery
+            Method: POST
+        PostGalleryPhotoOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/gallery
+            Method: OPTIONS
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
+        - !Ref LambdaSecretsManagerPolicy
+
+  ListGalleryPhotosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-gallery-photos-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.listGalleryPhotosHandler
+      Events:
+        GetGalleryPhotos:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/gallery
+            Method: GET
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
+        - !Ref LambdaSecretsManagerPolicy
+
+  DeleteGalleryPhotoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-delete-gallery-photo-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.deleteGalleryPhotoHandler
+      Events:
+        DeleteGalleryPhoto:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/gallery/{photoId}
+            Method: DELETE
+        DeleteGalleryPhotoOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/gallery/{photoId}
+            Method: OPTIONS
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
+        - !Ref LambdaSecretsManagerPolicy
+
   # Optional: Aurora Serverless v2 database (only for AWS, not LocalStack).
   # MinCapacity 0 lets the cluster pause when idle (~15s resume on first
   # connection) so cold-start behavior is observable in every environment.

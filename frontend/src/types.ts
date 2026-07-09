@@ -20,8 +20,15 @@ export interface Profile {
   bio: string | null;
   then_photo_url: string | null;
   now_photo_url: string | null;
+  tags?: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface GalleryPhoto {
+  id: number;
+  url: string | null;
+  created_at: string;
 }
 
 export interface AuthResponse {
@@ -56,8 +63,8 @@ export interface Comment {
   published: boolean;
   created_at: string;
   updated_at: string;
-  first_name?: string | null;
-  last_name?: string | null;
+  commenter_first_name?: string | null;
+  commenter_last_name?: string | null;
 }
 
 export interface CurrentUser extends User {

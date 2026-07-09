@@ -218,6 +218,29 @@ export async function initializeDatabase() {
     `);
     console.log('✅ Table "comments" ensured.');
 
+    // Tags on profiles (Feature 5)
+    await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tags jsonb DEFAULT '[]'::jsonb`);
+    await query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_indexes WHERE tablename = 'profiles' AND indexname = 'profiles_tags_gin'
+        ) THEN
+          CREATE INDEX profiles_tags_gin ON profiles USING gin(tags);
+        END IF;
+      END $$;
+    `);
+
+    // Gallery photos (Feature 2)
+    await query(`
+      CREATE TABLE IF NOT EXISTS gallery_photos (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+        s3_key VARCHAR(500) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Table "gallery_photos" ensured.');
+
     // 9. Password reset tokens
     await query(`
       CREATE TABLE IF NOT EXISTS password_reset_tokens (

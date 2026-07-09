@@ -48,6 +48,12 @@ const Header: React.FC = () => {
           >
             Events
           </Link>
+          <Link
+            to="/help"
+            className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
+          >
+            Help
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">

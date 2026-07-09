@@ -156,6 +156,18 @@ export const commentAPI = {
     api.delete(`/comments/${commentId}`),
 };
 
+// Gallery endpoints
+export const galleryAPI = {
+  list: (userId: number) =>
+    api.get(`/users/${userId}/gallery`),
+
+  upload: (userId: number) =>
+    api.post(`/users/${userId}/gallery`),
+
+  delete: (userId: number, photoId: number) =>
+    api.delete(`/users/${userId}/gallery/${photoId}`),
+};
+
 // Event endpoints
 export const eventAPI = {
   listEvents: (schoolId: number, classId: number) =>

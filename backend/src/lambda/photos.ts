@@ -184,3 +184,122 @@ export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): 
     return errorResponse(500, 'Internal server error.');
   }
 };
+
+/**
+ * Lambda handler for POST /api/users/{userId}/gallery
+ * Generate presigned URL for gallery photo upload and store the key.
+ */
+export const uploadGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { userId } = event.pathParameters || {};
+
+    if (!userId) return errorResponse(400, 'userId required.');
+
+    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only upload to your own gallery.');
+    }
+
+    const countResult = await query(
+      'SELECT COUNT(*) FROM gallery_photos WHERE user_id = $1', [userId]
+    );
+    if (parseInt(countResult.rows[0].count, 10) >= 9) {
+      return errorResponse(400, 'Gallery limit of 9 photos reached.');
+    }
+
+    const userCheck = await query(
+      `SELECT u.id, cu.school_id, cu.class_id FROM users u
+       LEFT JOIN class_user cu ON u.id = cu.user_id
+       WHERE u.id = $1 LIMIT 1`,
+      [userId]
+    );
+    if (userCheck.rows.length === 0) return errorResponse(404, 'User not found.');
+
+    const { school_id, class_id } = userCheck.rows[0];
+    const suffix = Date.now().toString(36);
+    const key = school_id && class_id
+      ? `photos/${school_id}/${class_id}/${userId}-gallery-${suffix}.jpg`
+      : `photos/other/${userId}-gallery-${suffix}.jpg`;
+
+    const putCmd = new PutObjectCommand({ Bucket: bucketName, Key: key, ContentType: 'image/jpeg' });
+    const presignedUrl = await getSignedUrl(s3Client, putCmd, { expiresIn: 3600 });
+
+    const insertResult = await query(
+      'INSERT INTO gallery_photos (user_id, s3_key) VALUES ($1, $2) RETURNING id',
+      [userId, key]
+    );
+
+    return response(200, { presignedUrl, key, id: insertResult.rows[0].id });
+  } catch (error: any) {
+    console.error('Upload gallery photo handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for GET /api/users/{userId}/gallery
+ */
+export const listGalleryPhotosHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { userId } = event.pathParameters || {};
+    if (!userId) return errorResponse(400, 'userId required.');
+
+    const result = await query(
+      'SELECT id, s3_key, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
+      [userId]
+    );
+
+    const photos = await Promise.all(result.rows.map(async (row) => ({
+      id: row.id,
+      url: await resolvePhotoUrl(row.s3_key),
+      created_at: row.created_at
+    })));
+
+    return response(200, { photos });
+  } catch (error: any) {
+    console.error('List gallery photos handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for DELETE /api/users/{userId}/gallery/{photoId}
+ */
+export const deleteGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return response(200, {});
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { userId, photoId } = event.pathParameters || {};
+    if (!userId || !photoId) return errorResponse(400, 'userId and photoId required.');
+
+    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only delete your own gallery photos.');
+    }
+
+    const photoResult = await query(
+      'SELECT id, s3_key FROM gallery_photos WHERE id = $1 AND user_id = $2',
+      [photoId, userId]
+    );
+    if (photoResult.rows.length === 0) return errorResponse(404, 'Photo not found.');
+
+    const { s3_key } = photoResult.rows[0];
+    await s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: s3_key }));
+    await query('DELETE FROM gallery_photos WHERE id = $1', [photoId]);
+
+    return response(200, { message: 'Gallery photo deleted.' });
+  } catch (error: any) {
+    console.error('Delete gallery photo handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};

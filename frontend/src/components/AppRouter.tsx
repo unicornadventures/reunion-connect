@@ -22,6 +22,7 @@ import UserCommentsPage from './UserCommentsPage';
 import EventsPage from './EventsPage';
 import EventsManager from './EventsManager';
 import JoinPage from './JoinPage';
+import HelpPage from './HelpPage';
 
 const AppRouter: React.FC = () => {
   const { currentUser, isAuthenticated } = useAppContext();
@@ -64,6 +65,7 @@ const AppRouter: React.FC = () => {
           <Route path="/admin/events" element={isSuperAdmin ? <EventsManager /> : <Navigate to="/" replace />} />
           <Route path="/profile" element={!isSuperAdmin ? <UserProfile /> : <Navigate to="/" replace />} />
           <Route path="/comments" element={!isSuperAdmin ? <CommentSection /> : <Navigate to="/" replace />} />
+          <Route path="/help" element={<HelpPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -25,6 +25,10 @@ const UserCommentsPage: React.FC = () => {
   const [newCommentText, setNewCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isCanModerate, setIsCanModerate] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
+
+  const isOwnPage = currentUser?.user_id === parseInt(userId || '0');
 
   useEffect(() => {
     if (userId && currentUser?.user_id) fetchUserProfileAndComments();
@@ -72,7 +76,6 @@ const UserCommentsPage: React.FC = () => {
   const handleAddComment = async () => {
     if (!newCommentText.trim()) { setError('Comment cannot be empty.'); return; }
     if (!currentUser?.user_id || !userId) { setError('User not authenticated.'); return; }
-
     setSubmitting(true);
     try {
       const response = await api.post(`/users/${userId}/comments`, {
@@ -102,6 +105,61 @@ const UserCommentsPage: React.FC = () => {
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update comment.');
     }
+  };
+
+  const handleEditComment = async (commentId: number) => {
+    if (!editText.trim()) return;
+    try {
+      const response = await api.put(`/comments/${commentId}`, {
+        content: editText,
+        requesterId: currentUser?.user_id
+      });
+      setComments(comments.map(c =>
+        c.id === commentId ? { ...c, ...response.data.comment } : c
+      ));
+      setEditingCommentId(null);
+      setEditText('');
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to edit comment.');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await api.delete(`/comments/${commentId}`);
+      setComments(comments.filter(c => c.id !== commentId));
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete comment.');
+    }
+  };
+
+  const handleDownload = () => {
+    if (!userProfile) return;
+    const { profile } = userProfile;
+    const displayName = profile?.first_name
+      ? `${profile.first_name} ${profile.last_name || ''}`
+      : userProfile.user.email;
+    const published = comments.filter(c => c.published);
+    const lines = [
+      `Comments for ${displayName}`,
+      `Downloaded ${new Date().toLocaleDateString()}`,
+      '',
+      ...published.map(c => {
+        const name = c.commenter_first_name
+          ? `${c.commenter_first_name} ${c.commenter_last_name || ''}`.trim()
+          : 'Anonymous';
+        return `${name} — ${new Date(c.created_at).toLocaleDateString()}\n${c.content}\n`;
+      })
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `comments-${displayName.replace(/\s+/g, '-').toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -138,12 +196,10 @@ const UserCommentsPage: React.FC = () => {
         ← Back to Directory
       </button>
 
-      {/* Profile header */}
       <div className="bg-white rounded-lg border border-[#E2E8F0] p-8 mb-6">
         <h2 className="font-display text-3xl font-bold text-[#0E2240] uppercase tracking-tight mb-6">
           {displayName}
         </h2>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {[
             { label: 'Then', url: profile?.then_photo_url },
@@ -151,9 +207,7 @@ const UserCommentsPage: React.FC = () => {
           ].map((photo) => (
             <div key={photo.label} className="relative rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E2E8F0]">
               <div className="absolute top-2 left-2 z-10 bg-[#0E2240]/80 px-2 py-0.5 rounded">
-                <span className="font-display text-xs font-bold text-[#E8A93E] uppercase tracking-wide">
-                  {photo.label}
-                </span>
+                <span className="font-display text-xs font-bold text-[#E8A93E] uppercase tracking-wide">{photo.label}</span>
               </div>
               {photo.url ? (
                 <img src={photo.url} alt={photo.label} className="w-full h-72 object-cover" />
@@ -168,18 +222,24 @@ const UserCommentsPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-5">
-          {error}
-        </div>
+        <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-5">{error}</div>
       )}
 
-      {/* Comments section */}
       <div className="bg-white rounded-lg border border-[#E2E8F0] p-6">
-        <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight mb-5">
-          Comments ({comments.length})
-        </h3>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight">
+            Comments ({comments.length})
+          </h3>
+          {isOwnPage && comments.some(c => c.published) && (
+            <button
+              onClick={handleDownload}
+              className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
+            >
+              Download .txt
+            </button>
+          )}
+        </div>
 
-        {/* New comment form */}
         <div className="bg-[#F6F8FC] border border-[#E2E8F0] rounded-lg p-5 mb-6">
           <h4 className="text-sm font-semibold text-[#0E2240] mb-3">Leave a comment</h4>
           <textarea
@@ -205,50 +265,102 @@ const UserCommentsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Comments list */}
         {comments.length === 0 ? (
           <div className="py-10 text-center text-[#94A3B8] text-sm bg-[#F6F8FC] rounded-lg border border-[#E2E8F0]">
             No comments yet. Be the first to leave one!
           </div>
         ) : (
           <div className="space-y-3">
-            {comments.map((comment) => (
-              <div
-                key={comment.id}
-                className={`rounded-lg border p-4 ${
-                  !comment.published
-                    ? 'bg-[#FFF8EE] border-[#E8A93E]/40'
-                    : 'bg-white border-[#E2E8F0]'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#94A3B8]">
-                      {new Date(comment.created_at).toLocaleDateString()} at{' '}
-                      {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {!comment.published && (
-                      <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
-                        Pending
+            {comments.map((comment) => {
+              const isAuthor = comment.commenter_id === currentUser?.user_id;
+              const commenterName = comment.commenter_first_name
+                ? `${comment.commenter_first_name} ${comment.commenter_last_name || ''}`.trim()
+                : null;
+              const isEditing = editingCommentId === comment.id;
+
+              return (
+                <div
+                  key={comment.id}
+                  className={`rounded-lg border p-4 ${!comment.published ? 'bg-[#FFF8EE] border-[#E8A93E]/40' : 'bg-white border-[#E2E8F0]'}`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {commenterName && (
+                        <span className="text-xs font-semibold text-[#0E2240]">{commenterName}</span>
+                      )}
+                      <span className="text-xs text-[#94A3B8]">
+                        {new Date(comment.created_at).toLocaleDateString()} at{' '}
+                        {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                    )}
+                      {!comment.published && (
+                        <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isAuthor && !isEditing && (
+                        <>
+                          <button
+                            onClick={() => { setEditingCommentId(comment.id); setEditText(comment.content); }}
+                            className="px-2 py-1 rounded text-xs font-semibold border border-[#E2E8F0] text-[#64748B] hover:bg-[#F6F8FC] cursor-pointer bg-white transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="px-2 py-1 rounded text-xs font-semibold bg-[#FFEBEE] text-[#C62828] hover:opacity-80 cursor-pointer border-none transition-opacity"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                      {isCanModerate && !isEditing && (
+                        <button
+                          onClick={() => handlePublishComment(comment.id, !comment.published)}
+                          className={`px-3 py-1 rounded text-xs font-semibold border-none cursor-pointer transition-opacity ${
+                            comment.published
+                              ? 'bg-[#E2E8F0] text-[#64748B] hover:opacity-80'
+                              : 'bg-[#0E2240] text-white hover:opacity-90'
+                          }`}
+                        >
+                          {comment.published ? 'Unpublish' : 'Publish'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {isCanModerate && (
-                    <button
-                      onClick={() => handlePublishComment(comment.id, !comment.published)}
-                      className={`px-3 py-1 rounded text-xs font-semibold border-none cursor-pointer transition-opacity ${
-                        comment.published
-                          ? 'bg-[#E2E8F0] text-[#64748B] hover:opacity-80'
-                          : 'bg-[#0E2240] text-white hover:opacity-90'
-                      }`}
-                    >
-                      {comment.published ? 'Unpublish' : 'Publish'}
-                    </button>
+
+                  {isEditing ? (
+                    <div>
+                      <textarea
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        className="w-full min-h-20 px-3 py-2 border border-[#E2E8F0] rounded text-sm resize-vertical mb-2 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors"
+                        autoFocus
+                      />
+                      <div className="flex gap-2 items-center">
+                        <button
+                          onClick={() => handleEditComment(comment.id)}
+                          disabled={!editText.trim()}
+                          className="px-3 py-1 text-xs font-semibold bg-[#0E2240] text-white rounded hover:opacity-90 cursor-pointer border-none disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => { setEditingCommentId(null); setEditText(''); }}
+                          className="px-3 py-1 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] cursor-pointer bg-white"
+                        >
+                          Cancel
+                        </button>
+                        <span className="text-[10px] text-[#94A3B8]">Edits require re-approval</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#64748B] leading-relaxed break-words">{comment.content}</p>
                   )}
                 </div>
-                <p className="text-sm text-[#64748B] leading-relaxed break-words">{comment.content}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

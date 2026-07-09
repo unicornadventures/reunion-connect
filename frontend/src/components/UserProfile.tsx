@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
-import { User, Profile } from '../types';
+import { User, Profile, GalleryPhoto } from '../types';
+import { galleryAPI } from '../apiClient';
 
 interface UserWithProfile {
   user: User;
@@ -39,6 +40,11 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const [editData, setEditData] = useState<Partial<Profile>>({});
   const [isClassAdmin, setIsClassAdmin] = useState(false);
   const [updatingClassAdmin, setUpdatingClassAdmin] = useState(false);
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
 
   const profileUserId = userId ? Number(userId) : currentUser?.user_id;
   const isOwnProfile = profileUserId === currentUser?.user_id;
@@ -52,7 +58,10 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       const response = await api.get(`/users/${profileUserId}`);
       setData(response.data);
       setIsClassAdmin(response.data.user?.is_class_admin || false);
-      if (response.data.profile) setEditData(response.data.profile);
+      if (response.data.profile) {
+        setEditData(response.data.profile);
+        setEditTags(response.data.profile.tags || []);
+      }
 
       const classResponse = await api.get(`/users/${profileUserId}/class`);
       const classData = classResponse.data.class;
@@ -63,6 +72,14 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
         const schoolResponse = await api.get(`/schools/${classData.school_id}`);
         setSchool(schoolResponse.data.school);
       }
+
+      try {
+        const galleryResponse = await galleryAPI.list(profileUserId!);
+        setGalleryPhotos(galleryResponse.data.photos || []);
+      } catch {
+        setGalleryPhotos([]);
+      }
+
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load profile.');
@@ -105,12 +122,13 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     if (!data?.profile || !isOwnProfile) return;
     setLoading(true);
     try {
-      const response = await api.put(`/users/${profileUserId}/profile`, editData);
+      const response = await api.put(`/users/${profileUserId}/profile`, { ...editData, tags: editTags });
       setData(prev => prev ? {
         ...prev,
         profile: response.data.profile,
         user: { ...prev.user, email: editData.email || prev.user.email }
       } : null);
+      setEditTags(response.data.profile?.tags || editTags);
       setEditMode(false);
       setError(null);
     } catch (err: any) {
@@ -119,6 +137,50 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       setLoading(false);
     }
   };
+
+  const handleGalleryUpload = async (file: File) => {
+    if (!file || !isOwnProfile || !profileUserId) return;
+    if (galleryPhotos.length >= 9) { setError('Gallery limit of 9 photos reached.'); return; }
+    setUploadingGallery(true);
+    try {
+      const initRes = await galleryAPI.upload(profileUserId);
+      const { presignedUrl, id, key } = initRes.data;
+      const putRes = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': 'image/jpeg' }
+      });
+      if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
+      setGalleryPhotos(prev => [...prev, { id, url: key, created_at: new Date().toISOString() }]);
+      const refreshed = await galleryAPI.list(profileUserId);
+      setGalleryPhotos(refreshed.data.photos || []);
+      setError(null);
+    } catch (err: any) {
+      setError(`Gallery upload failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const handleGalleryDelete = async (photoId: number) => {
+    if (!isOwnProfile || !profileUserId) return;
+    try {
+      await galleryAPI.delete(profileUserId, photoId);
+      setGalleryPhotos(prev => prev.filter(p => p.id !== photoId));
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete gallery photo.');
+    }
+  };
+
+  const addTag = () => {
+    const trimmed = tagInput.trim();
+    if (!trimmed || editTags.length >= 10 || editTags.includes(trimmed)) return;
+    setEditTags([...editTags, trimmed]);
+    setTagInput('');
+  };
+
+  const removeTag = (tag: string) => setEditTags(editTags.filter(t => t !== tag));
 
   const handleToggleClassAdmin = async () => {
     if (!currentUser?.is_admin) return;
@@ -348,6 +410,34 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                     placeholder="Tell your classmates what you've been up to..."
                   />
                 </div>
+                <div>
+                  <label className={labelClass}>Tags <span className="font-normal">(up to 10 — clubs, sports, dorm hall, etc.)</span></label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {editTags.map(tag => (
+                      <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0E2240]/10 text-[#0E2240] rounded text-xs font-medium">
+                        {tag}
+                        <button type="button" onClick={() => removeTag(tag)} className="text-[#0E2240]/60 hover:text-[#0E2240] bg-transparent border-none cursor-pointer leading-none p-0">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  {editTags.length < 10 && (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={e => setTagInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); }}}
+                        className={inputClass}
+                        placeholder="Add a tag and press Enter"
+                        maxLength={40}
+                      />
+                      <button type="button" onClick={addTag}
+                        className="px-3 py-2 bg-[#0E2240] text-white text-sm font-semibold rounded hover:opacity-90 border-none cursor-pointer flex-shrink-0">
+                        Add
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button onClick={handleProfileUpdate} disabled={loading}
                     className={`bg-[#0E2240] text-white font-semibold py-2.5 px-5 rounded text-sm hover:opacity-90 transition-opacity border-none cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -360,9 +450,20 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-[#64748B] leading-relaxed">
-                {profile?.bio || "Tell your classmates what you've been up to for the past 20 years!"}
-              </p>
+              <div>
+                <p className="text-sm text-[#64748B] leading-relaxed mb-4">
+                  {profile?.bio || "Tell your classmates what you've been up to for the past 20 years!"}
+                </p>
+                {profile?.tags && profile.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.tags.map(tag => (
+                      <span key={tag} className="px-2.5 py-1 bg-[#F6F8FC] border border-[#E2E8F0] text-[#0E2240] rounded-full text-xs font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -417,8 +518,84 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
               ))}
             </div>
           </div>
+
+          {/* Photo Gallery */}
+          <div className="bg-white rounded-lg border border-[#E2E8F0] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-[#94A3B8] uppercase tracking-[0.12em]">
+                Gallery ({galleryPhotos.length}/9)
+              </h3>
+              {isOwnProfile && galleryPhotos.length < 9 && (
+                <>
+                  <input
+                    type="file"
+                    id="gallery-upload"
+                    accept="image/*"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); e.target.value = ''; }}
+                    className="hidden"
+                    disabled={uploadingGallery}
+                  />
+                  <label htmlFor="gallery-upload"
+                    className={`px-3 py-1.5 text-xs font-semibold rounded border border-[#E2E8F0] text-[#64748B] hover:bg-[#F6F8FC] transition-colors ${uploadingGallery ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    {uploadingGallery ? 'Uploading...' : '+ Add photo'}
+                  </label>
+                </>
+              )}
+            </div>
+            {galleryPhotos.length === 0 ? (
+              <div className="py-8 text-center text-[#94A3B8] text-sm bg-[#F6F8FC] rounded-lg border border-dashed border-[#E2E8F0]">
+                {isOwnProfile ? 'No gallery photos yet. Add up to 9 photos.' : 'No gallery photos.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {galleryPhotos.map(photo => (
+                  <div key={photo.id} className="relative group aspect-square rounded-lg overflow-hidden bg-[#F6F8FC]">
+                    {photo.url ? (
+                      <img
+                        src={photo.url}
+                        alt="Gallery"
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => setLightboxPhoto(photo.url)}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs">No image</div>
+                    )}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => handleGalleryDelete(photo.id)}
+                        className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            onClick={() => setLightboxPhoto(null)}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center text-xl font-bold border-none cursor-pointer transition-colors"
+          >
+            ×
+          </button>
+          <img
+            src={lightboxPhoto}
+            alt="Gallery photo"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

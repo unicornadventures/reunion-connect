@@ -34,7 +34,7 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     const userResult = await query(
       `SELECT u.id, u.email, u.is_admin, u.is_class_admin,
               p.first_name, p.last_name, p.nickname, p.former_first_name, p.former_last_name,
-              p.bio, p.then_photo_url, p.now_photo_url
+              p.bio, p.then_photo_url, p.now_photo_url, p.tags
        FROM users u
        LEFT JOIN profiles p ON u.id = p.user_id
        WHERE u.id = $1`,
@@ -65,7 +65,8 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
         former_last_name: row.former_last_name,
         bio: row.bio,
         then_photo_url: thenUrl,
-        now_photo_url: nowUrl
+        now_photo_url: nowUrl,
+        tags: row.tags || []
       }
     });
   } catch (error: any) {
@@ -84,7 +85,7 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
 
     await dbReady;
     const { userId } = event.pathParameters || {};
-    const { first_name, last_name, nickname, former_first_name, former_last_name, bio, email } = JSON.parse(event.body || '{}');
+    const { first_name, last_name, nickname, former_first_name, former_last_name, bio, email, tags } = JSON.parse(event.body || '{}');
 
     if (!userId) {
       return errorResponse(400, 'User ID required.');
@@ -111,16 +112,18 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
          nickname          = COALESCE($3, nickname),
          former_first_name = COALESCE($4, former_first_name),
          former_last_name  = COALESCE($5, former_last_name),
-         bio               = COALESCE($6, bio)
+         bio               = COALESCE($6, bio),
+         tags              = COALESCE($8, tags)
        WHERE user_id = $7`,
-      [first_name, last_name, nickname, former_first_name, former_last_name, bio, userId]
+      [first_name, last_name, nickname, former_first_name, former_last_name, bio, userId,
+       tags !== undefined ? JSON.stringify(tags) : null]
     );
 
     // Fetch updated profile
     const result = await query(
       `SELECT u.id, u.email, u.is_admin, u.is_class_admin,
               p.first_name, p.last_name, p.nickname, p.former_first_name, p.former_last_name,
-              p.bio, p.then_photo_url, p.now_photo_url
+              p.bio, p.then_photo_url, p.now_photo_url, p.tags
        FROM users u
        LEFT JOIN profiles p ON u.id = p.user_id
        WHERE u.id = $1`,
@@ -151,7 +154,8 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
         former_last_name: row.former_last_name,
         bio: row.bio,
         then_photo_url: thenUrl,
-        now_photo_url: nowUrl
+        now_photo_url: nowUrl,
+        tags: row.tags || []
       }
     });
   } catch (error: any) {
