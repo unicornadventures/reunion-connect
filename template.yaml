@@ -992,12 +992,6 @@ Resources:
             RestApiId: !Ref ClassYearAPI
             Path: /api/users/{userId}/gallery
             Method: POST
-        PostGalleryPhotoOptions:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ClassYearAPI
-            Path: /api/users/{userId}/gallery
-            Method: OPTIONS
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref ReunionConnectPrivateFileBucket
@@ -1034,12 +1028,6 @@ Resources:
             RestApiId: !Ref ClassYearAPI
             Path: /api/users/{userId}/gallery/{photoId}
             Method: DELETE
-        DeleteGalleryPhotoOptions:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ClassYearAPI
-            Path: /api/users/{userId}/gallery/{photoId}
-            Method: OPTIONS
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref ReunionConnectPrivateFileBucket

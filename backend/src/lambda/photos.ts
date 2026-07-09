@@ -190,7 +190,6 @@ export const getPhotoPresignedUrlHandler = async (event: APIGatewayProxyEvent): 
  * Generate presigned URL for gallery photo upload and store the key.
  */
 export const uploadGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') return response(200, {});
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
@@ -274,7 +273,6 @@ export const listGalleryPhotosHandler = async (event: APIGatewayProxyEvent): Pro
  * Lambda handler for DELETE /api/users/{userId}/gallery/{photoId}
  */
 export const deleteGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') return response(200, {});
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
