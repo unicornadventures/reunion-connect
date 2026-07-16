@@ -26,14 +26,14 @@ const AdminHeader: React.FC = () => {
     <header className="sticky top-0 z-[100] bg-[#0E2240] h-16 flex items-center px-5">
       <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between">
         <Link
-          to="/admin/schools"
+          to={isSuperAdmin ? '/admin/schools' : '/'}
           className="font-display text-xl font-bold text-[#E8A93E] tracking-tight hover:opacity-90 transition-opacity"
         >
           ReunionConnect
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
-          {currentUser?.is_admin && (
+          {isSuperAdmin && (
             <>
               <Link
                 to="/admin/schools"
@@ -55,6 +55,22 @@ const AdminHeader: React.FC = () => {
               </Link>
             </>
           )}
+          {!isSuperAdmin && currentUser?.is_class_admin && (
+            <>
+              <Link
+                to="/"
+                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
+              >
+                Home
+              </Link>
+              <Link
+                to="/directory"
+                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
+              >
+                Directory
+              </Link>
+            </>
+          )}
           {(currentUser?.is_admin || currentUser?.is_class_admin) && (
             <>
               <Link
@@ -70,6 +86,14 @@ const AdminHeader: React.FC = () => {
                 Comments
               </Link>
             </>
+          )}
+          {!isSuperAdmin && currentUser?.is_class_admin && (
+            <Link
+              to="/help"
+              className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
+            >
+              Help
+            </Link>
           )}
         </nav>
 
