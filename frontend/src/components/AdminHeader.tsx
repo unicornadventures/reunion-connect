@@ -19,6 +19,9 @@ const AdminHeader: React.FC = () => {
     return (firstInitial + lastInitial) || '?';
   };
 
+  const isSuperAdmin = !!currentUser?.is_admin;
+  const avatarPhotoUrl = currentUser?.profile?.now_photo_url || currentUser?.profile?.then_photo_url || null;
+
   return (
     <header className="sticky top-0 z-[100] bg-[#0E2240] h-16 flex items-center px-5">
       <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between">
@@ -71,12 +74,32 @@ const AdminHeader: React.FC = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-white/70">
-            <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
-              {getInitials()}
+          {isSuperAdmin ? (
+            <div className="flex items-center gap-2 text-sm font-medium text-white/70">
+              <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
+                {getInitials()}
+              </div>
+              <span className="hidden sm:inline">Admin</span>
             </div>
-            <span className="hidden sm:inline">Admin</span>
-          </div>
+          ) : (
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
+            >
+              {avatarPhotoUrl ? (
+                <img
+                  src={avatarPhotoUrl}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
+                  {getInitials()}
+                </div>
+              )}
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
+          )}
           <button
             onClick={handleLogout}
             className="text-xs text-white/40 hover:text-white/70 transition-colors duration-200 font-medium ml-2"
