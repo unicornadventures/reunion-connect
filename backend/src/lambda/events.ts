@@ -40,7 +40,7 @@ export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 
     const result = await query(
-      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+      `SELECT id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at
        FROM events
        WHERE class_id = $1 AND school_id = $2
        ORDER BY event_date ASC, event_time ASC NULLS LAST;`,
@@ -70,7 +70,7 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
     }
 
     const result = await query(
-      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+      `SELECT id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at
        FROM events WHERE id = $1`,
       [eventId]
     );
@@ -122,7 +122,7 @@ export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<A
     const result = await query(
       `INSERT INTO events (class_id, school_id, event_name, description, event_date, event_time, location)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+       RETURNING id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at;`,
       [classId, schoolId, title, description || null, eventDateOnly, eventTimeOnly, location || null]
     );
 
@@ -176,7 +176,7 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
            location = COALESCE($5, location),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $6
-       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+       RETURNING id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at;`,
       [title, description, eventDateOnly, eventTimeOnly, location, eventId]
     );
 

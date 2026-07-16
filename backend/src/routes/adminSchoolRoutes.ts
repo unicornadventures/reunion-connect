@@ -394,7 +394,7 @@ router.post('/:schoolId/classes/:classId/events', requireEventAdmin, async (req,
     const result = await query(
       `INSERT INTO events (class_id, school_id, event_name, description, event_date, event_time, location)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at;`,
+       RETURNING id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at;`,
       [classId, schoolId, title, description || null, eventDateOnly, eventTimeOnly, location || null]
     );
 

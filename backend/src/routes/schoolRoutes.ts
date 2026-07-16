@@ -104,7 +104,7 @@ router.get('/:schoolId/classes/:classId/events', async (req, res) => {
   const { schoolId, classId } = req.params;
   try {
     const result = await query(
-      `SELECT id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at
+      `SELECT id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at
        FROM events
        WHERE class_id = $1 AND school_id = $2
        ORDER BY event_date ASC, event_time ASC NULLS LAST;`,

@@ -16,7 +16,7 @@ router.get('/class/:classId/events', async (req, res) => {
     }
 
     const result = await query(
-      `SELECT id, event_name, event_date, event_time, location, description
+      `SELECT id, event_name, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, description
        FROM events
        WHERE class_id = $1 AND event_date >= CURRENT_DATE
        ORDER BY event_date ASC, event_time ASC`,
@@ -36,7 +36,7 @@ router.get('/:eventId', async (req, res) => {
 
   try {
     const result = await query(
-      `SELECT id, class_id, event_name, event_date, event_time, location, description, created_at, updated_at
+      `SELECT id, class_id, event_name, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, description, created_at, updated_at
        FROM events
        WHERE id = $1`,
       [eventId]
@@ -113,7 +113,7 @@ router.put('/:id', requireEventAdmin, async (req: any, res) => {
            location = COALESCE($5, location),
            updated_at = NOW()
        WHERE id = $6
-       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at`,
+       RETURNING id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at`,
       [title, description, eventDateOnly, eventTimeOnly, location, id]
     );
 

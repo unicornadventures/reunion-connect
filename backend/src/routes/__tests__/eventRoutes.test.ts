@@ -43,14 +43,14 @@ jest.mock('../../db', () => ({
     }
 
     // Get events for a class with date/time filtering
-    if (sql.includes('SELECT id, event_name, event_date, event_time, location, description') && sql.includes('WHERE class_id')) {
+    if (sql.includes('SELECT id, event_name,') && sql.includes('event_date') && sql.includes('WHERE class_id')) {
       const classId = Number(params?.[0]);
       const events = mockDb.events.filter(e => e.class_id === classId);
       return { rows: events };
     }
 
     // Get single event by id
-    if (sql.includes('SELECT id, class_id, event_name, event_date, event_time, location, description, created_at, updated_at') && sql.includes('WHERE id')) {
+    if (sql.includes('SELECT id, class_id, event_name,') && sql.includes('event_date') && sql.includes('WHERE id')) {
       const eventId = Number(params?.[0]);
       const event = mockDb.events.find(e => e.id === eventId);
       return { rows: event ? [event] : [] };
