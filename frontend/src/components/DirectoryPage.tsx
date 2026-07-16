@@ -130,26 +130,26 @@ const DirectoryPage: React.FC = () => {
       ) : (
         <>
           {living.length > 0 && (
-            <div className="grid gap-4 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+            <div className="grid gap-3 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
               {living.map((user) => (
                 <button
                   key={user.id}
                   onClick={() => navigate(`/user/${user.id}`)}
-                  className="bg-white rounded-lg border border-[#E2E8F0] p-5 text-center hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[190px]"
+                  className="bg-white rounded-lg border border-[#E2E8F0] p-2 text-center hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px]"
                 >
                   {user.now_photo_url ? (
                     <img
                       src={user.now_photo_url}
                       alt={`${user.first_name} ${user.last_name}`}
-                      className="w-14 h-14 rounded-full object-cover"
+                      className="w-24 h-24 rounded-full object-cover"
                     />
                   ) : (
                     <div
                       className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
                       style={{
-                        width: 56,
-                        height: 56,
-                        fontSize: 20,
+                        width: 96,
+                        height: 96,
+                        fontSize: 30,
                         background: getColorForInitials(getInitials(user.first_name, user.last_name)),
                       }}
                     >
@@ -179,26 +179,26 @@ const DirectoryPage: React.FC = () => {
                 <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#94A3B8]">In Memoriam</span>
                 <div className="h-px flex-1 bg-[#E2E8F0]" />
               </div>
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
                 {deceased.map((user) => (
                   <button
                     key={user.id}
                     onClick={() => navigate(`/user/${user.id}`)}
-                    className="bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] p-5 text-center hover:border-[#94A3B8] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[190px] opacity-75"
+                    className="bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] p-2 text-center hover:border-[#94A3B8] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px] opacity-75"
                   >
                     {user.now_photo_url ? (
                       <img
                         src={user.now_photo_url}
                         alt={`${user.first_name} ${user.last_name}`}
-                        className="w-14 h-14 rounded-full object-cover grayscale"
+                        className="w-24 h-24 rounded-full object-cover grayscale"
                       />
                     ) : (
                       <div
                         className="flex items-center justify-center rounded-full font-bold flex-shrink-0"
                         style={{
-                          width: 56,
-                          height: 56,
-                          fontSize: 20,
+                          width: 96,
+                          height: 96,
+                          fontSize: 30,
                           background: '#CBD5E1',
                           color: '#64748B',
                         }}
