@@ -54,8 +54,6 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
   const isSuperAdmin = currentUser?.is_admin || false;
   const [recentlyJoined, setRecentlyJoined] = useState<DirectoryUser[]>([]);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
-  const [alumniCount, setAlumniCount] = useState(0);
-  const [messageCount, setMessageCount] = useState(0);
   const [daysUntilNextEvent, setDaysUntilNextEvent] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -76,12 +74,6 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
 
       const recentlyJoinedResponse = await api.get(`/classes/${userClass.id}/recently-joined`);
       setRecentlyJoined(recentlyJoinedResponse.data.users || []);
-
-      const countResponse = await api.get(`/classes/${userClass.id}/alumni-count`);
-      setAlumniCount(countResponse.data.count || 0);
-
-      const messageResponse = await api.get(`/classes/${userClass.id}/message-count`);
-      setMessageCount(messageResponse.data.count || 0);
 
       const eventsResponse = userClass.school_id
         ? await api.get(`/schools/${userClass.school_id}/classes/${userClass.id}/events`)
@@ -150,27 +142,29 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         </div>
       )}
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg border border-[#E2E8F0] px-5 py-6">
-          <div className="font-display text-5xl font-bold text-[#0E2240]">{alumniCount}</div>
-          <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mt-2">
-            Alumni Registered
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-[#E2E8F0] px-5 py-6">
-          <div className="font-display text-5xl font-bold text-[#0E2240]">
-            {classInfo?.year ? new Date().getFullYear() - classInfo.year : 0}
-          </div>
-          <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mt-2">
-            Years Since Graduation
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-[#E2E8F0] px-5 py-6">
-          <div className="font-display text-5xl font-bold text-[#0E2240]">{messageCount}</div>
-          <div className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mt-2">
-            Messages Posted
-          </div>
+      {/* Intro */}
+      <div className="mb-8">
+        <p className="text-sm text-[#64748B] leading-relaxed max-w-2xl mb-5">
+          ReunionConnect is your class's little corner of the internet. Browse the directory to
+          see who's around, catch up on old friends' profiles, leave a comment to say hi, and
+          keep an eye out for upcoming reunion events.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { to: '/directory', label: 'Directory', blurb: 'See your classmates' },
+            { to: '/profile', label: 'Your Profile', blurb: 'Update photos & bio' },
+            { to: '/comments', label: 'Comments', blurb: 'Say hi to someone' },
+            { to: '/events', label: 'Events', blurb: "What's coming up" },
+          ].map(({ to, label, blurb }) => (
+            <button
+              key={to}
+              onClick={() => navigate(to)}
+              className="bg-white rounded-lg border border-[#E2E8F0] px-4 py-4 text-left hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer"
+            >
+              <div className="text-sm font-semibold text-[#0E2240]">{label}</div>
+              <div className="text-xs text-[#94A3B8] mt-1">{blurb}</div>
+            </button>
+          ))}
         </div>
       </div>
 
