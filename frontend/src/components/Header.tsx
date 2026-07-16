@@ -26,8 +26,6 @@ const Header: React.FC = () => {
     return ((firstName.charAt(0) + lastName.charAt(0)).toUpperCase()) || '?';
   };
 
-  const avatarPhotoUrl = currentUser?.profile?.now_photo_url || currentUser?.profile?.then_photo_url || null;
-
   const linkClass = (to: string) =>
     `text-sm font-medium transition-colors duration-200 ${
       location.pathname === to ? 'text-[#E8A93E]' : 'text-white/70 hover:text-[#E8A93E]'
@@ -56,17 +54,9 @@ const Header: React.FC = () => {
             to="/profile"
             className="flex items-center gap-2 text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
           >
-            {avatarPhotoUrl ? (
-              <img
-                src={avatarPhotoUrl}
-                alt="Profile"
-                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
-                {getInitials()}
-              </div>
-            )}
+            <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
+              {getInitials()}
+            </div>
             <span className="hidden sm:inline">Profile</span>
           </Link>
           <button
