@@ -50,21 +50,23 @@ const AdminHeader: React.FC = () => {
               >
                 Users
               </Link>
+            </>
+          )}
+          {(currentUser?.is_admin || currentUser?.is_class_admin) && (
+            <>
               <Link
                 to="/admin/events"
                 className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
               >
                 Events
               </Link>
+              <Link
+                to="/admin/comments"
+                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
+              >
+                Comments
+              </Link>
             </>
-          )}
-          {(currentUser?.is_admin || currentUser?.is_class_admin) && (
-            <Link
-              to="/admin/comments"
-              className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-            >
-              Comments
-            </Link>
           )}
         </nav>
 

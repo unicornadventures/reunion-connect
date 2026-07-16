@@ -62,7 +62,7 @@ const AppRouter: React.FC = () => {
           <Route path="/admin/schools" element={isSuperAdmin ? <SchoolManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/classes" element={isSuperAdmin ? <ClassManager /> : <Navigate to="/" replace />} />
           <Route path="/admin/users" element={isSuperAdmin ? <UsersManager /> : <Navigate to="/" replace />} />
-          <Route path="/admin/events" element={isSuperAdmin ? <EventsManager /> : <Navigate to="/" replace />} />
+          <Route path="/admin/events" element={isSuperAdmin || isClassAdmin ? <EventsManager /> : <Navigate to="/" replace />} />
           <Route path="/profile" element={!isSuperAdmin ? <UserProfile /> : <Navigate to="/" replace />} />
           <Route path="/comments" element={!isSuperAdmin ? <CommentSection /> : <Navigate to="/" replace />} />
           <Route path="/help" element={<HelpPage />} />

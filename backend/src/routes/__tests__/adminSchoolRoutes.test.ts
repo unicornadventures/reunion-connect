@@ -32,10 +32,10 @@ jest.mock('../../middleware/adminAuth', () => ({
     req.user = { id: 1, is_admin: true };
     next();
   },
-  requireEventAdmin: (req: any, res: any, next: any) => {
+  requireEventAdmin: jest.fn((req: any, res: any, next: any) => {
     req.user = { id: 1, is_admin: true };
     next();
-  },
+  }),
   requireAdmin: (req: any, res: any, next: any) => {
     req.user = { id: 1, is_admin: true };
     next();
@@ -664,6 +664,22 @@ describe('Admin School Routes', () => {
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject event creation when requireEventAdmin denies access', async () => {
+      const { requireEventAdmin } = require('../../middleware/adminAuth');
+      requireEventAdmin.mockImplementationOnce((req: any, res: any) => {
+        res.status(403).json({ error: 'Access denied. You can only manage events for your class.' });
+      });
+
+      const response = await request(app)
+        .post('/api/admin/schools/1/classes/1/events')
+        .send({
+          title: 'Should Not Be Created',
+          event_date: '2026-07-15T18:00:00.000Z'
+        });
+
+      expect(response.status).toBe(403);
     });
   });
 

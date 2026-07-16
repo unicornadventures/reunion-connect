@@ -103,8 +103,8 @@ export async function requireEventAdmin(req: any, res: any, next: any) {
         return res.status(403).json({ error: 'Access denied. You can only manage events for your class.' });
       }
     } else {
-      // For create, get class_id from request body
-      const { class_id } = req.body;
+      // For create, get class_id from request body or route params
+      const class_id = req.body.class_id || req.params.classId;
       if (!class_id) {
         return res.status(400).json({ error: 'class_id is required.' });
       }

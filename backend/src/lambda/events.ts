@@ -17,6 +17,13 @@ const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
 const errorResponse = (statusCode: number, message: string): APIGatewayProxyResult =>
   response(statusCode, { error: message });
 
+async function canManageEvent(authUser: any, classId: string): Promise<boolean> {
+  if (authUser.is_admin) return true;
+  if (!authUser.is_class_admin) return false;
+  const result = await query('SELECT id FROM class_user WHERE user_id = $1 AND class_id = $2', [authUser.id, classId]);
+  return result.rows.length > 0;
+}
+
 /**
  * Lambda handler for GET /api/schools/{schoolId}/classes/{classId}/events
  */
@@ -87,7 +94,6 @@ export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<A
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
-    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
 
     await dbReady;
     const { schoolId, classId } = event.pathParameters || {};
@@ -95,6 +101,10 @@ export const createEventHandler = async (event: APIGatewayProxyEvent): Promise<A
 
     if (!schoolId || !classId || !title || !event_date) {
       return errorResponse(400, 'schoolId, classId, title, and event_date are required.');
+    }
+
+    if (!(await canManageEvent(authUser, classId))) {
+      return errorResponse(403, 'Access denied. You can only manage events for your class.');
     }
 
     const linkCheck = await query(
@@ -132,7 +142,6 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
     if (!authUser) return errorResponse(401, 'Authentication required.');
 
     await dbReady;
-    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
 
     const { eventId } = event.pathParameters || {};
     const { title, description, event_date, location } = JSON.parse(event.body || '{}');
@@ -141,9 +150,13 @@ export const updateEventHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(400, 'Event ID required.');
     }
 
-    const eventCheck = await query('SELECT id FROM events WHERE id = $1', [eventId]);
+    const eventCheck = await query('SELECT id, class_id FROM events WHERE id = $1', [eventId]);
     if (eventCheck.rows.length === 0) {
       return errorResponse(404, 'Event not found.');
+    }
+
+    if (!(await canManageEvent(authUser, eventCheck.rows[0].class_id))) {
+      return errorResponse(403, 'Access denied. You can only manage events for your class.');
     }
 
     let eventDateOnly = null;
@@ -183,7 +196,6 @@ export const deleteEventHandler = async (event: APIGatewayProxyEvent): Promise<A
     if (!authUser) return errorResponse(401, 'Authentication required.');
 
     await dbReady;
-    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
 
     const { eventId } = event.pathParameters || {};
 
@@ -191,11 +203,16 @@ export const deleteEventHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(400, 'Event ID required.');
     }
 
-    const result = await query('DELETE FROM events WHERE id = $1 RETURNING id;', [eventId]);
-
-    if (result.rows.length === 0) {
+    const eventCheck = await query('SELECT id, class_id FROM events WHERE id = $1', [eventId]);
+    if (eventCheck.rows.length === 0) {
       return errorResponse(404, 'Event not found.');
     }
+
+    if (!(await canManageEvent(authUser, eventCheck.rows[0].class_id))) {
+      return errorResponse(403, 'Access denied. You can only manage events for your class.');
+    }
+
+    const result = await query('DELETE FROM events WHERE id = $1 RETURNING id;', [eventId]);
 
     return response(200, { message: 'Event deleted successfully.' });
   } catch (error: any) {

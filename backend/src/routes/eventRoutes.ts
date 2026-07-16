@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../db.ts';
+import { requireEventAdmin } from '../middleware/adminAuth.ts';
 
 const router = express.Router();
 
@@ -80,6 +81,63 @@ router.get('/class/:classId/days-until-next', async (req, res) => {
     res.status(200).json({ daysUntil, eventDate: result.rows[0].event_date });
   } catch (error) {
     console.error('Get Days Until Next Event Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// PUT /api/events/:id - Update event (super admin or class admin for their class)
+router.put('/:id', requireEventAdmin, async (req: any, res) => {
+  const { id } = req.params;
+  const { title, description, event_date, location } = req.body;
+
+  try {
+    const eventCheck = await query('SELECT id FROM events WHERE id = $1', [id]);
+    if (eventCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    let eventDateOnly = null;
+    let eventTimeOnly = null;
+    if (event_date) {
+      const eventDateTime = new Date(event_date);
+      eventDateOnly = eventDateTime.toISOString().split('T')[0];
+      eventTimeOnly = eventDateTime.toISOString().split('T')[1].substring(0, 8);
+    }
+
+    const result = await query(
+      `UPDATE events
+       SET event_name = COALESCE($1, event_name),
+           description = COALESCE($2, description),
+           event_date = COALESCE($3, event_date),
+           event_time = COALESCE($4, event_time),
+           location = COALESCE($5, location),
+           updated_at = NOW()
+       WHERE id = $6
+       RETURNING id, class_id, school_id, event_name as title, description, event_date, event_time, location, created_at, updated_at`,
+      [title, description, eventDateOnly, eventTimeOnly, location, id]
+    );
+
+    res.status(200).json({ event: result.rows[0] });
+  } catch (error) {
+    console.error('Update Event Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// DELETE /api/events/:id - Delete event (super admin or class admin for their class)
+router.delete('/:id', requireEventAdmin, async (req: any, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await query('DELETE FROM events WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    res.status(200).json({ message: 'Event deleted successfully.' });
+  } catch (error) {
+    console.error('Delete Event Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });

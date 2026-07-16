@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { adminSchoolAPI, adminClassAPI, eventAPI } from '../apiClient';
+import { adminSchoolAPI, adminClassAPI, eventAPI, userAPI } from '../apiClient';
+import { useAppContext } from '../context/AppContext';
 
 interface School {
   id: number;
@@ -32,10 +33,14 @@ interface EventForm {
 const EMPTY_FORM: EventForm = { title: '', date: '', time: '', location: '', description: '' };
 
 const EventsManager: React.FC = () => {
+  const { currentUser } = useAppContext();
+  const isClassAdminOnly = !!currentUser?.is_class_admin && !currentUser?.is_admin;
+
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
   const [linkedClasses, setLinkedClasses] = useState<ClassYear[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [ownClassYear, setOwnClassYear] = useState<number | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +50,12 @@ const EventsManager: React.FC = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
+    if (isClassAdminOnly) return;
     adminSchoolAPI.getSchools().then(r => setSchools(r.data.schools || [])).catch(() => {});
-  }, []);
+  }, [isClassAdminOnly]);
 
   useEffect(() => {
+    if (isClassAdminOnly) return;
     if (!selectedSchoolId) { setLinkedClasses([]); setSelectedClassId(null); return; }
     adminClassAPI.getClasses(selectedSchoolId)
       .then(r => {
@@ -57,7 +64,19 @@ const EventsManager: React.FC = () => {
         setSelectedClassId(classes[0]?.id ?? null);
       })
       .catch(() => setLinkedClasses([]));
-  }, [selectedSchoolId]);
+  }, [selectedSchoolId, isClassAdminOnly]);
+
+  useEffect(() => {
+    if (!isClassAdminOnly || !currentUser) return;
+    userAPI.getUserClass(currentUser.id)
+      .then(r => {
+        const cls = r.data.class;
+        setOwnClassYear(cls.year);
+        setSelectedSchoolId(cls.school_id);
+        setSelectedClassId(cls.id);
+      })
+      .catch(() => setError('Failed to load your class.'));
+  }, [isClassAdminOnly, currentUser]);
 
   useEffect(() => {
     if (!selectedClassId) { setEvents([]); return; }
@@ -136,6 +155,7 @@ const EventsManager: React.FC = () => {
   const cancelEdit = () => { setEditingId(null); setForm(EMPTY_FORM); };
 
   const selectedClass = linkedClasses.find(c => c.id === selectedClassId);
+  const selectedClassYear = isClassAdminOnly ? ownClassYear : selectedClass?.year;
 
   return (
     <div className="max-w-[1200px] mx-auto px-5 py-8">
@@ -144,38 +164,40 @@ const EventsManager: React.FC = () => {
         <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight">Events</h1>
       </div>
 
-      {/* School + Class selectors */}
-      <div className="flex gap-4 mb-8 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mb-1.5">School</label>
-          <select
-            className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm text-[#0E2240] focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E]"
-            value={selectedSchoolId ?? ''}
-            onChange={e => setSelectedSchoolId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Select a school…</option>
-            {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        {linkedClasses.length > 0 && (
-          <div className="flex-1 min-w-[160px]">
-            <label className="block text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mb-1.5">Class Year</label>
+      {/* School + Class selectors (super admin only — class admins are locked to their own class) */}
+      {!isClassAdminOnly && (
+        <div className="flex gap-4 mb-8 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mb-1.5">School</label>
             <select
               className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm text-[#0E2240] focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E]"
-              value={selectedClassId ?? ''}
-              onChange={e => setSelectedClassId(e.target.value ? Number(e.target.value) : null)}
+              value={selectedSchoolId ?? ''}
+              onChange={e => setSelectedSchoolId(e.target.value ? Number(e.target.value) : null)}
             >
-              {linkedClasses.map(c => (
-                <option key={c.id} value={c.id}>Class of {c.year}</option>
-              ))}
+              <option value="">Select a school…</option>
+              {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-        )}
-      </div>
+          {linkedClasses.length > 0 && (
+            <div className="flex-1 min-w-[160px]">
+              <label className="block text-[10px] font-semibold text-[#94A3B8] tracking-[0.12em] uppercase mb-1.5">Class Year</label>
+              <select
+                className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm text-[#0E2240] focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E]"
+                value={selectedClassId ?? ''}
+                onChange={e => setSelectedClassId(e.target.value ? Number(e.target.value) : null)}
+              >
+                {linkedClasses.map(c => (
+                  <option key={c.id} value={c.id}>Class of {c.year}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {!selectedClassId ? (
         <div className="bg-white rounded-lg border border-[#E2E8F0] p-10 text-center text-[#94A3B8] text-sm">
-          Select a school and class year to manage events.
+          {isClassAdminOnly ? 'Loading your class…' : 'Select a school and class year to manage events.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -184,7 +206,7 @@ const EventsManager: React.FC = () => {
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-lg font-bold text-[#0E2240] uppercase tracking-wide">
-                {selectedClass ? `Class of ${selectedClass.year}` : 'Events'}
+                {selectedClassYear ? `Class of ${selectedClassYear}` : 'Events'}
               </h2>
               <span className="text-xs text-[#94A3B8]">{events.length} event{events.length !== 1 ? 's' : ''}</span>
             </div>

@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { query } from '../db.ts';
-import { requireSuperAdmin } from '../middleware/adminAuth.ts';
+import { requireSuperAdmin, requireEventAdmin } from '../middleware/adminAuth.ts';
 import { deleteUserPhotosFromS3 } from '../s3Service.ts';
 
 const router = express.Router();
@@ -370,7 +370,7 @@ router.delete('/:id', requireSuperAdmin, async (req: any, res) => {
 });
 
 // POST /api/admin/schools/:schoolId/classes/:classId/events
-router.post('/:schoolId/classes/:classId/events', async (req, res) => {
+router.post('/:schoolId/classes/:classId/events', requireEventAdmin, async (req, res) => {
   const { schoolId, classId } = req.params;
   const { title, description, event_date, location } = req.body;
 
