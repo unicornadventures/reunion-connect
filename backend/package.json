@@ -16,6 +16,7 @@
     "sam:local": "cd .. && DOCKER_HOST=unix:///Users/crgdncn/.docker/run/docker.sock sam local start-api --port 3001 --docker-network classyear_local --env-vars env-vars.json",
     "sam:build": "tsc -p tsconfig.lambda.json && cd .. && sam build",
     "sam:deploy": "cd .. && sam deploy",
+    "deploy": "./deploy.sh",
     "prepare": "tsc -p tsconfig.lambda.json || true"
   },
   "keywords": [
