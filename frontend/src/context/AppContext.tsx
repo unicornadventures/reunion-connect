@@ -8,6 +8,7 @@ interface AppContextType {
   loading: boolean;
   login: (user: CurrentUser) => void;
   logout: () => void;
+  updateCurrentUser: (updates: Partial<CurrentUser>) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -43,8 +44,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.removeItem('currentUser');
   };
 
+  const updateCurrentUser = (updates: Partial<CurrentUser>) => {
+    setCurrentUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      localStorage.setItem('currentUser', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
-    <AppContext.Provider value={{ currentUser, isAuthenticated, loading, login, logout }}>
+    <AppContext.Provider value={{ currentUser, isAuthenticated, loading, login, logout, updateCurrentUser }}>
       {loading ? (
         <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
           🔄 Securing session context...

@@ -28,7 +28,7 @@ const labelClass = 'text-xs font-semibold text-[#94A3B8] block mb-1';
 
 const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const navigate = useNavigate();
-  const { currentUser } = useAppContext();
+  const { currentUser, updateCurrentUser } = useAppContext();
   const [data, setData] = useState<UserWithProfile | null>(null);
   const [classYear, setClassYear] = useState<number | null>(null);
   const [school, setSchool] = useState<SchoolInfo | null>(null);
@@ -61,6 +61,13 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       if (response.data.profile) {
         setEditData(response.data.profile);
         setEditTags(response.data.profile.tags || []);
+      }
+      if (isOwnProfile) {
+        updateCurrentUser({
+          profile: response.data.profile,
+          first_name: response.data.profile?.first_name || '',
+          last_name: response.data.profile?.last_name || ''
+        } as any);
       }
 
       const classResponse = await api.get(`/users/${profileUserId}/class`);
