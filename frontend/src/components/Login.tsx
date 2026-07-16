@@ -26,6 +26,7 @@ const Login: React.FC = () => {
         id: userData.user_id,
         email: userData.email,
         is_admin: userData.is_admin,
+        is_class_admin: userData.is_class_admin,
         created_at: userData.created_at,
         profile: userData.profile || null,
         user_id: userData.user_id,
