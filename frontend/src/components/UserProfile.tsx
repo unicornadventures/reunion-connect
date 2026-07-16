@@ -127,6 +127,22 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     }
   };
 
+  const handlePhotoDelete = async (photoType: 'then' | 'now') => {
+    if (!isOwnProfile) return;
+    setUploadingPhoto(photoType);
+    try {
+      await api.delete(`/users/${profileUserId}/photo/${photoType}`, {
+        params: { requesterId: currentUser?.user_id }
+      });
+      await fetchProfile();
+      setError(null);
+    } catch (err: any) {
+      setError(`Photo delete failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setUploadingPhoto(null);
+    }
+  };
+
   const handleProfileUpdate = async () => {
     if (!data?.profile || !isOwnProfile) return;
     setLoading(true);
@@ -497,12 +513,22 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                   )}
                   <label htmlFor={`photo-${photo.key}`} style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}>
                     {photo.url ? (
-                      <div className={`relative rounded-lg overflow-hidden ${isOwnProfile ? 'hover:opacity-80 transition-opacity' : ''}`}>
+                      <div className={`relative rounded-lg overflow-hidden group ${isOwnProfile ? 'hover:opacity-80 transition-opacity' : ''}`}>
                         <div className="absolute top-2 left-2 z-10 bg-[#0E2240]/80 px-2 py-0.5 rounded">
                           <span className="font-display text-[10px] font-bold text-[#E8A93E] uppercase tracking-wide">
                             {photo.key === 'then' ? 'Then' : 'Now'}
                           </span>
                         </div>
+                        {isOwnProfile && (
+                          <button
+                            type="button"
+                            onClick={e => { e.preventDefault(); e.stopPropagation(); handlePhotoDelete(photo.key as 'then' | 'now'); }}
+                            disabled={uploadingPhoto !== null}
+                            className="absolute top-2 right-2 z-10 w-6 h-6 bg-black/60 text-white rounded-full text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none disabled:cursor-not-allowed"
+                          >
+                            ×
+                          </button>
+                        )}
                         <img src={photo.url} alt={photo.label} className="w-full h-[180px] object-cover" />
                       </div>
                     ) : (

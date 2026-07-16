@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { query } from '../db.ts';
-import { generatePresignedUrl, uploadFileToS3 } from '../s3Service.ts';
+import { generatePresignedUrl, uploadFileToS3, deletePhotoFromS3 } from '../s3Service.ts';
 
 const router = express.Router();
 
@@ -155,6 +155,53 @@ router.put('/:userId/photo/:photoType', async (req, res) => {
   } catch (error) {
     console.error("Update Photo Error:", error);
     res.status(500).json({ error: 'Could not update photo URL.' });
+  }
+});
+
+// DELETE /api/users/:userId/photo/:photoType
+router.delete('/:userId/photo/:photoType', async (req, res) => {
+  const { photoType, userId } = req.params;
+  const { requesterId } = req.query;
+
+  if (!photoType || !userId) {
+    return res.status(400).json({ error: 'Missing required parameters.' });
+  }
+
+  if (photoType !== 'then' && photoType !== 'now') {
+    return res.status(400).json({ error: 'photoType must be "then" or "now".' });
+  }
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId query parameter is required.' });
+  }
+
+  try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this photo.' });
+    }
+
+    const column = photoType === 'then' ? 'then_photo_url' : 'now_photo_url';
+    const profileResult = await query(`SELECT ${column} FROM profiles WHERE user_id = $1`, [userId]);
+
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found.' });
+    }
+
+    const photoUrl = profileResult.rows[0][column];
+    if (photoUrl) {
+      await deletePhotoFromS3(photoUrl);
+    }
+
+    const result = await query(
+      `UPDATE profiles SET ${column} = NULL, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 RETURNING *;`,
+      [userId]
+    );
+
+    res.status(200).json({ profile: result.rows[0] });
+  } catch (error) {
+    console.error("Delete Photo Error:", error);
+    res.status(500).json({ error: 'Could not delete photo.' });
   }
 });
 

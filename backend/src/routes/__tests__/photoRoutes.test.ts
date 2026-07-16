@@ -66,6 +66,29 @@ jest.mock('../../db', () => ({
       return { rows: user ? [{ id: user.id }] : [] };
     }
 
+    if (sql.includes('SELECT') && /(then|now)_photo_url FROM profiles WHERE user_id/.test(sql)) {
+      const userId = Number(params?.[0]);
+      const profile = mockDb.profiles.find(p => p.user_id === userId);
+      if (!profile) return { rows: [] };
+      const column = sql.includes('then_photo_url') ? 'then_photo_url' : 'now_photo_url';
+      return { rows: [{ [column]: profile[column as 'then_photo_url' | 'now_photo_url'] }] };
+    }
+
+    if (sql.includes('UPDATE profiles SET') && sql.includes('= NULL')) {
+      const userId = Number(params?.[0]);
+      const profile = mockDb.profiles.find(p => p.user_id === userId);
+      if (profile) {
+        if (sql.includes('then_photo_url')) {
+          profile.then_photo_url = null;
+        } else if (sql.includes('now_photo_url')) {
+          profile.now_photo_url = null;
+        }
+        profile.updated_at = new Date();
+        return { rows: [{ ...profile }] };
+      }
+      return { rows: [] };
+    }
+
     if (sql.includes('UPDATE profiles SET')) {
       const photoUrl = params?.[0];
       const userId = Number(params?.[1]);
@@ -92,7 +115,8 @@ jest.mock('../../s3Service', () => ({
   }),
   generatePresignedUrl: jest.fn(async (userId: number, fileName: string) => {
     return `https://example.com/presigned/${userId}/${fileName}?token=abc123`;
-  })
+  }),
+  deletePhotoFromS3: jest.fn(async (_photoUrl: string) => {})
 }));
 
 jest.mock('../../services/emailService', () => ({
@@ -393,6 +417,81 @@ describe('Photo Routes', () => {
       const response = await request(app)
         .put('/api/users/1/photo/then')
         .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 5 });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('DELETE /api/users/:userId/photo/:photoType', () => {
+    it('should delete the then photo', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/then?requesterId=1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.profile.then_photo_url).toBeNull();
+    });
+
+    it('should delete the now photo', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/now?requesterId=1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.profile.now_photo_url).toBeNull();
+    });
+
+    it('should succeed even when there is no photo to delete', async () => {
+      const response = await request(app)
+        .delete('/api/users/2/photo/then?requesterId=2');
+
+      expect(response.status).toBe(200);
+      expect(response.body.profile.then_photo_url).toBeNull();
+    });
+
+    it('should reject invalid photoType', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/invalid?requesterId=1');
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject without requesterId', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/then');
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should handle profile not found', async () => {
+      const response = await request(app)
+        .delete('/api/users/999/photo/then?requesterId=999');
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should reject a classmate with no admin role', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/then?requesterId=2');
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow a super admin to delete any user\'s photo', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/then?requesterId=3');
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should allow a class admin to delete a photo for someone in their class', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/then?requesterId=4');
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject a class admin deleting a photo for someone outside their class', async () => {
+      const response = await request(app)
+        .delete('/api/users/1/photo/then?requesterId=5');
 
       expect(response.status).toBe(403);
     });

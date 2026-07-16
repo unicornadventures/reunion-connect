@@ -102,6 +102,22 @@ const UserCommentsPage: React.FC = () => {
     }
   };
 
+  const handlePhotoDelete = async (photoType: 'then' | 'now') => {
+    if (!canManagePhotos || !userId) return;
+    setUploadingPhoto(photoType);
+    try {
+      await api.delete(`/users/${userId}/photo/${photoType}`, {
+        params: { requesterId: currentUser?.user_id }
+      });
+      await fetchUserProfileAndComments();
+      setError(null);
+    } catch (err: any) {
+      setError(`Photo delete failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setUploadingPhoto(null);
+    }
+  };
+
   const handleAddComment = async () => {
     if (!newCommentText.trim()) { setError('Comment cannot be empty.'); return; }
     if (!currentUser?.user_id || !userId) { setError('User not authenticated.'); return; }
@@ -248,11 +264,21 @@ const UserCommentsPage: React.FC = () => {
               <label
                 htmlFor={`comments-photo-${photo.key}`}
                 style={{ cursor: canManagePhotos ? 'pointer' : 'default' }}
-                className={`relative rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E2E8F0] block ${canManagePhotos ? 'hover:opacity-80 transition-opacity' : ''}`}
+                className={`relative rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E2E8F0] block group ${canManagePhotos ? 'hover:opacity-80 transition-opacity' : ''}`}
               >
                 <div className="absolute top-2 left-2 z-10 bg-[#0E2240]/80 px-2 py-0.5 rounded">
                   <span className="font-display text-xs font-bold text-[#E8A93E] uppercase tracking-wide">{photo.label}</span>
                 </div>
+                {canManagePhotos && photo.url && (
+                  <button
+                    type="button"
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); handlePhotoDelete(photo.key); }}
+                    disabled={uploadingPhoto !== null}
+                    className="absolute top-2 right-2 z-10 w-7 h-7 bg-black/60 text-white rounded-full text-sm font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none disabled:cursor-not-allowed"
+                  >
+                    ×
+                  </button>
+                )}
                 {photo.url ? (
                   <img src={photo.url} alt={photo.label} className="w-full h-72 object-cover" />
                 ) : (

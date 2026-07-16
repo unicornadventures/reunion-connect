@@ -61,6 +61,21 @@ export async function uploadFileToS3(userId: number, fileName: string, fileBuffe
   }
 }
 
+/** Deletes a single then/now photo from S3, given the full URL stored in the DB. */
+export async function deletePhotoFromS3(photoUrl: string): Promise<void> {
+  const key = photoUrl.split(`/${BUCKET_NAME}/`)[1];
+  if (!key) return;
+
+  console.log(`[S3] Deleting photo ${key}.`);
+  try {
+    await s3Client.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    console.log(`[S3] Deleted photo ${key}.`);
+  } catch (error) {
+    console.error(`[S3] Failed to delete photo ${key}:`, error);
+    throw new Error('Failed to delete photo from S3.');
+  }
+}
+
 export async function deleteUserPhotosFromS3(userId: number): Promise<void> {
   console.log(`[S3] Deleting all photos for user ${userId}.`);
 
