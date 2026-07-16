@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import Login from '../Login';
 import * as api from '../../api';
 
@@ -11,35 +12,37 @@ vi.mock('../../context/AppContext', () => ({
   })
 }));
 
+const renderLogin = () => render(<Login />, { wrapper: MemoryRouter });
+
 describe('Login Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('should render login form', () => {
-    render(<Login />);
+    renderLogin();
 
     expect(screen.getByText(/Class Reunion/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Log In/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('your@email.com')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sign in/i })).toBeInTheDocument();
   });
 
   it('should show validation error on empty submit', async () => {
     const user = userEvent.setup();
-    render(<Login />);
+    renderLogin();
 
-    const submitButton = screen.getByRole('button', { name: /Log In/i });
+    const submitButton = screen.getByRole('button', { name: /Sign in/i });
     expect(submitButton).toBeDisabled();
   });
 
   it('should enable submit button when form is filled', async () => {
     const user = userEvent.setup();
-    render(<Login />);
+    renderLogin();
 
-    const emailInput = screen.getByPlaceholderText('Enter your email');
-    const passwordInput = screen.getByPlaceholderText('Enter your password');
-    const submitButton = screen.getByRole('button', { name: /Log In/i });
+    const emailInput = screen.getByPlaceholderText('your@email.com');
+    const passwordInput = screen.getByPlaceholderText('••••••••');
+    const submitButton = screen.getByRole('button', { name: /Sign in/i });
 
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'password123');
@@ -55,11 +58,11 @@ describe('Login Component', () => {
       response: { data: { error: errorMessage } }
     });
 
-    render(<Login />);
+    renderLogin();
 
-    const emailInput = screen.getByPlaceholderText('Enter your email');
-    const passwordInput = screen.getByPlaceholderText('Enter your password');
-    const submitButton = screen.getByRole('button', { name: /Log In/i });
+    const emailInput = screen.getByPlaceholderText('your@email.com');
+    const passwordInput = screen.getByPlaceholderText('••••••••');
+    const submitButton = screen.getByRole('button', { name: /Sign in/i });
 
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'wrong');
@@ -77,16 +80,16 @@ describe('Login Component', () => {
       new Promise(resolve => setTimeout(() => resolve({ data: {} }), 100))
     );
 
-    render(<Login />);
+    renderLogin();
 
-    const emailInput = screen.getByPlaceholderText('Enter your email');
-    const passwordInput = screen.getByPlaceholderText('Enter your password');
-    const submitButton = screen.getByRole('button', { name: /Log In/i });
+    const emailInput = screen.getByPlaceholderText('your@email.com');
+    const passwordInput = screen.getByPlaceholderText('••••••••');
+    const submitButton = screen.getByRole('button', { name: /Sign in/i });
 
     await user.type(emailInput, 'test@example.com');
     await user.type(passwordInput, 'password123');
     await user.click(submitButton);
 
-    expect(screen.getByRole('button', { name: /Logging In/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Signing in/i })).toBeInTheDocument();
   });
 });
