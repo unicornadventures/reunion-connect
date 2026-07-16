@@ -13,6 +13,7 @@ interface DirectoryUser {
   former_first_name: string | null;
   former_last_name: string | null;
   now_photo_url: string | null;
+  tags: string[] | null;
 }
 
 interface ClassInfo {
@@ -76,11 +77,13 @@ const DirectoryPage: React.FC = () => {
     }
   };
 
+  const searchLower = search.toLowerCase();
   const filtered = users.filter(u =>
-    (u.first_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (u.last_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (u.former_last_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (u.email?.toLowerCase() || '').includes(search.toLowerCase())
+    (u.first_name?.toLowerCase() || '').includes(searchLower) ||
+    (u.last_name?.toLowerCase() || '').includes(searchLower) ||
+    (u.former_last_name?.toLowerCase() || '').includes(searchLower) ||
+    (u.email?.toLowerCase() || '').includes(searchLower) ||
+    (u.tags || []).some(tag => tag.toLowerCase().includes(searchLower))
   );
   const living = filtered.filter(u => !u.is_deceased);
   const deceased = filtered.filter(u => u.is_deceased);
@@ -112,7 +115,7 @@ const DirectoryPage: React.FC = () => {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search classmates..."
+          placeholder="Search classmates or tags..."
           className="border border-[#E2E8F0] rounded px-4 py-2.5 text-sm w-64 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors"
         />
       </div>
