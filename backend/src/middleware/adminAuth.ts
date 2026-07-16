@@ -1,19 +1,36 @@
+import jwt from 'jsonwebtoken';
 import { query } from '../db.ts';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key';
 
 export interface AuthRequest {
   headers: Record<string, any>;
   user?: any;
 }
 
+function getUserIdFromAuthHeader(req: any): number | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    return decoded.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function requireAdmin(req: any, res: any, next: any) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const userId = getUserIdFromAuthHeader(req);
+    if (userId === null) {
       return res.status(401).json({ error: 'Missing or invalid authorization token.' });
     }
 
-    const token = authHeader.substring(7);
-    const userResult = await query('SELECT * FROM users WHERE id = $1', [parseInt(token)]);
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [userId]);
 
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'User not found.' });
@@ -33,13 +50,12 @@ export async function requireAdmin(req: any, res: any, next: any) {
 
 export async function requireSuperAdmin(req: any, res: any, next: any) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const userId = getUserIdFromAuthHeader(req);
+    if (userId === null) {
       return res.status(401).json({ error: 'Missing or invalid authorization token.' });
     }
 
-    const token = authHeader.substring(7);
-    const userResult = await query('SELECT * FROM users WHERE id = $1', [parseInt(token)]);
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [userId]);
 
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'User not found.' });
@@ -59,13 +75,12 @@ export async function requireSuperAdmin(req: any, res: any, next: any) {
 
 export async function requireEventAdmin(req: any, res: any, next: any) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const userId = getUserIdFromAuthHeader(req);
+    if (userId === null) {
       return res.status(401).json({ error: 'Missing or invalid authorization token.' });
     }
 
-    const token = authHeader.substring(7);
-    const userResult = await query('SELECT * FROM users WHERE id = $1', [parseInt(token)]);
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [userId]);
 
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'User not found.' });
