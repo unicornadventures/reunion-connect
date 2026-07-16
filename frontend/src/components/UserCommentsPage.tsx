@@ -27,8 +27,12 @@ const UserCommentsPage: React.FC = () => {
   const [isCanModerate, setIsCanModerate] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState<'then' | 'now' | null>(null);
 
   const isOwnPage = currentUser?.user_id === parseInt(userId || '0');
+  // Class admins only ever reach this page for classmates (the profile fetch below
+  // 403s otherwise), so this is safe to enable without a separate same-class check.
+  const canManagePhotos = isOwnPage || !!currentUser?.is_admin || !!currentUser?.is_class_admin;
 
   useEffect(() => {
     if (userId && currentUser?.user_id) fetchUserProfileAndComments();
@@ -70,6 +74,31 @@ const UserCommentsPage: React.FC = () => {
       setComments([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePhotoUpload = async (photoType: 'then' | 'now', file: File) => {
+    if (!file || !canManagePhotos || !userId) return;
+    setUploadingPhoto(photoType);
+    try {
+      const response = await api.post(`/users/${userId}/photo/${photoType}`, undefined, {
+        params: { requesterId: currentUser?.user_id }
+      });
+      const { presignedUrl } = response.data;
+
+      const putRes = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': 'image/jpeg' }
+      });
+      if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
+
+      await fetchUserProfileAndComments();
+      setError(null);
+    } catch (err: any) {
+      setError(`Photo upload failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setUploadingPhoto(null);
     }
   };
 
@@ -202,20 +231,38 @@ const UserCommentsPage: React.FC = () => {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {[
-            { label: 'Then', url: profile?.then_photo_url },
-            { label: 'Now', url: profile?.now_photo_url }
+            { key: 'then' as const, label: 'Then', url: profile?.then_photo_url },
+            { key: 'now' as const, label: 'Now', url: profile?.now_photo_url }
           ].map((photo) => (
-            <div key={photo.label} className="relative rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E2E8F0]">
-              <div className="absolute top-2 left-2 z-10 bg-[#0E2240]/80 px-2 py-0.5 rounded">
-                <span className="font-display text-xs font-bold text-[#E8A93E] uppercase tracking-wide">{photo.label}</span>
-              </div>
-              {photo.url ? (
-                <img src={photo.url} alt={photo.label} className="w-full h-72 object-cover" />
-              ) : (
-                <div className="h-72 flex items-center justify-center">
-                  <span className="text-sm text-[#94A3B8]">No photo</span>
-                </div>
+            <div key={photo.key}>
+              {canManagePhotos && (
+                <input
+                  type="file"
+                  id={`comments-photo-${photo.key}`}
+                  accept="image/*"
+                  onChange={e => { const file = e.target.files?.[0]; if (file) handlePhotoUpload(photo.key, file); e.target.value = ''; }}
+                  className="hidden"
+                  disabled={uploadingPhoto !== null}
+                />
               )}
+              <label
+                htmlFor={`comments-photo-${photo.key}`}
+                style={{ cursor: canManagePhotos ? 'pointer' : 'default' }}
+                className={`relative rounded-lg overflow-hidden bg-[#F6F8FC] border border-[#E2E8F0] block ${canManagePhotos ? 'hover:opacity-80 transition-opacity' : ''}`}
+              >
+                <div className="absolute top-2 left-2 z-10 bg-[#0E2240]/80 px-2 py-0.5 rounded">
+                  <span className="font-display text-xs font-bold text-[#E8A93E] uppercase tracking-wide">{photo.label}</span>
+                </div>
+                {photo.url ? (
+                  <img src={photo.url} alt={photo.label} className="w-full h-72 object-cover" />
+                ) : (
+                  <div className="h-72 flex items-center justify-center">
+                    <span className="text-sm text-[#94A3B8]">
+                      {uploadingPhoto === photo.key ? 'Uploading...' : canManagePhotos ? 'Click to add photo' : 'No photo'}
+                    </span>
+                  </div>
+                )}
+              </label>
             </div>
           ))}
         </div>

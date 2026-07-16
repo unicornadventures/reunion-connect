@@ -52,11 +52,15 @@ export const userAPI = {
   getDirectory: (page = 1, pageSize = 20) =>
     api.get(`/users?page=${page}&pageSize=${pageSize}`),
 
-  uploadPhoto: (userId: number, photoType: 'then' | 'now') =>
-    api.post<{ presignedUrl: string }>(`/users/${userId}/photo/${photoType}`),
+  uploadPhoto: (userId: number, photoType: 'then' | 'now', requesterId?: number) =>
+    api.post<{ presignedUrl: string }>(`/users/${userId}/photo/${photoType}`, undefined, {
+      params: requesterId ? { requesterId } : undefined
+    }),
 
-  deletePhoto: (userId: number, photoType: 'then' | 'now') =>
-    api.delete(`/users/${userId}/photo/${photoType}`),
+  deletePhoto: (userId: number, photoType: 'then' | 'now', requesterId?: number) =>
+    api.delete(`/users/${userId}/photo/${photoType}`, {
+      params: requesterId ? { requesterId } : undefined
+    }),
 };
 
 // School endpoints

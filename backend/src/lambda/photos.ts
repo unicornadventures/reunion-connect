@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { query } from '../db.js';
 import { dbReady } from './init.js';
-import { getAuthUser } from './authUtils.js';
+import { getAuthUser, AuthUser } from './authUtils.js';
 import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -24,6 +24,22 @@ const errorResponse = (statusCode: number, message: string): APIGatewayProxyResu
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const bucketName = process.env.S3_BUCKET_NAME || 'classyear-dev';
+
+/** Can this user manage (upload/delete) the then/now photos of targetUserId? */
+async function canManagePhotos(authUser: AuthUser, targetUserId: number): Promise<boolean> {
+  if (authUser.id === targetUserId) return true;
+  if (authUser.is_admin) return true;
+  if (authUser.is_class_admin) {
+    const sameClass = await query(`
+      SELECT 1 FROM class_user cu1
+      JOIN class_user cu2 ON cu1.class_id = cu2.class_id
+      WHERE cu1.user_id = $1 AND cu2.user_id = $2
+      LIMIT 1
+    `, [authUser.id, targetUserId]);
+    return sameClass.rows.length > 0;
+  }
+  return false;
+}
 
 /** Delete all S3 objects whose key begins with the given prefix (handles pagination). */
 export async function deleteS3Folder(prefix: string): Promise<void> {
@@ -68,8 +84,8 @@ export const uploadPhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(400, 'Valid userId and photoType (then/now) required.');
     }
 
-    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
-      return errorResponse(403, 'You can only manage your own photos.');
+    if (!(await canManagePhotos(authUser, parseInt(userId, 10)))) {
+      return errorResponse(403, 'You do not have permission to manage this photo.');
     }
 
     // Verify user exists and get their school/class for S3 path
@@ -124,8 +140,8 @@ export const deletePhotoHandler = async (event: APIGatewayProxyEvent): Promise<A
       return errorResponse(400, 'Valid userId and photoType (then/now) required.');
     }
 
-    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
-      return errorResponse(403, 'You can only manage your own photos.');
+    if (!(await canManagePhotos(authUser, parseInt(userId, 10)))) {
+      return errorResponse(403, 'You do not have permission to manage this photo.');
     }
 
     // Get current photo URL

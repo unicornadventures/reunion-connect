@@ -3,8 +3,18 @@ import request from 'supertest';
 
 const mockDb = {
   users: [
-    { id: 1, email: 'user1@example.com', created_at: new Date(), updated_at: new Date() },
-    { id: 2, email: 'user2@example.com', created_at: new Date(), updated_at: new Date() }
+    { id: 1, email: 'user1@example.com', is_admin: false, is_class_admin: false, created_at: new Date(), updated_at: new Date() },
+    { id: 2, email: 'user2@example.com', is_admin: false, is_class_admin: false, created_at: new Date(), updated_at: new Date() },
+    { id: 3, email: 'admin@example.com', is_admin: true, is_class_admin: false, created_at: new Date(), updated_at: new Date() },
+    { id: 4, email: 'classadmin-same@example.com', is_admin: false, is_class_admin: true, created_at: new Date(), updated_at: new Date() },
+    { id: 5, email: 'classadmin-other@example.com', is_admin: false, is_class_admin: true, created_at: new Date(), updated_at: new Date() }
+  ],
+  // user 1, 2, and 4 share class 100; user 5 is a class admin for an unrelated class (200)
+  classUsers: [
+    { user_id: 1, class_id: 100 },
+    { user_id: 2, class_id: 100 },
+    { user_id: 4, class_id: 100 },
+    { user_id: 5, class_id: 200 }
   ],
   profiles: [
     {
@@ -36,6 +46,20 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
+    if (sql.includes('SELECT is_admin, is_class_admin FROM users WHERE id')) {
+      const userId = Number(params?.[0]);
+      const user = mockDb.users.find(u => u.id === userId);
+      return { rows: user ? [{ is_admin: user.is_admin, is_class_admin: user.is_class_admin }] : [] };
+    }
+
+    if (sql.includes('class_user cu1') && sql.includes('class_user cu2')) {
+      const [requesterId, targetId] = (params || []).map(Number);
+      const requesterClasses = mockDb.classUsers.filter(cu => cu.user_id === requesterId).map(cu => cu.class_id);
+      const targetClasses = mockDb.classUsers.filter(cu => cu.user_id === targetId).map(cu => cu.class_id);
+      const sameClass = requesterClasses.some(c => targetClasses.includes(c));
+      return { rows: sameClass ? [{ exists: 1 }] : [] };
+    }
+
     if (sql.includes('SELECT id FROM users WHERE id')) {
       const userId = Number(params?.[0]);
       const user = mockDb.users.find(u => u.id === userId);
@@ -138,7 +162,7 @@ describe('Photo Routes', () => {
   describe('POST /api/users/:userId/photo/:photoType', () => {
     it('should handle then photo upload', async () => {
       const response = await request(app)
-        .post('/api/users/1/photo/then')
+        .post('/api/users/1/photo/then?requesterId=1')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
       expect(response.status).toBe(200);
@@ -147,7 +171,7 @@ describe('Photo Routes', () => {
 
     it('should handle now photo upload', async () => {
       const response = await request(app)
-        .post('/api/users/1/photo/now')
+        .post('/api/users/1/photo/now?requesterId=1')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
       expect(response.status).toBe(200);
@@ -156,7 +180,7 @@ describe('Photo Routes', () => {
 
     it('should reject upload for non-existent user', async () => {
       const response = await request(app)
-        .post('/api/users/999/photo/then')
+        .post('/api/users/999/photo/then?requesterId=999')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
       expect(response.status).toBe(404);
@@ -164,7 +188,7 @@ describe('Photo Routes', () => {
 
     it('should reject invalid photoType', async () => {
       const response = await request(app)
-        .post('/api/users/1/photo/invalid')
+        .post('/api/users/1/photo/invalid?requesterId=1')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
       expect(response.status).toBe(400);
@@ -172,10 +196,53 @@ describe('Photo Routes', () => {
 
     it('should reject without file', async () => {
       const response = await request(app)
-        .post('/api/users/1/photo/then')
+        .post('/api/users/1/photo/then?requesterId=1')
         .send({});
 
       expect(response.status).toBe(400);
+    });
+
+    it('should reject without requesterId', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/then')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject a classmate with no admin role', async () => {
+      // user 2 is a regular classmate of user 1, not an admin or class admin
+      const response = await request(app)
+        .post('/api/users/1/photo/then?requesterId=2')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow a super admin to manage any user\'s photo', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/then?requesterId=3')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should allow a class admin to manage a photo for someone in their class', async () => {
+      // user 4 is a class admin sharing class 100 with user 1
+      const response = await request(app)
+        .post('/api/users/1/photo/then?requesterId=4')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject a class admin managing a photo for someone outside their class', async () => {
+      // user 5 is a class admin for class 200, unrelated to user 1's class 100
+      const response = await request(app)
+        .post('/api/users/1/photo/then?requesterId=5')
+        .attach('file', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(response.status).toBe(403);
     });
   });
 
@@ -183,7 +250,7 @@ describe('Photo Routes', () => {
     it('should generate presigned URL for then photo', async () => {
       const response = await request(app)
         .post('/api/users/1/photo/upload/then')
-        .send({ fileName: 'my_photo.jpg' });
+        .send({ fileName: 'my_photo.jpg', requesterId: 1 });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('presignedUrl');
@@ -192,7 +259,7 @@ describe('Photo Routes', () => {
     it('should generate presigned URL for now photo', async () => {
       const response = await request(app)
         .post('/api/users/1/photo/upload/now')
-        .send({ fileName: 'my_photo.jpg' });
+        .send({ fileName: 'my_photo.jpg', requesterId: 1 });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('presignedUrl');
@@ -201,7 +268,7 @@ describe('Photo Routes', () => {
     it('should reject without fileName', async () => {
       const response = await request(app)
         .post('/api/users/1/photo/upload/then')
-        .send({});
+        .send({ requesterId: 1 });
 
       expect(response.status).toBe(400);
     });
@@ -209,7 +276,7 @@ describe('Photo Routes', () => {
     it('should reject invalid photoType', async () => {
       const response = await request(app)
         .post('/api/users/1/photo/upload/invalid')
-        .send({ fileName: 'my_photo.jpg' });
+        .send({ fileName: 'my_photo.jpg', requesterId: 1 });
 
       expect(response.status).toBe(400);
     });
@@ -217,9 +284,41 @@ describe('Photo Routes', () => {
     it('should reject for non-existent user', async () => {
       const response = await request(app)
         .post('/api/users/999/photo/upload/then')
-        .send({ fileName: 'my_photo.jpg' });
+        .send({ fileName: 'my_photo.jpg', requesterId: 999 });
 
       expect(response.status).toBe(404);
+    });
+
+    it('should reject without requesterId', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/then')
+        .send({ fileName: 'my_photo.jpg' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject a classmate with no admin role', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/then')
+        .send({ fileName: 'my_photo.jpg', requesterId: 2 });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow a class admin to manage a photo for someone in their class', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/then')
+        .send({ fileName: 'my_photo.jpg', requesterId: 4 });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject a class admin managing a photo for someone outside their class', async () => {
+      const response = await request(app)
+        .post('/api/users/1/photo/upload/then')
+        .send({ fileName: 'my_photo.jpg', requesterId: 5 });
+
+      expect(response.status).toBe(403);
     });
   });
 
@@ -227,7 +326,7 @@ describe('Photo Routes', () => {
     it('should update then photo URL', async () => {
       const response = await request(app)
         .put('/api/users/1/photo/then')
-        .send({ photoUrl: 'https://example.com/new_then.jpg' });
+        .send({ photoUrl: 'https://example.com/new_then.jpg', requesterId: 1 });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('profile');
@@ -236,7 +335,7 @@ describe('Photo Routes', () => {
     it('should update now photo URL', async () => {
       const response = await request(app)
         .put('/api/users/1/photo/now')
-        .send({ photoUrl: 'https://example.com/new_now.jpg' });
+        .send({ photoUrl: 'https://example.com/new_now.jpg', requesterId: 1 });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('profile');
@@ -245,7 +344,7 @@ describe('Photo Routes', () => {
     it('should reject without photoUrl', async () => {
       const response = await request(app)
         .put('/api/users/1/photo/then')
-        .send({});
+        .send({ requesterId: 1 });
 
       expect(response.status).toBe(400);
     });
@@ -253,7 +352,7 @@ describe('Photo Routes', () => {
     it('should reject invalid photoType', async () => {
       const response = await request(app)
         .put('/api/users/1/photo/invalid')
-        .send({ photoUrl: 'https://example.com/photo.jpg' });
+        .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 1 });
 
       expect(response.status).toBe(400);
     });
@@ -261,9 +360,41 @@ describe('Photo Routes', () => {
     it('should handle profile not found', async () => {
       const response = await request(app)
         .put('/api/users/999/photo/then')
-        .send({ photoUrl: 'https://example.com/photo.jpg' });
+        .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 999 });
 
       expect(response.status).toBe(404);
+    });
+
+    it('should reject without requesterId', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({ photoUrl: 'https://example.com/photo.jpg' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject a classmate with no admin role', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 2 });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow a class admin to manage a photo for someone in their class', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 4 });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject a class admin managing a photo for someone outside their class', async () => {
+      const response = await request(app)
+        .put('/api/users/1/photo/then')
+        .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 5 });
+
+      expect(response.status).toBe(403);
     });
   });
 
@@ -275,7 +406,7 @@ describe('Photo Routes', () => {
       });
 
       const response = await request(app)
-        .post('/api/users/1/photo/then')
+        .post('/api/users/1/photo/then?requesterId=1')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
       expect(response.status).toBe(500);
@@ -290,7 +421,7 @@ describe('Photo Routes', () => {
 
       const response = await request(app)
         .post('/api/users/1/photo/upload/then')
-        .send({ fileName: 'test.jpg' });
+        .send({ fileName: 'test.jpg', requesterId: 1 });
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
@@ -304,7 +435,7 @@ describe('Photo Routes', () => {
 
       const response = await request(app)
         .put('/api/users/1/photo/then')
-        .send({ photoUrl: 'https://example.com/photo.jpg' });
+        .send({ photoUrl: 'https://example.com/photo.jpg', requesterId: 1 });
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
@@ -317,7 +448,7 @@ describe('Photo Routes', () => {
       });
 
       const response = await request(app)
-        .post('/api/users/1/photo/then')
+        .post('/api/users/1/photo/then?requesterId=1')
         .attach('file', Buffer.from('fake image data'), 'test.jpg');
 
       expect(response.status).toBe(500);

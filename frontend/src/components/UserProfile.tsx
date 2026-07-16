@@ -104,7 +104,9 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     setUploadingPhoto(photoType);
     try {
       // Step 1: get presigned upload URL from our API
-      const response = await api.post(`/users/${profileUserId}/photo/${photoType}`);
+      const response = await api.post(`/users/${profileUserId}/photo/${photoType}`, undefined, {
+        params: { requesterId: currentUser?.user_id }
+      });
       const { presignedUrl } = response.data;
 
       // Step 2: PUT the file directly to S3 using the presigned URL

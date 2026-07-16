@@ -7,9 +7,33 @@ const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Can requesterId manage (upload/replace) the then/now photos of targetUserId?
+async function canManagePhotos(requesterId: number, targetUserId: number): Promise<boolean> {
+  if (requesterId === targetUserId) return true;
+
+  const requesterResult = await query('SELECT is_admin, is_class_admin FROM users WHERE id = $1', [requesterId]);
+  if (requesterResult.rows.length === 0) return false;
+
+  const requester = requesterResult.rows[0];
+  if (requester.is_admin) return true;
+
+  if (requester.is_class_admin) {
+    const sameClass = await query(`
+      SELECT 1 FROM class_user cu1
+      JOIN class_user cu2 ON cu1.class_id = cu2.class_id
+      WHERE cu1.user_id = $1 AND cu2.user_id = $2
+      LIMIT 1
+    `, [requesterId, targetUserId]);
+    return sameClass.rows.length > 0;
+  }
+
+  return false;
+}
+
 // POST /api/users/:userId/photo/:photoType - Upload file directly
 router.post('/:userId/photo/:photoType', upload.single('file'), async (req, res) => {
   const { photoType, userId } = req.params;
+  const { requesterId } = req.query;
 
   if (!photoType || !userId || !req.file) {
     return res.status(400).json({ error: 'Missing required parameters or file.' });
@@ -19,7 +43,16 @@ router.post('/:userId/photo/:photoType', upload.single('file'), async (req, res)
     return res.status(400).json({ error: 'photoType must be "then" or "now".' });
   }
 
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId query parameter is required.' });
+  }
+
   try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this photo.' });
+    }
+
     // Verify user exists
     const userCheck = await query('SELECT id FROM users WHERE id = $1;', [userId]);
     if (userCheck.rows.length === 0) {
@@ -50,7 +83,7 @@ router.post('/:userId/photo/:photoType', upload.single('file'), async (req, res)
 // POST /api/users/:userId/photo/upload/:photoType
 router.post('/:userId/photo/upload/:photoType', async (req, res) => {
   const { photoType, userId } = req.params;
-  const { fileName } = req.body;
+  const { fileName, requesterId } = req.body;
 
   if (!photoType || !fileName || !userId) {
     return res.status(400).json({ error: 'Missing required parameters.' });
@@ -60,7 +93,16 @@ router.post('/:userId/photo/upload/:photoType', async (req, res) => {
     return res.status(400).json({ error: 'photoType must be "then" or "now".' });
   }
 
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId is required.' });
+  }
+
   try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this photo.' });
+    }
+
     // Verify user exists
     const userCheck = await query('SELECT id FROM users WHERE id = $1;', [userId]);
     if (userCheck.rows.length === 0) {
@@ -78,10 +120,14 @@ router.post('/:userId/photo/upload/:photoType', async (req, res) => {
 // PUT /api/users/:userId/photo/:photoType
 router.put('/:userId/photo/:photoType', async (req, res) => {
   const { photoType, userId } = req.params;
-  const { photoUrl } = req.body;
+  const { photoUrl, requesterId } = req.body;
 
   if (!photoType || !photoUrl || !userId) {
     return res.status(400).json({ error: 'Missing required parameters.' });
+  }
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId is required.' });
   }
 
   if (photoType !== 'then' && photoType !== 'now') {
@@ -89,6 +135,11 @@ router.put('/:userId/photo/:photoType', async (req, res) => {
   }
 
   try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this photo.' });
+    }
+
     const column = photoType === 'then' ? 'then_photo_url' : 'now_photo_url';
 
     const result = await query(
