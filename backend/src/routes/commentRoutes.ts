@@ -147,6 +147,10 @@ router.put('/:commentId', async (req, res) => {
     return res.status(400).json({ error: 'At least one of content or published is required.' });
   }
 
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId is required.' });
+  }
+
   try {
     // Get the comment to find its target user
     const commentResult = await query(
@@ -159,10 +163,10 @@ router.put('/:commentId', async (req, res) => {
     }
 
     const comment = commentResult.rows[0];
+    const requesterIdNum = parseInt(String(requesterId), 10);
 
     // If trying to publish/unpublish, check authorization
-    if (published !== undefined && requesterId) {
-      const requesterIdNum = parseInt(String(requesterId));
+    if (published !== undefined) {
       const isAuthorized = await canModerateComments(requesterIdNum, comment.commenter_id, comment.target_user_id);
       if (!isAuthorized) {
         return res.status(403).json({ error: 'Not authorized to moderate this comment.' });
@@ -170,8 +174,7 @@ router.put('/:commentId', async (req, res) => {
     }
 
     // If editing content, only commenter can do it
-    if (content !== undefined && requesterId) {
-      const requesterIdNum = parseInt(String(requesterId));
+    if (content !== undefined) {
       if (requesterIdNum !== comment.commenter_id) {
         return res.status(403).json({ error: 'You can only edit your own comments.' });
       }
@@ -217,13 +220,32 @@ router.put('/:commentId', async (req, res) => {
 // DELETE /api/comments/:commentId
 router.delete('/:commentId', async (req, res) => {
   const { commentId } = req.params;
+  const { requesterId } = req.query;
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId query parameter is required.' });
+  }
 
   try {
-    const result = await query('DELETE FROM comments WHERE id = $1 RETURNING id;', [commentId]);
+    const commentResult = await query(
+      'SELECT id, target_user_id, commenter_id FROM comments WHERE id = $1',
+      [commentId]
+    );
 
-    if (result.rows.length === 0) {
+    if (commentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Comment not found.' });
     }
+
+    const comment = commentResult.rows[0];
+    const requesterIdNum = parseInt(String(requesterId), 10);
+    const isAuthorized = requesterIdNum === comment.commenter_id ||
+      await canModerateComments(requesterIdNum, comment.commenter_id, comment.target_user_id);
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: 'Not authorized to delete this comment.' });
+    }
+
+    await query('DELETE FROM comments WHERE id = $1;', [commentId]);
 
     res.status(200).json({ message: 'Comment deleted successfully.' });
   } catch (error) {

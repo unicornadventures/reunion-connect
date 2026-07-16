@@ -153,11 +153,13 @@ export const commentAPI = {
   createComment: (targetUserId: number, content: string, commenterId: number) =>
     api.post(`/users/${targetUserId}/comments`, { content, commenterId }),
 
-  updateComment: (commentId: number, data: { published?: boolean; content?: string }) =>
+  updateComment: (commentId: number, data: { published?: boolean; content?: string; requesterId?: number }) =>
     api.put(`/comments/${commentId}`, data),
 
-  deleteComment: (commentId: number) =>
-    api.delete(`/comments/${commentId}`),
+  deleteComment: (commentId: number, requesterId?: number) =>
+    api.delete(`/comments/${commentId}`, {
+      params: requesterId ? { requesterId } : undefined
+    }),
 };
 
 // Gallery endpoints

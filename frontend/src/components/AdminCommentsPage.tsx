@@ -26,8 +26,21 @@ const AdminCommentsPage: React.FC = () => {
   const fetchAllUnpublishedComments = async () => {
     setLoading(true);
     try {
-      const usersResponse = await api.get('/admin/users');
-      const users = usersResponse.data.users || [];
+      let users: { id: number; first_name?: string | null; last_name?: string | null }[] = [];
+
+      if (currentUser?.is_admin) {
+        // Super admins review comments across every class
+        const usersResponse = await api.get('/admin/users');
+        users = usersResponse.data.users || [];
+      } else if (currentUser?.user_id) {
+        // Class admins are scoped to their own class year
+        const classResponse = await api.get(`/users/${currentUser.user_id}/class`);
+        const classId = classResponse.data.class.id;
+        const directoryResponse = await api.get(`/classes/${classId}/directory`, {
+          params: { userId: currentUser.user_id }
+        });
+        users = directoryResponse.data.users || [];
+      }
 
       const allComments: CommentWithProfile[] = [];
       for (const user of users) {
@@ -80,7 +93,9 @@ const AdminCommentsPage: React.FC = () => {
     const commentId = deleteModal.id;
     setActionLoading(commentId);
     try {
-      await api.delete(`/comments/${commentId}`);
+      await api.delete(`/comments/${commentId}`, {
+        params: { requesterId: currentUser?.user_id }
+      });
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
       setDeleteModal({ isOpen: false, id: null });

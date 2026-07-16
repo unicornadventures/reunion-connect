@@ -172,7 +172,9 @@ const UserCommentsPage: React.FC = () => {
 
   const handleDeleteComment = async (commentId: number) => {
     try {
-      await api.delete(`/comments/${commentId}`);
+      await api.delete(`/comments/${commentId}`, {
+        params: { requesterId: currentUser?.user_id }
+      });
       setComments(comments.filter(c => c.id !== commentId));
       setError(null);
     } catch (err: any) {

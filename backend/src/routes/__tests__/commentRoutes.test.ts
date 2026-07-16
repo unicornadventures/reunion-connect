@@ -34,17 +34,22 @@ const mockDb = {
   users: [
     { id: 1, email: 'user1@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
     { id: 2, email: 'user2@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
-    { id: 3, email: 'user3@example.com', is_admin: false, is_class_admin: false, created_at: new Date() }
+    { id: 3, email: 'user3@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
+    { id: 4, email: 'classadmin-same@example.com', is_admin: false, is_class_admin: true, created_at: new Date() },
+    { id: 5, email: 'classadmin-other@example.com', is_admin: false, is_class_admin: true, created_at: new Date() }
   ],
   profiles: [
     { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe' },
     { id: 2, user_id: 2, first_name: 'Jane', last_name: 'Smith' },
     { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson' }
   ],
+  // users 1, 2, 3, and 4 share class 1; user 5 is a class admin for an unrelated class (2)
   classUsers: [
     { id: 1, class_id: 1, user_id: 1 },
     { id: 2, class_id: 1, user_id: 2 },
-    { id: 3, class_id: 1, user_id: 3 }
+    { id: 3, class_id: 1, user_id: 3 },
+    { id: 4, class_id: 1, user_id: 4 },
+    { id: 5, class_id: 2, user_id: 5 }
   ]
 };
 
@@ -83,20 +88,20 @@ jest.mock('../../db', () => ({
     }
 
     // SELECT user info
-    if (sql.includes('SELECT is_admin FROM users WHERE id')) {
+    if (sql.includes('is_admin, is_class_admin FROM users WHERE id')) {
       const userId = Number(params?.[0]);
       const user = mockDb.users.find(u => u.id === userId);
       return { rows: user ? [{ is_admin: user.is_admin, is_class_admin: user.is_class_admin }] : [] };
     }
 
-    // SELECT class membership
+    // SELECT class membership (is requester in the same class as the commenter?)
     if (sql.includes('SELECT cu1.class_id') && sql.includes('FROM class_user cu1')) {
       const userId = Number(params?.[0]);
       const targetUserId = Number(params?.[1]);
-      const classes = mockDb.classUsers
-        .filter(cu => cu.user_id === userId)
-        .map(cu => ({ class_id: cu.class_id }));
-      return { rows: classes };
+      const requesterClasses = mockDb.classUsers.filter(cu => cu.user_id === userId).map(cu => cu.class_id);
+      const targetClasses = mockDb.classUsers.filter(cu => cu.user_id === targetUserId).map(cu => cu.class_id);
+      const sameClass = requesterClasses.some(c => targetClasses.includes(c));
+      return { rows: sameClass ? [{ class_id: requesterClasses[0] }] : [] };
     }
 
     // INSERT new comment (published = false by default)
@@ -331,10 +336,12 @@ describe('Comment Routes', () => {
 
   describe('PUT /api/comments/:commentId', () => {
     it('should update comment content', async () => {
+      // comment 1: commenter_id=2, so requester 2 is editing their own comment
       const response = await request(app)
         .put('/api/comments/1')
         .send({
-          content: 'Updated great comment'
+          content: 'Updated great comment',
+          requesterId: 2
         });
 
       expect(response.status).toBe(200);
@@ -343,33 +350,67 @@ describe('Comment Routes', () => {
     });
 
     it('should update comment published status', async () => {
+      // comment 2: target_user_id=1, so the profile owner (1) can self-moderate
       const response = await request(app)
         .put('/api/comments/2')
         .send({
-          published: true
+          published: true,
+          requesterId: 1
         });
 
       expect(response.status).toBe(200);
       expect(response.body.comment.published).toBe(true);
     });
 
-    it('should update both content and published', async () => {
+    it('should reject update without requesterId', async () => {
       const response = await request(app)
         .put('/api/comments/1')
-        .send({
-          content: 'New content',
-          published: false
-        });
+        .send({ content: 'No requester' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject a classmate with no relation to the comment', async () => {
+      // comment 1: target=1, commenter=2. Requester 3 is neither, not admin/class-admin.
+      const response = await request(app)
+        .put('/api/comments/1')
+        .send({ published: true, requesterId: 3 });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should reject editing someone else\'s comment content', async () => {
+      const response = await request(app)
+        .put('/api/comments/1')
+        .send({ content: 'Not mine to edit', requesterId: 1 });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow a class admin to publish a comment for someone in their class', async () => {
+      // user 4 is a class admin sharing class 1 with commenter (2) and target (1)
+      const response = await request(app)
+        .put('/api/comments/1')
+        .send({ published: true, requesterId: 4 });
 
       expect(response.status).toBe(200);
-      expect(response.body.comment.content).toBe('New content');
-      expect(response.body.comment.published).toBe(false);
+      expect(response.body.comment.published).toBe(true);
+    });
+
+    it('should reject a class admin publishing a comment for someone outside their class', async () => {
+      // user 5 is a class admin for class 2, unrelated to comment 1's class 1
+      const response = await request(app)
+        .put('/api/comments/1')
+        .send({ published: true, requesterId: 5 });
+
+      expect(response.status).toBe(403);
     });
 
     it('should reject update with no content or published', async () => {
       const response = await request(app)
         .put('/api/comments/1')
-        .send({});
+        .send({ requesterId: 1 });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
@@ -379,7 +420,8 @@ describe('Comment Routes', () => {
       const response = await request(app)
         .put('/api/comments/999')
         .send({
-          content: 'Test'
+          content: 'Test',
+          requesterId: 1
         });
 
       expect(response.status).toBe(404);
@@ -388,17 +430,55 @@ describe('Comment Routes', () => {
   });
 
   describe('DELETE /api/comments/:commentId', () => {
-    it('should delete a comment', async () => {
+    it('should allow the commenter to delete their own comment', async () => {
+      // comment 1: commenter_id=2
       const response = await request(app)
-        .delete('/api/comments/1');
+        .delete('/api/comments/1?requesterId=2');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
     });
 
+    it('should allow the profile owner to delete a comment on their profile', async () => {
+      // comment 2: target_user_id=1
+      const response = await request(app)
+        .delete('/api/comments/2?requesterId=1');
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject a classmate with no relation to the comment', async () => {
+      // comment 1: target=1, commenter=2. Requester 3 is neither, not admin/class-admin.
+      const response = await request(app)
+        .delete('/api/comments/1?requesterId=3');
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should allow a class admin to delete a comment for someone in their class', async () => {
+      const response = await request(app)
+        .delete('/api/comments/1?requesterId=4');
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject a class admin deleting a comment for someone outside their class', async () => {
+      const response = await request(app)
+        .delete('/api/comments/1?requesterId=5');
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should reject without requesterId', async () => {
+      const response = await request(app)
+        .delete('/api/comments/1');
+
+      expect(response.status).toBe(400);
+    });
+
     it('should return 404 for non-existent comment', async () => {
       const response = await request(app)
-        .delete('/api/comments/999');
+        .delete('/api/comments/999?requesterId=1');
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
@@ -410,7 +490,8 @@ describe('Comment Routes', () => {
       const response = await request(app)
         .put('/api/comments/2')
         .send({
-          published: true
+          published: true,
+          requesterId: 1
         });
 
       expect(response.status).toBe(200);
@@ -421,7 +502,8 @@ describe('Comment Routes', () => {
       const response = await request(app)
         .put('/api/comments/1')
         .send({
-          published: false
+          published: false,
+          requesterId: 1
         });
 
       expect(response.status).toBe(200);
@@ -480,7 +562,8 @@ describe('Comment Routes', () => {
       const response = await request(app)
         .put('/api/comments/1')
         .send({
-          content: 'Error test'
+          content: 'Error test',
+          requesterId: 2
         });
 
       expect(response.status).toBe(500);
@@ -494,7 +577,7 @@ describe('Comment Routes', () => {
       });
 
       const response = await request(app)
-        .delete('/api/comments/1');
+        .delete('/api/comments/1?requesterId=2');
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
