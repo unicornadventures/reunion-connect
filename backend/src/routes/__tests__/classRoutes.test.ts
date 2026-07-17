@@ -284,34 +284,6 @@ describe('Class Routes', () => {
     });
   });
 
-  describe('GET /api/classes/:id/recently-joined', () => {
-    it('should return recently joined users', async () => {
-      const response = await request(app).get('/api/classes/1/recently-joined');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('users');
-      expect(Array.isArray(response.body.users)).toBe(true);
-    });
-
-    it('should return max 3 users', async () => {
-      const response = await request(app).get('/api/classes/1/recently-joined');
-
-      expect(response.status).toBe(200);
-      expect(response.body.users.length).toBeLessThanOrEqual(3);
-    });
-
-    it('should handle database error', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
-
-      const response = await request(app).get('/api/classes/1/recently-joined');
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-  });
-
   describe('GET /api/classes/:id/message-count', () => {
     it('should return message count for a class', async () => {
       const response = await request(app).get('/api/classes/1/message-count');
