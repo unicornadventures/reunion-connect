@@ -48,6 +48,9 @@ export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGate
       return errorResponse(401, 'Invalid credentials.');
     }
 
+    const profileResult = await query('SELECT * FROM profiles WHERE user_id = $1', [user.id]);
+    const profile = profileResult.rows[0] || null;
+
     const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
     const token = jwt.sign(
       { id: user.id, email: user.email, is_admin: user.is_admin, is_class_admin: user.is_class_admin },
@@ -60,7 +63,8 @@ export const loginHandler = async (event: APIGatewayProxyEvent): Promise<APIGate
         user_id: user.id,
         email: user.email,
         is_admin: user.is_admin,
-        is_class_admin: user.is_class_admin
+        is_class_admin: user.is_class_admin,
+        profile
       },
       token
     });
