@@ -164,14 +164,14 @@ export const commentAPI = {
 
 // Gallery endpoints
 export const galleryAPI = {
-  list: (userId: number) =>
-    api.get(`/users/${userId}/gallery`),
+  list: (userId: number, requesterId: number) =>
+    api.get(`/users/${userId}/gallery`, { params: { requesterId } }),
 
-  upload: (userId: number) =>
-    api.post(`/users/${userId}/gallery`),
+  upload: (userId: number, requesterId: number) =>
+    api.post(`/users/${userId}/gallery`, { requesterId }),
 
-  delete: (userId: number, photoId: number) =>
-    api.delete(`/users/${userId}/gallery/${photoId}`),
+  delete: (userId: number, photoId: number, requesterId: number) =>
+    api.delete(`/users/${userId}/gallery/${photoId}`, { params: { requesterId } }),
 };
 
 // Event endpoints

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
-import { Comment } from '../types';
+import { galleryAPI } from '../apiClient';
+import { Comment, GalleryPhoto } from '../types';
 
 interface UserProfile {
   user: { id: number; email: string };
@@ -20,6 +21,8 @@ const UserCommentsPage: React.FC = () => {
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
@@ -46,6 +49,13 @@ const UserCommentsPage: React.FC = () => {
         params: { requesterId: currentUser.user_id }
       });
       setUserProfile(profileResponse.data);
+
+      try {
+        const galleryResponse = await galleryAPI.list(parseInt(userId), currentUser.user_id);
+        setGalleryPhotos(galleryResponse.data.photos || []);
+      } catch {
+        setGalleryPhotos([]);
+      }
 
       const canModerate = currentUser.user_id === parseInt(userId) || currentUser.is_admin;
       setIsCanModerate(canModerate);
@@ -300,6 +310,30 @@ const UserCommentsPage: React.FC = () => {
         <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-5">{error}</div>
       )}
 
+      {galleryPhotos.length > 0 && (
+        <div className="bg-white rounded-lg border border-[#E2E8F0] p-6 mb-6">
+          <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight mb-5">
+            Gallery ({galleryPhotos.length})
+          </h3>
+          <div className="grid grid-cols-3 gap-3">
+            {galleryPhotos.map(photo => (
+              <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-[#F6F8FC]">
+                {photo.url ? (
+                  <img
+                    src={photo.url}
+                    alt="Gallery"
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setLightboxPhoto(photo.url)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs">No image</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg border border-[#E2E8F0] p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight">
@@ -439,6 +473,26 @@ const UserCommentsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            onClick={() => setLightboxPhoto(null)}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center text-xl font-bold border-none cursor-pointer transition-colors"
+          >
+            ×
+          </button>
+          <img
+            src={lightboxPhoto}
+            alt="Gallery photo"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

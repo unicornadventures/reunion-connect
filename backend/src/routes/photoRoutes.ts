@@ -30,6 +30,23 @@ async function canManagePhotos(requesterId: number, targetUserId: number): Promi
   return false;
 }
 
+// Can requesterId view the gallery/then-now photos of targetUserId?
+async function canViewPhotos(requesterId: number, targetUserId: number): Promise<boolean> {
+  if (requesterId === targetUserId) return true;
+
+  const requesterResult = await query('SELECT is_admin FROM users WHERE id = $1', [requesterId]);
+  if (requesterResult.rows.length === 0) return false;
+  if (requesterResult.rows[0].is_admin) return true;
+
+  const sameClass = await query(`
+    SELECT 1 FROM class_user cu1
+    JOIN class_user cu2 ON cu1.class_id = cu2.class_id
+    WHERE cu1.user_id = $1 AND cu2.user_id = $2
+    LIMIT 1
+  `, [requesterId, targetUserId]);
+  return sameClass.rows.length > 0;
+}
+
 // POST /api/users/:userId/photo/:photoType - Upload file directly
 router.post('/:userId/photo/:photoType', upload.single('file'), async (req, res) => {
   const { photoType, userId } = req.params;
@@ -208,7 +225,18 @@ router.delete('/:userId/photo/:photoType', async (req, res) => {
 // GET /api/users/:userId/gallery
 router.get('/:userId/gallery', async (req, res) => {
   const { userId } = req.params;
+  const { requesterId } = req.query;
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId query parameter is required.' });
+  }
+
   try {
+    const authorized = await canViewPhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to view this gallery.' });
+    }
+
     const result = await query(
       'SELECT id, s3_key, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
       [userId]
@@ -223,7 +251,18 @@ router.get('/:userId/gallery', async (req, res) => {
 // POST /api/users/:userId/gallery - returns presigned URL (dev: returns placeholder URL)
 router.post('/:userId/gallery', async (req, res) => {
   const { userId } = req.params;
+  const { requesterId } = req.body;
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId is required.' });
+  }
+
   try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this gallery.' });
+    }
+
     const countResult = await query('SELECT COUNT(*) FROM gallery_photos WHERE user_id = $1', [userId]);
     if (parseInt(countResult.rows[0].count, 10) >= 9) {
       return res.status(400).json({ error: 'Gallery limit of 9 photos reached.' });
@@ -245,7 +284,18 @@ router.post('/:userId/gallery', async (req, res) => {
 // DELETE /api/users/:userId/gallery/:photoId
 router.delete('/:userId/gallery/:photoId', async (req, res) => {
   const { userId, photoId } = req.params;
+  const { requesterId } = req.query;
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId query parameter is required.' });
+  }
+
   try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this gallery.' });
+    }
+
     const result = await query(
       'DELETE FROM gallery_photos WHERE id = $1 AND user_id = $2 RETURNING id',
       [photoId, userId]

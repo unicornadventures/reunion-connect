@@ -81,7 +81,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       }
 
       try {
-        const galleryResponse = await galleryAPI.list(profileUserId!);
+        const galleryResponse = await galleryAPI.list(profileUserId!, currentUser!.user_id);
         setGalleryPhotos(galleryResponse.data.photos || []);
       } catch {
         setGalleryPhotos([]);
@@ -168,7 +168,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     if (galleryPhotos.length >= 9) { setError('Gallery limit of 9 photos reached.'); return; }
     setUploadingGallery(true);
     try {
-      const initRes = await galleryAPI.upload(profileUserId);
+      const initRes = await galleryAPI.upload(profileUserId, currentUser!.user_id);
       const { presignedUrl, id, key } = initRes.data;
       const putRes = await fetch(presignedUrl, {
         method: 'PUT',
@@ -177,7 +177,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       });
       if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
       setGalleryPhotos(prev => [...prev, { id, url: key, created_at: new Date().toISOString() }]);
-      const refreshed = await galleryAPI.list(profileUserId);
+      const refreshed = await galleryAPI.list(profileUserId, currentUser!.user_id);
       setGalleryPhotos(refreshed.data.photos || []);
       setError(null);
     } catch (err: any) {
@@ -190,7 +190,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const handleGalleryDelete = async (photoId: number) => {
     if (!isOwnProfile || !profileUserId) return;
     try {
-      await galleryAPI.delete(profileUserId, photoId);
+      await galleryAPI.delete(profileUserId, photoId, currentUser!.user_id);
       setGalleryPhotos(prev => prev.filter(p => p.id !== photoId));
       setError(null);
     } catch (err: any) {
