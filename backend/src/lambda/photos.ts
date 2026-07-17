@@ -41,6 +41,19 @@ async function canManagePhotos(authUser: AuthUser, targetUserId: number): Promis
   return false;
 }
 
+/** Can this user view the gallery/then-now photos of targetUserId? */
+async function canViewPhotos(authUser: AuthUser, targetUserId: number): Promise<boolean> {
+  if (authUser.id === targetUserId) return true;
+  if (authUser.is_admin) return true;
+  const sameClass = await query(`
+    SELECT 1 FROM class_user cu1
+    JOIN class_user cu2 ON cu1.class_id = cu2.class_id
+    WHERE cu1.user_id = $1 AND cu2.user_id = $2
+    LIMIT 1
+  `, [authUser.id, targetUserId]);
+  return sameClass.rows.length > 0;
+}
+
 /** Delete all S3 objects whose key begins with the given prefix (handles pagination). */
 export async function deleteS3Folder(prefix: string): Promise<void> {
   let continuationToken: string | undefined;
@@ -272,6 +285,10 @@ export const listGalleryPhotosHandler = async (event: APIGatewayProxyEvent): Pro
     await dbReady;
     const { userId } = event.pathParameters || {};
     if (!userId) return errorResponse(400, 'userId required.');
+
+    if (!(await canViewPhotos(authUser, parseInt(userId, 10)))) {
+      return errorResponse(403, 'You do not have permission to view this gallery.');
+    }
 
     const result = await query(
       'SELECT id, s3_key, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
