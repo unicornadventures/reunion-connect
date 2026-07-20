@@ -174,7 +174,7 @@ describe('CommentSection Component', () => {
     await user.click(confirmButtons[confirmButtons.length - 1]);
 
     await waitFor(() => {
-      expect(api.default.delete).toHaveBeenCalledWith('/comments/1');
+      expect(api.default.delete).toHaveBeenCalledWith('/comments/1', { params: { requesterId: 2 } });
     });
   });
 });
