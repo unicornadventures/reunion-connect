@@ -65,6 +65,22 @@ CI=true npm run test:e2e
 - Class details
 - Grid layout responsiveness
 
+### `directory.spec.ts`
+- Class header (school + year) and classmate count
+- Former name / initials displayed when set, falling back to current name
+- Deceased classmates shown in a separate "In Memoriam" section
+- Sort order (mirrors the backend's sort by former-then-current last name)
+- Search matching former first/last name, current name, email, and tags
+- Empty states (no search matches, empty class)
+- Navigation to a classmate's profile on card click
+- API error handling
+
+> **Note:** `auth.spec.ts`, `dashboard.spec.ts`, `profile.spec.ts`, `comments.spec.ts`, and
+> `schools-classes.spec.ts` predate the `e2e/helpers/auth.ts` helper and don't seed an
+> authenticated session before navigating — as written they redirect to `/login` and fail.
+> Use `directory.spec.ts` as the reference for the working pattern (see "Authentication" below)
+> if you fix or rewrite them.
+
 ### `smoke.spec.ts`
 - Critical user flows
 - Page loading
@@ -97,13 +113,29 @@ See `playwright.config.ts` for:
 
 ## Writing New Tests
 
+### Authentication
+
+Most routes require a logged-in session, and `AppContext` only reads `localStorage` once, on
+mount. Seed the session with `page.addInitScript` *before* `page.goto`, via the `loginAs` helper
+in `e2e/helpers/auth.ts` — `page.evaluate` after navigation is too late:
+
+```typescript
+import { loginAs } from './helpers/auth';
+
+test.beforeEach(async ({ page }) => {
+  await loginAs(page, { id: 1, email: 'me@example.com', profile: { first_name: 'Jane', last_name: 'Doe' } });
+});
+```
+
 ### Test Template
 ```typescript
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
 test.describe('Feature Name', () => {
   test.beforeEach(async ({ page, context }) => {
-    // Setup: Navigate, mock APIs, etc.
+    await loginAs(page, { id: 1, email: 'me@example.com' });
+    // Setup: mock APIs, etc.
     await page.goto('/');
   });
 
@@ -119,6 +151,13 @@ test.describe('Feature Name', () => {
   });
 });
 ```
+
+### A note on non-retrying locator methods
+
+`allTextContents()`, `innerHTML()`, `count()`, etc. read the DOM once and don't wait for content
+to appear the way `expect(locator).toBeVisible()` does. If the data loads asynchronously (as the
+directory does), assert on a retrying matcher first (e.g. `await expect(locator).toHaveCount(n)`)
+before calling one of these, or it will race the fetch and silently return an empty result.
 
 ### Best Practices
 

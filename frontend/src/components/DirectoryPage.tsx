@@ -86,6 +86,7 @@ const DirectoryPage: React.FC = () => {
   const filtered = users.filter(u =>
     (u.first_name?.toLowerCase() || '').includes(searchLower) ||
     (u.last_name?.toLowerCase() || '').includes(searchLower) ||
+    (u.former_first_name?.toLowerCase() || '').includes(searchLower) ||
     (u.former_last_name?.toLowerCase() || '').includes(searchLower) ||
     (u.email?.toLowerCase() || '').includes(searchLower) ||
     (u.tags || []).some(tag => tag.toLowerCase().includes(searchLower))
