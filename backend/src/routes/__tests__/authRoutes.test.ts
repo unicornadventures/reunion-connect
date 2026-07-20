@@ -308,7 +308,7 @@ describe('Auth Routes', () => {
   });
 
   describe('POST /api/auth/register', () => {
-    it('should register a new user with valid data', async () => {
+    it('should reject registration attempts since self-registration is disabled', async () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
@@ -319,67 +319,8 @@ describe('Auth Routes', () => {
           confirmPassword: 'password123'
         });
 
-      expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('message');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe('newuser@example.com');
-    });
-
-    it('should reject registration with mismatched passwords', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'newuser@example.com',
-          firstName: 'John',
-          lastName: 'Doe',
-          password: 'password123',
-          confirmPassword: 'different'
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('match');
-    });
-
-    it('should reject registration with short password', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'newuser@example.com',
-          firstName: 'John',
-          lastName: 'Doe',
-          password: '123',
-          confirmPassword: '123'
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('6 characters');
-    });
-
-    it('should reject registration with existing email', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'existing@example.com',
-          firstName: 'Jane',
-          lastName: 'Doe',
-          password: 'password123',
-          confirmPassword: 'password123'
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('already registered');
-    });
-
-    it('should reject registration with missing fields', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'newuser@example.com',
-          password: 'password123'
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
+      expect(response.status).toBe(403);
+      expect(response.body.error).toContain('disabled');
     });
   });
 
@@ -716,27 +657,6 @@ describe('Auth Routes', () => {
         .send({
           email: 'existing@example.com',
           password: 'password'
-        });
-
-      expect(response.status).toBe(500);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should handle database error in register after validation', async () => {
-      const { query } = require('../../db');
-      jest.clearAllMocks();
-      const mockQuery = jest.fn();
-      query.mockImplementation(mockQuery);
-
-      mockQuery.mockResolvedValueOnce({ rows: [] }); // email check passes (no existing user)
-      mockQuery.mockRejectedValueOnce(new Error('Database error')); // INSERT user fails
-
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'newuser@example.com',
-          password: 'Password123!',
-          confirmPassword: 'Password123!'
         });
 
       expect(response.status).toBe(500);

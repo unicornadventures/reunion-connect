@@ -1,6 +1,13 @@
 import express, { Express } from 'express';
 import request from 'supertest';
 
+// Dates relative to "now" so future-date assertions don't bit-rot over time
+const daysFromNow = (days: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
 // Mock database
 const mockDb = {
   events: [
@@ -8,7 +15,7 @@ const mockDb = {
       id: 1,
       class_id: 1,
       event_name: 'Reunion Dinner',
-      event_date: '2026-07-15',
+      event_date: daysFromNow(30),
       event_time: '18:00:00',
       location: 'Grand Hotel',
       description: 'Annual reunion dinner',
@@ -19,7 +26,7 @@ const mockDb = {
       id: 2,
       class_id: 1,
       event_name: 'Golf Outing',
-      event_date: '2026-08-20',
+      event_date: daysFromNow(60),
       event_time: '09:00:00',
       location: 'Country Club',
       description: 'Friendly golf tournament',
@@ -115,7 +122,7 @@ describe('Event Routes', () => {
         id: 1,
         class_id: 1,
         event_name: 'Reunion Dinner',
-        event_date: '2026-07-15',
+        event_date: daysFromNow(30),
         event_time: '18:00:00',
         location: 'Grand Hotel',
         description: 'Annual reunion dinner',
@@ -126,7 +133,7 @@ describe('Event Routes', () => {
         id: 2,
         class_id: 1,
         event_name: 'Golf Outing',
-        event_date: '2026-08-20',
+        event_date: daysFromNow(60),
         event_time: '09:00:00',
         location: 'Country Club',
         description: 'Friendly golf tournament',
