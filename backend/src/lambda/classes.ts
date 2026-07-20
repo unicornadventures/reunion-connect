@@ -336,7 +336,7 @@ export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Pro
        JOIN users u ON cu.user_id = u.id
        LEFT JOIN profiles p ON u.id = p.user_id
        WHERE cu.class_id = $1
-       ORDER BY p.last_name ASC, p.first_name ASC;`,
+       ORDER BY COALESCE(p.former_last_name, p.last_name) ASC, COALESCE(p.former_first_name, p.first_name) ASC;`,
       [classId]
     );
 
