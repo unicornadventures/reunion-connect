@@ -21,8 +21,9 @@ const Header: React.FC = () => {
   };
 
   const getInitials = () => {
-    const firstName = currentUser?.first_name || '';
-    const lastName = currentUser?.last_name || '';
+    const profile = currentUser?.profile;
+    const firstName = profile?.former_first_name || profile?.first_name || '';
+    const lastName = profile?.former_last_name || profile?.last_name || '';
     return ((firstName.charAt(0) + lastName.charAt(0)).toUpperCase()) || '?';
   };
 
