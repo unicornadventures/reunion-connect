@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { galleryAPI } from '../apiClient';
@@ -219,6 +220,109 @@ const UserCommentsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPdf = () => {
+    if (!userProfile) return;
+    const { profile } = userProfile;
+    const displayName = profile?.first_name
+      ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+      : userProfile.user.email;
+    const published = comments.filter(c => c.published);
+
+    const NAVY: [number, number, number] = [14, 34, 64];
+    const GOLD: [number, number, number] = [232, 169, 62];
+    const LIGHT_GRAY: [number, number, number] = [148, 163, 184];
+    const BORDER: [number, number, number] = [226, 232, 240];
+    const TEXT: [number, number, number] = [51, 65, 85];
+    const WHITE: [number, number, number] = [255, 255, 255];
+    const HEADER_SUBTEXT: [number, number, number] = [200, 210, 225];
+
+    const PAGE_WIDTH = 210;
+    const PAGE_HEIGHT = 297;
+    const MARGIN = 18;
+    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+    const HEADER_HEIGHT = 40;
+    const FOOTER_Y = PAGE_HEIGHT - 12;
+    const LINE_HEIGHT = 5;
+    const BOX_PADDING = 6;
+    const TEXT_WIDTH = CONTENT_WIDTH - BOX_PADDING * 2;
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    const drawHeader = (continued: boolean) => {
+      doc.setFillColor(...NAVY);
+      doc.rect(0, 0, PAGE_WIDTH, HEADER_HEIGHT, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(continued ? 14 : 22);
+      doc.setTextColor(...GOLD);
+      doc.text(displayName, MARGIN, continued ? 16 : 20);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...WHITE);
+      doc.text(
+        continued ? 'Comments (continued)' : `${published.length} published comment${published.length === 1 ? '' : 's'}`,
+        MARGIN,
+        continued ? 24 : 29
+      );
+      doc.setFontSize(8);
+      doc.setTextColor(...HEADER_SUBTEXT);
+      doc.text(`Generated ${new Date().toLocaleDateString()}`, PAGE_WIDTH - MARGIN, continued ? 16 : 20, { align: 'right' });
+    };
+
+    drawHeader(false);
+    let y = HEADER_HEIGHT + 12;
+
+    published.forEach(comment => {
+      const commenterName = comment.commenter_first_name
+        ? `${comment.commenter_first_name} ${comment.commenter_last_name || ''}`.trim()
+        : 'Anonymous';
+      const dateStr = new Date(comment.created_at).toLocaleDateString();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const lines: string[] = doc.splitTextToSize(comment.content, TEXT_WIDTH);
+      const boxHeight = BOX_PADDING * 2 + LINE_HEIGHT + lines.length * LINE_HEIGHT;
+
+      if (y + boxHeight > PAGE_HEIGHT - 20) {
+        doc.addPage();
+        drawHeader(true);
+        y = HEADER_HEIGHT + 12;
+      }
+
+      doc.setDrawColor(...BORDER);
+      doc.setFillColor(...WHITE);
+      doc.roundedRect(MARGIN, y, CONTENT_WIDTH, boxHeight, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(...NAVY);
+      doc.text(commenterName, MARGIN + BOX_PADDING, y + BOX_PADDING + 2);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...LIGHT_GRAY);
+      doc.text(dateStr, MARGIN + CONTENT_WIDTH - BOX_PADDING, y + BOX_PADDING + 2, { align: 'right' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...TEXT);
+      lines.forEach((line, idx) => {
+        doc.text(line, MARGIN + BOX_PADDING, y + BOX_PADDING + 2 + LINE_HEIGHT + idx * LINE_HEIGHT);
+      });
+
+      y += boxHeight + 6;
+    });
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...LIGHT_GRAY);
+      doc.text(`Page ${i} of ${totalPages}`, PAGE_WIDTH / 2, FOOTER_Y, { align: 'center' });
+    }
+
+    doc.save(`comments-${displayName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+  };
+
   if (loading) {
     return (
       <div className="max-w-[900px] mx-auto px-5 py-8">
@@ -340,12 +444,20 @@ const UserCommentsPage: React.FC = () => {
             Comments ({comments.length})
           </h3>
           {isOwnPage && comments.some(c => c.published) && (
-            <button
-              onClick={handleDownload}
-              className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
-            >
-              Download .txt
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadPdf}
+                className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
+              >
+                Download PDF
+              </button>
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
+              >
+                Download .txt
+              </button>
+            </div>
           )}
         </div>
 
