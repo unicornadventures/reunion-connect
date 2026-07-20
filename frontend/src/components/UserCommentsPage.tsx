@@ -193,33 +193,6 @@ const UserCommentsPage: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (!userProfile) return;
-    const { profile } = userProfile;
-    const displayName = profile?.first_name
-      ? `${profile.first_name} ${profile.last_name || ''}`
-      : userProfile.user.email;
-    const published = comments.filter(c => c.published);
-    const lines = [
-      `Comments for ${displayName}`,
-      `Downloaded ${new Date().toLocaleDateString()}`,
-      '',
-      ...published.map(c => {
-        const name = c.commenter_first_name
-          ? `${c.commenter_first_name} ${c.commenter_last_name || ''}`.trim()
-          : 'Anonymous';
-        return `${name} — ${new Date(c.created_at).toLocaleDateString()}\n${c.content}\n`;
-      })
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `comments-${displayName.replace(/\s+/g, '-').toLowerCase()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const handleDownloadPdf = () => {
     if (!userProfile) return;
     const { profile } = userProfile;
@@ -444,20 +417,12 @@ const UserCommentsPage: React.FC = () => {
             Comments ({comments.length})
           </h3>
           {isOwnPage && comments.some(c => c.published) && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleDownloadPdf}
-                className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
-              >
-                Download PDF
-              </button>
-              <button
-                onClick={handleDownload}
-                className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
-              >
-                Download .txt
-              </button>
-            </div>
+            <button
+              onClick={handleDownloadPdf}
+              className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
+            >
+              Download PDF
+            </button>
           )}
         </div>
 
