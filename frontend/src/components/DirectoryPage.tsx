@@ -38,6 +38,11 @@ const getInitials = (firstName?: string | null, lastName?: string | null): strin
   return (first + last) || '?';
 };
 
+const getDisplayName = (user: DirectoryUser): { first: string | null; last: string | null } => ({
+  first: user.former_first_name || user.first_name,
+  last: user.former_last_name || user.last_name,
+});
+
 const DirectoryPage: React.FC = () => {
   const { currentUser } = useAppContext();
   const navigate = useNavigate();
@@ -134,7 +139,9 @@ const DirectoryPage: React.FC = () => {
         <>
           {living.length > 0 && (
             <div className="grid gap-3 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
-              {living.map((user) => (
+              {living.map((user) => {
+                const displayName = getDisplayName(user);
+                return (
                 <button
                   key={user.id}
                   onClick={() => navigate(`/user/${user.id}`)}
@@ -143,7 +150,7 @@ const DirectoryPage: React.FC = () => {
                   {user.now_photo_url ? (
                     <img
                       src={user.now_photo_url}
-                      alt={`${user.first_name} ${user.last_name}`}
+                      alt={`${displayName.first} ${displayName.last}`}
                       className="w-24 h-24 rounded-full object-cover"
                     />
                   ) : (
@@ -153,25 +160,26 @@ const DirectoryPage: React.FC = () => {
                         width: 96,
                         height: 96,
                         fontSize: 30,
-                        background: getColorForInitials(getInitials(user.first_name, user.last_name)),
+                        background: getColorForInitials(getInitials(displayName.first, displayName.last)),
                       }}
                     >
-                      {getInitials(user.first_name, user.last_name)}
+                      {getInitials(displayName.first, displayName.last)}
                     </div>
                   )}
                   <div className="w-full">
                     <div className="font-display text-sm font-bold text-[#0E2240] uppercase tracking-wide leading-tight">
-                      {user.last_name || user.first_name || 'Alumni'}
+                      {displayName.last || displayName.first || 'Alumni'}
                     </div>
-                    {user.first_name && user.last_name && (
-                      <div className="text-xs text-[#64748B] mt-0.5">{user.first_name}</div>
+                    {displayName.first && displayName.last && (
+                      <div className="text-xs text-[#64748B] mt-0.5">{displayName.first}</div>
                     )}
                     {user.nickname && (
                       <div className="text-[10px] text-[#94A3B8] mt-0.5">"{user.nickname}"</div>
                     )}
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -183,7 +191,9 @@ const DirectoryPage: React.FC = () => {
                 <div className="h-px flex-1 bg-[#E2E8F0]" />
               </div>
               <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
-                {deceased.map((user) => (
+                {deceased.map((user) => {
+                  const displayName = getDisplayName(user);
+                  return (
                   <button
                     key={user.id}
                     onClick={() => navigate(`/user/${user.id}`)}
@@ -192,7 +202,7 @@ const DirectoryPage: React.FC = () => {
                     {user.now_photo_url ? (
                       <img
                         src={user.now_photo_url}
-                        alt={`${user.first_name} ${user.last_name}`}
+                        alt={`${displayName.first} ${displayName.last}`}
                         className="w-24 h-24 rounded-full object-cover grayscale"
                       />
                     ) : (
@@ -206,22 +216,23 @@ const DirectoryPage: React.FC = () => {
                           color: '#64748B',
                         }}
                       >
-                        {getInitials(user.first_name, user.last_name)}
+                        {getInitials(displayName.first, displayName.last)}
                       </div>
                     )}
                     <div className="w-full">
                       <div className="font-display text-sm font-bold text-[#64748B] uppercase tracking-wide leading-tight">
-                        {user.last_name || user.first_name || 'Alumni'}
+                        {displayName.last || displayName.first || 'Alumni'}
                       </div>
-                      {user.first_name && user.last_name && (
-                        <div className="text-xs text-[#94A3B8] mt-0.5">{user.first_name}</div>
+                      {displayName.first && displayName.last && (
+                        <div className="text-xs text-[#94A3B8] mt-0.5">{displayName.first}</div>
                       )}
                       {user.nickname && (
                         <div className="text-[10px] text-[#CBD5E1] mt-0.5">"{user.nickname}"</div>
                       )}
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
