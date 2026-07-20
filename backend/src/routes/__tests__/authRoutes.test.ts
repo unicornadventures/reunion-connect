@@ -608,12 +608,12 @@ describe('Auth Routes', () => {
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should return 403 with invalid token', async () => {
+    it('should return 401 with invalid token', async () => {
       const response = await request(app)
         .get('/api/auth/me')
         .set('Cookie', 'token=invalid.token.here');
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
       expect(response.body).toHaveProperty('error');
     });
 

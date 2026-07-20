@@ -30,6 +30,6 @@ export function authenticateToken(req: any, res: any, next: any) {
         
         next(); // Pass control to your route handler (like the /me endpoint)
     } catch (err) {
-        return res.status(403).json({ error: 'Invalid or expired session token.' });
+        return res.status(401).json({ error: 'Invalid or expired session token.' });
     }
 }

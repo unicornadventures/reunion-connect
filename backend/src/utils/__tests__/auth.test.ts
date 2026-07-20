@@ -105,19 +105,19 @@ describe('Auth Utilities', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should return 403 with invalid token', () => {
+    it('should return 401 with invalid token', () => {
       req.cookies.token = 'invalid.token.here';
 
       authenticateToken(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ error: expect.any(String) })
       );
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('should return 403 with expired token', () => {
+    it('should return 401 with expired token', () => {
       const JWT_SECRET = process.env.JWT_SECRET || 'fallback-super-secret-key';
       const payload = { id: 1, email: 'test@example.com' };
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '-1h' }); // Expired
@@ -126,7 +126,7 @@ describe('Auth Utilities', () => {
 
       authenticateToken(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ error: expect.any(String) })
       );
