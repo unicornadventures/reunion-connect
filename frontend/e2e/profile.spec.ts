@@ -1,165 +1,164 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
+import { profileLink } from './helpers/nav';
 
-test.describe('User Profile', () => {
-  test.beforeEach(async ({ page, context }) => {
-    // Mock profile data
-    await context.route('**/api/users/1', (route) => {
-      route.fulfill({
-        status: 200,
-        body: JSON.stringify({
-          user: {
-            id: 1,
-            email: 'john@example.com',
-            is_admin: false,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z'
-          },
-          profile: {
-            id: 1,
-            user_id: 1,
-            first_name: 'John',
-            last_name: 'Doe',
-            nickname_school: 'Johnny',
-            bio: 'Software engineer from 2010',
-            then_photo_url: 'https://example.com/then.jpg',
-            now_photo_url: 'https://example.com/now.jpg',
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z'
-          }
-        })
-      });
+const USER = { id: 1, email: 'jane@example.com', is_admin: false, created_at: '2024-01-01T00:00:00Z' };
+const PROFILE = {
+  id: 1,
+  user_id: 1,
+  first_name: 'Jane',
+  last_name: 'Doe',
+  nickname: 'JD',
+  former_first_name: 'Janie',
+  former_last_name: 'Smith',
+  bio: 'Software engineer from 2015',
+  then_photo_url: null,
+  now_photo_url: null,
+  tags: ['band', 'honor roll'],
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+};
+const CLASS_INFO = { id: 5, year: 2015, school_id: 10, school_name: 'Central High School' };
+const SCHOOL = { id: 10, name: 'Central High School', location: 'Springfield, IL' };
+
+// Own-profile view of src/components/UserProfile.tsx, rendered at /profile.
+test.describe('Own Profile', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, { id: 1, email: USER.email, profile: { first_name: 'Jane', last_name: 'Doe' } });
+
+    await page.route('**/api/users/1', (route) => {
+      if (route.request().method() === 'GET') {
+        route.fulfill({ status: 200, body: JSON.stringify({ user: USER, profile: PROFILE }) });
+      } else {
+        route.continue();
+      }
+    });
+    await page.route('**/api/users/1/class', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ class: CLASS_INFO }) });
+    });
+    await page.route('**/api/schools/10', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ school: SCHOOL }) });
+    });
+    await page.route('**/api/users/1/gallery**', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ photos: [] }) });
     });
 
     await page.goto('/profile');
   });
 
   test('should display profile information', async ({ page }) => {
-    // Wait for profile to load
-    await expect(page.locator('text=John Doe')).toBeVisible();
-    await expect(page.locator('text=john@example.com')).toBeVisible();
-    await expect(page.locator('text=Johnny')).toBeVisible();
-    await expect(page.locator('text=Software engineer from 2010')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Jane Doe' })).toBeVisible();
+    await expect(page.getByText('"JD"')).toBeVisible();
+    await expect(page.getByText('Formerly: Janie Smith')).toBeVisible();
+    await expect(page.getByText('Software engineer from 2015')).toBeVisible();
+    await expect(page.getByText('band')).toBeVisible();
+    await expect(page.getByText('honor roll')).toBeVisible();
   });
 
-  test('should display profile sections', async ({ page }) => {
-    // Personal Information section
-    await expect(page.locator('text=Personal Information')).toBeVisible();
-
-    // Photos section
-    await expect(page.locator('text=Photos')).toBeVisible();
-
-    // Account Info section
-    await expect(page.locator('text=Account Info')).toBeVisible();
+  test('should show class info and contact info', async ({ page }) => {
+    await expect(page.getByText('Central High School')).toBeVisible();
+    await expect(page.getByText('Springfield, IL')).toBeVisible();
+    await expect(page.getByText('2015', { exact: true })).toBeVisible();
+    await expect(page.getByText('jane@example.com')).toBeVisible();
   });
 
-  test('should have Edit Profile button', async ({ page }) => {
-    const editButton = page.locator('button:has-text("Edit Profile")');
-    await expect(editButton).toBeVisible();
-    await expect(editButton).toBeEnabled();
+  test('should show avatar initials from the current name when no photo is set', async ({ page }) => {
+    await expect(page.getByText('JD', { exact: true }).first()).toBeVisible();
   });
 
-  test('should toggle edit mode', async ({ page }) => {
-    const editButton = page.locator('button:has-text("Edit Profile")');
+  test('should toggle into edit mode with fields prefilled', async ({ page }) => {
+    await page.getByRole('button', { name: 'Edit profile' }).click();
 
-    // Click to enter edit mode
-    await editButton.click();
-
-    // Should show Cancel button instead
-    await expect(page.locator('button:has-text("Cancel")')).toBeVisible();
-
-    // Should show input fields
-    await expect(page.locator('input[value="John"]')).toBeVisible();
-    await expect(page.locator('input[value="Doe"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cancel editing' })).toBeVisible();
+    await expect(page.getByPlaceholder('First name', { exact: true })).toHaveValue('Jane');
+    await expect(page.getByPlaceholder('Last name', { exact: true })).toHaveValue('Doe');
+    await expect(page.getByPlaceholder('Former first name')).toHaveValue('Janie');
+    await expect(page.getByPlaceholder('Former last name')).toHaveValue('Smith');
+    await expect(page.getByPlaceholder("Tell your classmates what you've been up to...")).toHaveValue('Software engineer from 2015');
   });
 
-  test('should allow editing profile fields', async ({ page }) => {
-    const editButton = page.locator('button:has-text("Edit Profile")');
-    await editButton.click();
+  test('should save profile edits, including former name and a new tag', async ({ page }) => {
+    await page.getByRole('button', { name: 'Edit profile' }).click();
 
-    // Edit first name
-    const firstNameInput = page.locator('input[value="John"]');
-    await firstNameInput.clear();
-    await firstNameInput.fill('Jane');
-    await expect(firstNameInput).toHaveValue('Jane');
+    await page.getByPlaceholder('Former first name').fill('Janet');
+    await page.getByPlaceholder('Add a tag and press Enter').fill('soccer');
+    await page.getByPlaceholder('Add a tag and press Enter').press('Enter');
+    await expect(page.getByText('soccer')).toBeVisible();
 
-    // Edit last name
-    const lastNameInput = page.locator('input[value="Doe"]');
-    await lastNameInput.clear();
-    await lastNameInput.fill('Smith');
-    await expect(lastNameInput).toHaveValue('Smith');
+    let putBody: any;
+    await page.route('**/api/users/1/profile', (route) => {
+      putBody = route.request().postDataJSON();
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({ profile: { ...PROFILE, former_first_name: 'Janet', tags: [...PROFILE.tags, 'soccer'] } }),
+      });
+    });
+
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(page.getByRole('button', { name: 'Edit profile' })).toBeVisible();
+    await expect(page.getByText('Formerly: Janet Smith')).toBeVisible();
+    expect(putBody.former_first_name).toBe('Janet');
+    expect(putBody.tags).toEqual(['band', 'honor roll', 'soccer']);
   });
 
-  test('should cancel edit mode', async ({ page }) => {
-    const editButton = page.locator('button:has-text("Edit Profile")');
-    await editButton.click();
+  test('should remove a tag while editing', async ({ page }) => {
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    await expect(page.getByText('band')).toBeVisible();
 
-    // Edit a field
-    const firstNameInput = page.locator('input[value="John"]');
-    await firstNameInput.clear();
-    await firstNameInput.fill('Jane');
+    await page.locator('span', { hasText: 'band' }).getByRole('button', { name: '×' }).click();
 
-    // Click Cancel
-    const cancelButton = page.locator('button:has-text("Cancel")');
-    await cancelButton.click();
-
-    // Should exit edit mode and revert changes
-    await expect(page.locator('text=John Doe')).toBeVisible();
-    await expect(firstNameInput).not.toBeVisible();
+    await expect(page.getByText('band', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('honor roll')).toBeVisible();
   });
 
-  test('should display photos', async ({ page }) => {
-    // Check for photo images
-    await expect(page.locator('img[alt="Then"]')).toBeVisible();
-    await expect(page.locator('img[alt="Now"]')).toBeVisible();
+  test('should cancel edit mode without saving changes', async ({ page }) => {
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    await page.getByPlaceholder('First name', { exact: true }).fill('Changed');
 
-    // Photos should have proper src
-    const thenPhoto = page.locator('img[alt="Then"]');
-    await expect(thenPhoto).toHaveAttribute('src', 'https://example.com/then.jpg');
+    await page.getByRole('button', { name: 'Cancel editing' }).click();
 
-    const nowPhoto = page.locator('img[alt="Now"]');
-    await expect(nowPhoto).toHaveAttribute('src', 'https://example.com/now.jpg');
+    await expect(page.getByRole('heading', { name: 'Jane Doe' })).toBeVisible();
+    await expect(page.getByPlaceholder('First name', { exact: true })).toHaveCount(0);
   });
 
-  test('should have file input for photo upload', async ({ page }) => {
-    // Check for file inputs
-    const fileInputs = page.locator('input[type="file"]');
-    const count = await fileInputs.count();
-    expect(count).toBeGreaterThanOrEqual(2);
-
-    // Check for upload buttons
-    await expect(page.locator('span:has-text("Choose File")')).toHaveCount(2);
+  test('should show empty gallery state for own profile', async ({ page }) => {
+    await expect(page.getByText('Gallery (0/9)')).toBeVisible();
+    await expect(page.getByText('No gallery photos yet. Add up to 9 photos.')).toBeVisible();
   });
 
-  test('should display account creation date', async ({ page }) => {
-    const date = new Date('2024-01-01').toLocaleDateString();
-    await expect(page.locator(`text=${date}`)).toBeVisible();
+  test('should show placeholders for then/now photos with an upload prompt', async ({ page }) => {
+    await expect(page.getByText('Click to add photo')).toHaveCount(2);
   });
 
-  test('should display admin status', async ({ page }) => {
-    await expect(page.locator('text=Regular User')).toBeVisible();
+  test('should navigate back on the back button', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText('Welcome back, Jane')).toBeVisible();
+
+    await page.route('**/api/users/1/class', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ class: CLASS_INFO }) });
+    });
+    await page.route('**/api/schools/10/classes/5/events', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ events: [] }) });
+    });
+    await profileLink(page).click();
+    await expect(page).toHaveURL(/\/profile$/);
+
+    await page.getByRole('button', { name: '← Back' }).click();
+    await expect(page).toHaveURL('/');
   });
 
-  test('should have proper responsive layout', async ({ page }) => {
-    // Test desktop layout
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    let sections = page.locator('div[style*="background"]');
-    expect(await sections.count()).toBeGreaterThan(0);
+  test('should show an error message when the profile fails to load', async ({ page }) => {
+    await page.route('**/api/users/1', (route) => {
+      if (route.request().method() === 'GET') {
+        route.fulfill({ status: 500, body: JSON.stringify({ error: 'Internal server error.' }) });
+      } else {
+        route.continue();
+      }
+    });
 
-    // Test mobile layout
-    await page.setViewportSize({ width: 375, height: 667 });
-    sections = page.locator('div[style*="background"]');
-    expect(await sections.count()).toBeGreaterThan(0);
-  });
+    await page.reload();
 
-  test('should display user email in profile', async ({ page }) => {
-    await expect(page.locator('text=john@example.com')).toBeVisible();
-  });
-
-  test('should handle loading state', async ({ page }) => {
-    // Navigate to profile page
-    await page.goto('/profile');
-
-    // Should eventually show profile content
-    await expect(page.locator('text=John Doe')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Internal server error.')).toBeVisible();
   });
 });

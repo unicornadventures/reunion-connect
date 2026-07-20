@@ -1,192 +1,192 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
-test.describe('Comments Section', () => {
-  test.beforeEach(async ({ page, context }) => {
-    // Mock comments data
-    await context.route('**/api/users/*/comments', (route) => {
-      if (route.request().method() === 'GET') {
+// CommentSection.tsx renders the current user's own authored comments ("My Comments"),
+// fetched from GET /comments/my-comments/:userId — not comments left on their profile.
+test.describe('My Comments', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, { id: 1, email: 'me@example.com', profile: { first_name: 'Jane', last_name: 'Doe' } });
+  });
+
+  test('should display the comment count and list', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({
+          comments: [
+            { id: 1, target_user_id: 2, commenter_id: 1, content: 'Great times at school!', published: true, created_at: '2024-06-19T10:00:00Z', updated_at: '2024-06-19T10:00:00Z' },
+            { id: 2, target_user_id: 3, commenter_id: 1, content: 'Remember the old days?', published: true, created_at: '2024-06-18T15:30:00Z', updated_at: '2024-06-18T15:30:00Z' },
+          ],
+        }),
+      });
+    });
+
+    await page.goto('/comments');
+
+    await expect(page.getByText('My Comments (2)')).toBeVisible();
+    await expect(page.getByText('Great times at school!')).toBeVisible();
+    await expect(page.getByText('Remember the old days?')).toBeVisible();
+  });
+
+  test('should show an empty state when there are no comments', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ comments: [] }) });
+    });
+
+    await page.goto('/comments');
+
+    await expect(page.getByText("You haven't posted any comments yet.")).toBeVisible();
+  });
+
+  test('should disable posting until text is entered, then post a new comment', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ comments: [] }) });
+    });
+
+    await page.goto('/comments');
+
+    const textarea = page.getByPlaceholder('Share your thoughts...');
+    const postButton = page.getByRole('button', { name: 'Post comment' });
+    await expect(postButton).toBeDisabled();
+
+    await textarea.fill('This is a great reunion!');
+    await expect(postButton).toBeEnabled();
+
+    await page.route('**/api/users/1/comments', (route) => {
+      route.fulfill({
+        status: 201,
+        body: JSON.stringify({
+          comment: {
+            id: 3, target_user_id: 1, commenter_id: 1, content: 'This is a great reunion!',
+            published: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          },
+        }),
+      });
+    });
+
+    await postButton.click();
+
+    await expect(page.getByText('This is a great reunion!')).toBeVisible();
+    await expect(textarea).toHaveValue('');
+    await expect(page.getByText('My Comments (1)')).toBeVisible();
+  });
+
+  test('should edit an existing comment', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({
+          comments: [{ id: 1, target_user_id: 2, commenter_id: 1, content: 'Original text', published: true, created_at: '2024-06-19T10:00:00Z', updated_at: '2024-06-19T10:00:00Z' }],
+        }),
+      });
+    });
+    await page.goto('/comments');
+    await expect(page.getByText('Original text')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Edit' }).click();
+    const editTextarea = page.locator('textarea').last();
+    await expect(editTextarea).toHaveValue('Original text');
+    await editTextarea.fill('Updated text');
+
+    let putBody: any;
+    await page.route('**/api/comments/1', (route) => {
+      if (route.request().method() === 'PUT') {
+        putBody = route.request().postDataJSON();
         route.fulfill({
           status: 200,
           body: JSON.stringify({
-            comments: [
-              {
-                id: 1,
-                target_user_id: 1,
-                commenter_id: 2,
-                content: 'Great times at school!',
-                published: true,
-                created_at: '2024-06-19T10:00:00Z',
-                updated_at: '2024-06-19T10:00:00Z',
-                first_name: 'Jane',
-                last_name: 'Smith'
-              },
-              {
-                id: 2,
-                target_user_id: 1,
-                commenter_id: 3,
-                content: 'Remember the old days?',
-                published: true,
-                created_at: '2024-06-18T15:30:00Z',
-                updated_at: '2024-06-18T15:30:00Z',
-                first_name: 'Bob',
-                last_name: 'Johnson'
-              }
-            ]
-          })
+            comment: { id: 1, target_user_id: 2, commenter_id: 1, content: 'Updated text', published: true, created_at: '2024-06-19T10:00:00Z', updated_at: '2024-06-19T11:00:00Z' },
+          }),
         });
       } else {
         route.continue();
       }
     });
 
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Updated text')).toBeVisible();
+    await expect(page.getByText('Original text')).toHaveCount(0);
+    expect(putBody).toEqual({ content: 'Updated text', requesterId: 1 });
+  });
+
+  test('should cancel editing without saving changes', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({
+          comments: [{ id: 1, target_user_id: 2, commenter_id: 1, content: 'Original text', published: true, created_at: '2024-06-19T10:00:00Z', updated_at: '2024-06-19T10:00:00Z' }],
+        }),
+      });
+    });
     await page.goto('/comments');
+
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await page.locator('textarea').last().fill('Changed my mind');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    await expect(page.getByText('Original text')).toBeVisible();
+    await expect(page.getByText('Changed my mind')).toHaveCount(0);
   });
 
-  test('should display comments heading', async ({ page }) => {
-    await expect(page.locator('text=Comments')).toBeVisible();
-  });
+  test('should delete a comment after confirming', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({
+          comments: [{ id: 1, target_user_id: 2, commenter_id: 1, content: 'Delete me', published: true, created_at: '2024-06-19T10:00:00Z', updated_at: '2024-06-19T10:00:00Z' }],
+        }),
+      });
+    });
+    await page.goto('/comments');
+    await expect(page.getByText('Delete me')).toBeVisible();
 
-  test('should display list of comments', async ({ page }) => {
-    // Wait for comments to load
-    await expect(page.locator('text=Great times at school!')).toBeVisible();
-    await expect(page.locator('text=Remember the old days?')).toBeVisible();
-  });
-
-  test('should display commenter names', async ({ page }) => {
-    await expect(page.locator('text=Jane Smith')).toBeVisible();
-    await expect(page.locator('text=Bob Johnson')).toBeVisible();
-  });
-
-  test('should display comment dates', async ({ page }) => {
-    // Should show some date format
-    const dateElements = page.locator('span').filter({ hasText: /\/.*\// });
-    const count = await dateElements.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
-
-  test('should have comment form', async ({ page }) => {
-    // Check for comment form
-    await expect(page.locator('h4:has-text("Leave a Comment")')).toBeVisible();
-    await expect(page.locator('textarea[placeholder="Share your thoughts..."]')).toBeVisible();
-  });
-
-  test('should have post comment button', async ({ page }) => {
-    const postButton = page.locator('button:has-text("Post Comment")');
-    await expect(postButton).toBeVisible();
-  });
-
-  test('should disable submit button with empty textarea', async ({ page }) => {
-    const postButton = page.locator('button:has-text("Post Comment")');
-    await expect(postButton).toBeDisabled();
-  });
-
-  test('should enable submit button when text is entered', async ({ page }) => {
-    const textarea = page.locator('textarea[placeholder="Share your thoughts..."]');
-    const postButton = page.locator('button:has-text("Post Comment")');
-
-    await textarea.fill('This is a great reunion!');
-    await expect(postButton).toBeEnabled();
-  });
-
-  test('should post a new comment', async ({ page, context }) => {
-    // Mock POST request
-    await context.route('**/api/users/*/comments', (route) => {
-      if (route.request().method() === 'POST') {
-        route.fulfill({
-          status: 201,
-          body: JSON.stringify({
-            comment: {
-              id: 3,
-              target_user_id: 1,
-              commenter_id: 1,
-              content: 'This is a great reunion!',
-              published: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              first_name: 'John',
-              last_name: 'Doe'
-            }
-          })
-        });
+    let deleteRequested = false;
+    await page.route('**/api/comments/1**', (route) => {
+      if (route.request().method() === 'DELETE') {
+        deleteRequested = true;
+        expect(route.request().url()).toContain('requesterId=1');
+        route.fulfill({ status: 200, body: JSON.stringify({ message: 'Deleted' }) });
+      } else {
+        route.continue();
       }
     });
 
-    const textarea = page.locator('textarea[placeholder="Share your thoughts..."]');
-    const postButton = page.locator('button:has-text("Post Comment")');
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByText('Delete Comment')).toBeVisible();
 
-    await textarea.fill('This is a great reunion!');
-    await postButton.click();
+    // The modal's own confirm button is also labeled "Delete" — it's the one that appears after opening.
+    await page.getByRole('button', { name: 'Delete' }).last().click();
 
-    // Should show loading state
-    await expect(page.locator('button:has-text("Posting")')).toBeVisible();
-
-    // Should clear textarea after posting
-    await expect(textarea).toHaveValue('');
+    await expect(page.getByText('Delete me')).toHaveCount(0);
+    await expect(page.getByText("You haven't posted any comments yet.")).toBeVisible();
+    expect(deleteRequested).toBe(true);
   });
 
-  test('should display comment cards with proper styling', async ({ page }) => {
-    // Check for comment card structure
-    const commentCards = page.locator('div').filter({ hasText: 'Great times at school!' });
-    expect(await commentCards.count()).toBeGreaterThan(0);
+  test('should show an error message when comments fail to load', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
+      route.fulfill({ status: 500, body: JSON.stringify({ error: 'Failed to load comments.' }) });
+    });
+
+    await page.goto('/comments');
+
+    await expect(page.getByText('Failed to load comments.')).toBeVisible();
   });
 
-  test('should show empty state when no comments', async ({ page, context }) => {
-    // Mock empty comments response
-    await context.route('**/api/users/*/comments', (route) => {
+  test('should have a responsive layout on mobile', async ({ page }) => {
+    await page.route('**/api/comments/my-comments/1', (route) => {
       route.fulfill({
         status: 200,
-        body: JSON.stringify({ comments: [] })
+        body: JSON.stringify({
+          comments: [{ id: 1, target_user_id: 2, commenter_id: 1, content: 'Great times at school!', published: true, created_at: '2024-06-19T10:00:00Z', updated_at: '2024-06-19T10:00:00Z' }],
+        }),
       });
     });
 
-    // Reload page to get empty state
-    await page.reload();
-
-    await expect(page.locator('text=No comments yet')).toBeVisible();
-    await expect(page.locator('text=Be the first to comment')).toBeVisible();
-  });
-
-  test('should have loading state initially', async ({ page }) => {
-    // Create a new page without route mocking
-    const newPage = await page.context().newPage();
-
-    // Should show loading state briefly
-    newPage.goto('/comments');
-
-    // Loading text should appear before comments
-    const maybeLoading = await newPage.locator('text=Loading comments').isVisible();
-
-    // Either loading or comments should appear
-    const commentsVisible = await newPage.locator('text=Great times').isVisible({ timeout: 5000 });
-
-    newPage.close();
-  });
-
-  test('should handle error state gracefully', async ({ page, context }) => {
-    // Mock error response
-    await context.route('**/api/users/*/comments', (route) => {
-      route.fulfill({
-        status: 500,
-        body: JSON.stringify({ error: 'Failed to load comments.' })
-      });
-    });
-
-    await page.reload();
-
-    // Should show error message
-    await expect(page.locator('text=Failed to load comments')).toBeVisible({ timeout: 5000 });
-  });
-
-  test('should display comment count', async ({ page }) => {
-    // Comments heading should show count
-    await expect(page.locator('h3:has-text("Comments (2)")')).toBeVisible();
-  });
-
-  test('should have responsive layout on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/comments');
 
-    // Comments should still be visible
-    await expect(page.locator('text=Great times at school!')).toBeVisible();
-    await expect(page.locator('textarea[placeholder="Share your thoughts..."]')).toBeVisible();
+    await expect(page.getByText('Great times at school!')).toBeVisible();
+    await expect(page.getByPlaceholder('Share your thoughts...')).toBeVisible();
   });
 });

@@ -2,98 +2,112 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/login');
   });
 
   test('should display login page when not authenticated', async ({ page }) => {
-    // Check page elements
-    await expect(page.locator('text=Class Reunion')).toBeVisible();
-    await expect(page.locator('text=Connect with Your Class')).toBeVisible();
-    await expect(page.locator('input[placeholder="Enter your email"]')).toBeVisible();
-    await expect(page.locator('input[placeholder="Enter your password"]')).toBeVisible();
+    await expect(page.getByText('Class Reunion')).toBeVisible();
+    await expect(page.getByText('Sign in to your account')).toBeVisible();
+    await expect(page.getByPlaceholder('your@email.com')).toBeVisible();
+    await expect(page.getByPlaceholder('••••••••')).toBeVisible();
   });
 
-  test('should show validation error for empty form submission', async ({ page }) => {
-    // Submit button should be disabled initially
-    const submitButton = page.locator('button:has-text("Log In")');
+  test('redirects to the login page for any route when not authenticated', async ({ page }) => {
+    await page.goto('/directory');
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test('should disable the submit button for an empty form', async ({ page }) => {
+    const submitButton = page.getByRole('button', { name: 'Sign in' });
     await expect(submitButton).toBeDisabled();
   });
 
-  test('should enable submit button when form is filled', async ({ page }) => {
-    const emailInput = page.locator('input[placeholder="Enter your email"]');
-    const passwordInput = page.locator('input[placeholder="Enter your password"]');
-    const submitButton = page.locator('button:has-text("Log In")');
+  test('should enable submit button once email and password are filled', async ({ page }) => {
+    await page.getByPlaceholder('your@email.com').fill('test@example.com');
+    await page.getByPlaceholder('••••••••').fill('password123');
 
-    await emailInput.fill('test@example.com');
-    await passwordInput.fill('password123');
-
-    await expect(submitButton).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled();
   });
 
-  test('should show error message on failed login', async ({ page, context }) => {
-    // Intercept the API request to return an error
+  test('should show an error message on failed login', async ({ page, context }) => {
     await context.route('**/api/auth/login', (route) => {
-      route.abort('failed');
+      route.fulfill({
+        status: 401,
+        body: JSON.stringify({ error: 'Incorrect email or password.' }),
+      });
     });
 
-    const emailInput = page.locator('input[placeholder="Enter your email"]');
-    const passwordInput = page.locator('input[placeholder="Enter your password"]');
-    const submitButton = page.locator('button:has-text("Log In")');
+    await page.getByPlaceholder('your@email.com').fill('invalid@example.com');
+    await page.getByPlaceholder('••••••••').fill('wrongpassword');
+    await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await emailInput.fill('invalid@example.com');
-    await passwordInput.fill('wrongpassword');
-    await submitButton.click();
-
-    // Should show loading state briefly
-    await expect(page.locator('button:has-text("Logging In")')).toBeVisible();
+    await expect(page.getByText('Incorrect email or password.')).toBeVisible();
   });
 
-  test('should display demo credentials on login page', async ({ page }) => {
-    await expect(page.locator('text=Demo Credentials:')).toBeVisible();
-    await expect(page.locator('text=Email: test@example.com')).toBeVisible();
-    await expect(page.locator('text=Password: password123')).toBeVisible();
+  test('should show a loading state while submitting', async ({ page, context }) => {
+    await context.route('**/api/auth/login', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      route.fulfill({ status: 401, body: JSON.stringify({ error: 'Incorrect email or password.' }) });
+    });
+
+    await page.getByPlaceholder('your@email.com').fill('test@example.com');
+    await page.getByPlaceholder('••••••••').fill('password123');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.getByRole('button', { name: 'Signing in...' })).toBeVisible();
   });
 
-  test('should handle email input validation', async ({ page }) => {
-    const emailInput = page.locator('input[placeholder="Enter your email"]');
+  test('should log in successfully and land on the home page', async ({ page, context }) => {
+    await context.route('**/api/auth/login', (route) => {
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({
+          user: {
+            user_id: 1,
+            email: 'test@example.com',
+            is_admin: false,
+            is_class_admin: false,
+            created_at: '2024-01-01T00:00:00Z',
+            profile: { first_name: 'Jane', last_name: 'Doe' },
+          },
+          token: 'fake-jwt-token',
+        }),
+      });
+    });
+    await context.route('**/api/users/1/class', (route) => {
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({ class: { id: 1, year: 2015, school_id: 1, school_name: 'Central High School' } }),
+      });
+    });
+    await context.route('**/api/schools/1/classes/1/events', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ events: [] }) });
+    });
 
-    // Type invalid email
-    await emailInput.fill('notanemail');
-    await emailInput.blur();
+    await page.getByPlaceholder('your@email.com').fill('test@example.com');
+    await page.getByPlaceholder('••••••••').fill('password123');
+    await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // HTML5 validation should prevent submission
-    const isValid = await emailInput.evaluate((el: HTMLInputElement) => el.checkValidity());
-    expect(isValid).toBeFalsy();
+    await expect(page).toHaveURL('/');
+    await expect(page.getByText('Welcome back, Jane')).toBeVisible();
   });
 
-  test('should clear password field when switching focus', async ({ page }) => {
-    const emailInput = page.locator('input[placeholder="Enter your email"]');
-    const passwordInput = page.locator('input[placeholder="Enter your password"]');
-
-    await emailInput.fill('test@example.com');
+  test('password field should mask input', async ({ page }) => {
+    const passwordInput = page.getByPlaceholder('••••••••');
     await passwordInput.fill('password123');
-    await expect(passwordInput).toHaveValue('password123');
-
-    // Password should be masked (type=password)
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
-  test('should have proper form structure', async ({ page }) => {
-    // Check form labels
-    await expect(page.locator('label:has-text("Email Address")')).toBeVisible();
-    await expect(page.locator('label:has-text("Password")')).toBeVisible();
-
-    // Check for form element
-    const form = page.locator('form');
-    await expect(form).toBeVisible();
+  test('should navigate to forgot password page', async ({ page }) => {
+    await page.getByText('Forgot your password?').click();
+    await expect(page).toHaveURL(/\/forgot-password$/);
   });
 
   test('should be responsive on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
 
-    // Elements should still be visible
-    await expect(page.locator('text=Class Reunion')).toBeVisible();
-    await expect(page.locator('input[placeholder="Enter your email"]')).toBeVisible();
-    await expect(page.locator('button:has-text("Log In")')).toBeVisible();
+    await expect(page.getByText('Class Reunion')).toBeVisible();
+    await expect(page.getByPlaceholder('your@email.com')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
   });
 });

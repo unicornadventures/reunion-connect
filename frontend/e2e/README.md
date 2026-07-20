@@ -27,68 +27,44 @@ CI=true npm run test:e2e
 
 ## Test Structure
 
+Every spec below is verified against the real running app (`npm run dev` + `npx playwright test`),
+not just written against the component source — see "Authentication" for the pattern they share.
+
 ### `auth.spec.ts`
-- Login page rendering
-- Form validation
-- Empty state handling
-- Error messages
-- Mobile responsiveness
-
-### `dashboard.spec.ts`
-- Navigation menu
-- Page navigation
-- Logout functionality
-- User greeting display
-- Navigation styling
-
-### `profile.spec.ts`
-- Profile information display
-- Edit mode toggle
-- Field editing
-- Photo display
-- Account info section
-- Responsive layout
-
-### `comments.spec.ts`
-- Comment list rendering
-- Comment creation
-- Commenter information
-- Comment dates
-- Empty states
-- Error handling
-- Mobile responsiveness
-
-### `schools-classes.spec.ts`
-- Schools listing
-- Classes listing
-- School details
-- Class details
-- Grid layout responsiveness
-
-### `directory.spec.ts`
-- Class header (school + year) and classmate count
-- Former name / initials displayed when set, falling back to current name
-- Deceased classmates shown in a separate "In Memoriam" section
-- Sort order (mirrors the backend's sort by former-then-current last name)
-- Search matching former first/last name, current name, email, and tags
-- Empty states (no search matches, empty class)
-- Navigation to a classmate's profile on card click
-- API error handling
-
-> **Note:** `auth.spec.ts`, `dashboard.spec.ts`, `profile.spec.ts`, `comments.spec.ts`, and
-> `schools-classes.spec.ts` predate the `e2e/helpers/auth.ts` helper and don't seed an
-> authenticated session before navigating — as written they redirect to `/login` and fail.
-> Use `directory.spec.ts` as the reference for the working pattern (see "Authentication" below)
-> if you fix or rewrite them.
+Login page (`src/components/Login.tsx`): rendering, validation, error messages, loading state,
+successful login, forgot-password link, mobile responsiveness. Public/unauthenticated only.
 
 ### `smoke.spec.ts`
-- Critical user flows
-- Page loading
-- Navigation
-- Form interaction
-- Accessibility
-- Responsive design
-- Keyboard navigation
+Critical-path checks split into unauthenticated (login page structure, a11y basics, responsive
+sizes, console errors) and authenticated (home page, nav to directory/help, logout, broken images).
+
+### `dashboard.spec.ts`
+Post-login navigation shell (`src/components/Header.tsx` + `WelcomePage.tsx`) — there is no
+`/dashboard` route or "Dashboard" link in this app. Covers nav links, active-link styling, the
+class greeting, avatar initials (former-name fallback), logout, and the mobile hamburger menu.
+
+### `profile.spec.ts`
+Own-profile view (`src/components/UserProfile.tsx` at `/profile`): info display (name, nickname,
+former-name badge, bio, tags), class/contact info cards, edit mode (including former name and
+tags), save/cancel, empty gallery state, then/now photo placeholders, error handling. Does not
+cover the S3 presigned-upload photo flow.
+
+### `comments.spec.ts`
+"My Comments" (`src/components/CommentSection.tsx` at `/comments`) — this shows the current
+user's own authored comments (`GET /comments/my-comments/:userId`), not comments left on their
+profile. Covers list/count, empty state, posting, editing, deleting (with the confirm modal), and
+error handling.
+
+### `schools-classes.spec.ts`
+There are no public `/schools` or `/classes` routes — school and class-year management is
+super-admin-only, at `/admin/schools` (`SchoolManager.tsx`) and `/admin/classes`
+(`ClassManager.tsx`). Covers listing, adding, and deleting schools, and linking/removing class
+years (including the first-time bulk "Set up years" flow) for a school.
+
+### `directory.spec.ts`
+Class directory (`DirectoryPage.tsx` at `/directory`): class header/count, former-name display
+with fallback to current name, initials, "In Memoriam" section, sort order, search (matching
+former/current name, email, tags), empty states, card navigation, error handling.
 
 ## Configuration
 
@@ -152,6 +128,15 @@ test.describe('Feature Name', () => {
 });
 ```
 
+### Mobile nav
+
+The desktop nav links live in a `hidden md:flex` `<nav>` and are replaced by a hamburger menu
+below the `md` breakpoint (768px) — plain `getByRole('link', { name: 'Directory' })` clicks will
+time out under the Mobile Chrome project. Use the helpers in `e2e/helpers/nav.ts`:
+`clickNavLink(page, name)` and `clickSignOut(page)` open the hamburger first when the viewport is
+narrow. The "Profile" link's accessible name also changes at the `sm` breakpoint (640px) since its
+text label hides — use `profileLink(page)` (matches by `href`) instead of `getByRole` for it.
+
 ### A note on non-retrying locator methods
 
 `allTextContents()`, `innerHTML()`, `count()`, etc. read the DOM once and don't wait for content
@@ -202,12 +187,10 @@ Replay test execution with full DOM snapshots.
 
 ## CI/CD Integration
 
-Tests run automatically on:
-- Pull requests
-- Commits to main
-- Nightly schedule
-
-Retries: 2 attempts on CI, 0 in development
+There is no CI workflow wired up for this suite yet (only `.github/workflows/test-lambda.yml`
+exists, for the backend Lambda integration tests). `playwright.config.ts` is already
+CI-aware — `retries: 2` and `workers: 1` under `CI=true` — so adding a workflow that runs
+`CI=true npm run test:e2e` is the remaining step.
 
 ## Common Assertions
 

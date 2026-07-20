@@ -1,156 +1,218 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
 
-test.describe('Schools and Classes Management', () => {
-  test.beforeEach(async ({ page, context }) => {
-    // Mock schools data
-    await context.route('**/api/schools', (route) => {
+// There are no public /schools or /classes routes for regular users — school and class
+// year management is super-admin-only, at /admin/schools (SchoolManager.tsx) and
+// /admin/classes (ClassManager.tsx).
+test.describe('Admin: School Management', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, { id: 1, email: 'admin@reunion.com', is_admin: true, profile: { first_name: 'Admin', last_name: 'User' } });
+  });
+
+  test('should list registered schools', async ({ page }) => {
+    await page.route('**/api/schools', (route) => {
       route.fulfill({
         status: 200,
         body: JSON.stringify({
           schools: [
-            {
-              id: 1,
-              name: 'Central High School',
-              location: 'Downtown',
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            },
-            {
-              id: 2,
-              name: 'Westside Academy',
-              location: 'West End',
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            }
-          ]
-        })
+            { id: 1, name: 'Central High School', location: 'Downtown', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+            { id: 2, name: 'Westside Academy', location: 'West End', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+          ],
+        }),
       });
     });
 
-    // Mock classes data
-    await context.route('**/api/classes', (route) => {
+    await page.goto('/admin/schools');
+
+    await expect(page.getByRole('heading', { name: 'School Management' })).toBeVisible();
+    await expect(page.getByText('Registered Schools (2)')).toBeVisible();
+    await expect(page.getByText('Central High School')).toBeVisible();
+    await expect(page.getByText('Downtown')).toBeVisible();
+    await expect(page.getByText('Westside Academy')).toBeVisible();
+  });
+
+  test('should show an empty state with no schools', async ({ page }) => {
+    await page.route('**/api/schools', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ schools: [] }) });
+    });
+
+    await page.goto('/admin/schools');
+
+    await expect(page.getByText('No schools yet.')).toBeVisible();
+    await expect(page.getByText('Registered Schools (0)')).toBeVisible();
+  });
+
+  test('should add a new school', async ({ page }) => {
+    let schools = [{ id: 1, name: 'Central High School', location: 'Downtown', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }];
+    await page.route('**/api/schools', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ schools }) });
+    });
+    await page.goto('/admin/schools');
+    await expect(page.getByText('Registered Schools (1)')).toBeVisible();
+
+    await page.route('**/api/admin/schools', (route) => {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON();
+        schools = [...schools, { id: 2, name: body.name, location: body.location, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }];
+        route.fulfill({ status: 201, body: JSON.stringify({ school: schools[1] }) });
+      } else {
+        route.continue();
+      }
+    });
+
+    await page.getByPlaceholder('Westbrook High School').fill('Eastside Prep');
+    await page.getByPlaceholder('Springfield, IL').fill('Eastside, NY');
+    await page.getByRole('button', { name: 'Add school' }).click();
+
+    await expect(page.getByText('Eastside Prep')).toBeVisible();
+    await expect(page.getByText('Registered Schools (2)')).toBeVisible();
+  });
+
+  test('should prefill the form when editing a school', async ({ page }) => {
+    await page.route('**/api/schools', (route) => {
       route.fulfill({
         status: 200,
-        body: JSON.stringify({
-          classes: [
-            {
-              id: 1,
-              year: 2010,
-              school_id: 1,
-              school_name: 'Central High School',
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            },
-            {
-              id: 2,
-              year: 2015,
-              school_id: 2,
-              school_name: 'Westside Academy',
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            }
-          ]
-        })
+        body: JSON.stringify({ schools: [{ id: 1, name: 'Central High School', location: 'Downtown', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }] }),
       });
     });
+    await page.goto('/admin/schools');
 
-    await page.goto('/');
+    await page.getByRole('button', { name: 'Edit' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Edit School' })).toBeVisible();
+    await expect(page.getByPlaceholder('Westbrook High School')).toHaveValue('Central High School');
+    await expect(page.getByPlaceholder('Springfield, IL')).toHaveValue('Downtown');
+    await expect(page.getByRole('button', { name: 'Update school' })).toBeVisible();
   });
 
-  test('should display schools section on dashboard', async ({ page }) => {
-    // Mock login first
-    await page.locator('input[placeholder="Enter your email"]').fill('test@example.com');
-    await page.locator('input[placeholder="Enter your password"]').fill('password123');
+  test('should delete a school after confirming', async ({ page }) => {
+    let schools = [{ id: 1, name: 'Central High School', location: 'Downtown', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }];
+    await page.route('**/api/schools', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ schools }) });
+    });
+    await page.route('**/api/admin/schools/1', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ message: 'Deleted' }) });
+    });
+    await page.goto('/admin/schools');
 
-    await page.context().route('**/api/auth/login', (route) => {
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await expect(page.getByRole('heading', { name: 'Delete Central High School' })).toBeVisible();
+    await expect(page.getByText('This is permanent and cannot be undone.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Delete School' }).click();
+
+    await expect(page.getByText('Central High School')).toHaveCount(0);
+    await expect(page.getByText('No schools yet.')).toBeVisible();
+  });
+});
+
+test.describe('Admin: Class Year Management', () => {
+  const SCHOOLS = [
+    { id: 1, name: 'Central High School' },
+    { id: 2, name: 'Westside Academy' },
+  ];
+  const ALL_YEARS = [
+    { id: 100, year: 2014 },
+    { id: 101, year: 2015 },
+    { id: 102, year: 2016 },
+  ];
+
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, { id: 1, email: 'admin@reunion.com', is_admin: true, profile: { first_name: 'Admin', last_name: 'User' } });
+    await page.route('**/api/schools', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ schools: SCHOOLS }) });
+    });
+    await page.route('**/api/classes', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ classes: ALL_YEARS }) });
+    });
+  });
+
+  test('should show a school selector and prompt to pick one', async ({ page }) => {
+    await page.goto('/admin/classes');
+
+    await expect(page.getByRole('heading', { name: 'Class Management' })).toBeVisible();
+    await expect(page.getByText('Select a school above to manage its class years.')).toBeVisible();
+  });
+
+  test('should show a setup form for a school with no linked years', async ({ page }) => {
+    await page.route('**/api/schools/1/classes', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ classes: [] }) });
+    });
+    await page.goto('/admin/classes');
+
+    await page.locator('select').first().selectOption('1');
+
+    await expect(page.getByText('No class years set up yet')).toBeVisible();
+
+    await page.route('**/api/admin/schools/1/classes/bulk**', (route) => {
       route.fulfill({
         status: 200,
-        body: JSON.stringify({
-          id: 1,
-          email: 'test@example.com',
-          is_admin: false,
-          created_at: '2024-01-01T00:00:00Z',
-          profile: {
-            first_name: 'John',
-            last_name: 'Doe'
-          },
-          token: 'fake-token'
-        })
+        body: JSON.stringify({ classes: [{ id: 101, year: 2015, member_count: 0 }, { id: 102, year: 2016, member_count: 0 }] }),
       });
     });
 
-    await page.locator('button:has-text("Log In")').click();
+    await page.getByPlaceholder(/e\.g\. \d+/).fill('2015');
+    await page.getByRole('button', { name: 'Set up years' }).click();
 
-    // Schools should be visible
-    await expect(page.locator('text=Central High School')).toBeVisible();
-    await expect(page.locator('text=Westside Academy')).toBeVisible();
+    const linkedYears = page.locator('span.font-display');
+    await expect(linkedYears).toHaveCount(2);
+    expect((await linkedYears.allTextContents()).sort()).toEqual(['2015', '2016']);
   });
 
-  test('should navigate to schools page', async ({ page }) => {
-    await page.goto('/schools');
-
-    await expect(page.locator('text=Central High School')).toBeVisible();
-    await expect(page.locator('text=Westside Academy')).toBeVisible();
-  });
-
-  test('should navigate to classes page', async ({ page }) => {
-    await page.goto('/classes');
-
-    // Classes should be displayed
-    await expect(page.locator('text=2010')).toBeVisible();
-    await expect(page.locator('text=2015')).toBeVisible();
-  });
-
-  test('should display class year and school name', async ({ page }) => {
-    await page.goto('/classes');
-
-    // Check for class details
-    const classElements = page.locator('text=Central High School');
-    expect(await classElements.count()).toBeGreaterThan(0);
-  });
-
-  test('should have responsive grid layout', async ({ page }) => {
-    await page.goto('/schools');
-
-    // Check for grid layout on desktop
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    let schoolsSection = page.locator('text=School Management');
-    await expect(schoolsSection).toBeVisible();
-
-    // Check on mobile
-    await page.setViewportSize({ width: 375, height: 667 });
-    schoolsSection = page.locator('text=School Management');
-    await expect(schoolsSection).toBeVisible();
-  });
-
-  test('should display school location', async ({ page }) => {
-    await page.goto('/schools');
-
-    await expect(page.locator('text=Downtown')).toBeVisible();
-    await expect(page.locator('text=West End')).toBeVisible();
-  });
-
-  test('should handle empty states', async ({ page, context }) => {
-    // Mock empty response
-    await context.route('**/api/schools', (route) => {
+  test('should show linked class years with member counts for a school', async ({ page }) => {
+    await page.route('**/api/schools/1/classes', (route) => {
       route.fulfill({
         status: 200,
-        body: JSON.stringify({ schools: [] })
+        body: JSON.stringify({ classes: [{ id: 101, year: 2015, member_count: 42 }] }),
       });
     });
+    await page.goto('/admin/classes');
 
-    await page.goto('/schools');
+    await page.locator('select').first().selectOption('1');
 
-    // Should show empty or loading state
-    const content = await page.locator('body').textContent();
-    expect(content).toBeTruthy();
+    await expect(page.getByText('Linked Class Years')).toBeVisible();
+    await expect(page.locator('span.font-display', { hasText: '2015' })).toBeVisible();
+    await expect(page.getByText('42 members')).toBeVisible();
   });
 
-  test('should display school count', async ({ page }) => {
-    await page.goto('/schools');
+  test('should link an additional class year', async ({ page }) => {
+    await page.route('**/api/schools/1/classes', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ classes: [{ id: 101, year: 2015, member_count: 0 }] }) });
+    });
+    await page.goto('/admin/classes');
+    await page.locator('select').first().selectOption('1');
+    await expect(page.locator('span.font-display', { hasText: '2015' })).toBeVisible();
 
-    // At least one school should be visible
-    const schoolNames = page.locator('text=Central High School');
-    expect(await schoolNames.count()).toBeGreaterThan(0);
+    await page.route('**/api/admin/schools/1/classes', (route) => {
+      if (route.request().method() === 'POST') {
+        route.fulfill({ status: 201, body: JSON.stringify({ class: { id: 100, year: 2014 } }) });
+      } else {
+        route.continue();
+      }
+    });
+
+    await page.locator('select').nth(1).selectOption('100');
+    await page.getByRole('button', { name: 'Link Year' }).click();
+
+    await expect(page.locator('span.font-display', { hasText: '2014' })).toBeVisible();
+  });
+
+  test('should remove a linked class year after confirming', async ({ page }) => {
+    await page.route('**/api/schools/1/classes', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ classes: [{ id: 101, year: 2015, member_count: 3 }] }) });
+    });
+    await page.route('**/api/admin/schools/1/classes/101', (route) => {
+      route.fulfill({ status: 200, body: JSON.stringify({ message: 'Unlinked' }) });
+    });
+    await page.goto('/admin/classes');
+    await page.locator('select').first().selectOption('1');
+    await expect(page.locator('span.font-display', { hasText: '2015' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Remove' }).click();
+    await expect(page.getByRole('heading', { name: 'Remove Class Year 2015' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Remove Year' }).click();
+
+    await expect(page.locator('span.font-display', { hasText: '2015' })).toHaveCount(0);
   });
 });

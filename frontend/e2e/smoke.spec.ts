@@ -1,164 +1,137 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/auth';
+import { clickNavLink, clickSignOut } from './helpers/nav';
 
 test.describe('Smoke Tests - Critical User Flows', () => {
-  test('should load application', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('text=Class Reunion')).toBeVisible();
-  });
+  test.describe('unauthenticated', () => {
+    test('should load the login page', async ({ page }) => {
+      await page.goto('/login');
+      await expect(page.getByText('Class Reunion')).toBeVisible();
+    });
 
-  test('should have valid page structure', async ({ page }) => {
-    await page.goto('/');
+    test('should have valid page structure', async ({ page }) => {
+      await page.goto('/login');
 
-    // Check for essential elements
-    const html = await page.locator('html').count();
-    expect(html).toBe(1);
+      expect(await page.locator('html').count()).toBe(1);
+      expect(await page.locator('body').count()).toBe(1);
+    });
 
-    // Check for main content area
-    const body = await page.locator('body').count();
-    expect(body).toBe(1);
-  });
+    test('should have accessible form labels', async ({ page }) => {
+      await page.goto('/login');
 
-  test('should handle navigation without errors', async ({ page }) => {
-    // Monitor console for errors
-    const errors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
+      await expect(page.locator('label:has-text("Email")')).toBeVisible();
+      await expect(page.locator('label:has-text("Password")')).toBeVisible();
+    });
+
+    test('should have a functional, initially-disabled submit button', async ({ page }) => {
+      await page.goto('/login');
+
+      const loginButton = page.getByRole('button', { name: 'Sign in' });
+      await expect(loginButton).toBeVisible();
+      await expect(loginButton).toBeDisabled();
+    });
+
+    test('should preserve form input while typing', async ({ page }) => {
+      await page.goto('/login');
+
+      await page.getByPlaceholder('your@email.com').fill('test@example.com');
+      await expect(page.getByPlaceholder('your@email.com')).toHaveValue('test@example.com');
+    });
+
+    test('should be responsive on mobile, tablet, and desktop', async ({ page }) => {
+      const sizes = [
+        { width: 375, height: 667 },
+        { width: 768, height: 1024 },
+        { width: 1920, height: 1080 },
+      ];
+
+      for (const size of sizes) {
+        await page.setViewportSize(size);
+        await page.goto('/login');
+        await expect(page.getByText('Class Reunion')).toBeVisible();
       }
     });
 
-    // Navigate through pages
-    await page.goto('/');
-    expect(errors.length).toBe(0);
-  });
+    test('should support keyboard focus on the email field', async ({ page }) => {
+      await page.goto('/login');
 
-  test('should have accessible form elements', async ({ page }) => {
-    await page.goto('/');
-
-    // Check for form labels
-    const emailLabel = page.locator('label:has-text("Email Address")');
-    const passwordLabel = page.locator('label:has-text("Password")');
-
-    await expect(emailLabel).toBeVisible();
-    await expect(passwordLabel).toBeVisible();
-  });
-
-  test('should have functional buttons', async ({ page }) => {
-    await page.goto('/');
-
-    const loginButton = page.locator('button:has-text("Log In")');
-    await expect(loginButton).toBeVisible();
-
-    // Button should be clickable element
-    const isClickable = await loginButton.evaluate((el) => {
-      const style = window.getComputedStyle(el);
-      return style.cursor === 'pointer' || style.cursor === 'auto';
+      await page.getByPlaceholder('your@email.com').focus();
+      const focused = await page.evaluate(() => document.activeElement?.getAttribute('placeholder'));
+      expect(focused).toBe('your@email.com');
     });
 
-    expect(isClickable || true).toBeTruthy(); // Either cursor is pointer or not set
+    test('should load without console errors', async ({ page }) => {
+      const errors: string[] = [];
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') errors.push(msg.text());
+      });
+
+      await page.goto('/login');
+
+      expect(errors).toEqual([]);
+    });
   });
 
-  test('should have proper viewport scaling', async ({ page }) => {
-    await page.goto('/');
-
-    // Get viewport size
-    const size = page.viewportSize();
-    expect(size).not.toBeNull();
-  });
-
-  test('should load stylesheets', async ({ page }) => {
-    await page.goto('/');
-
-    // Check if styles are applied
-    const header = page.locator('h2').first();
-    const style = await header.evaluate((el) => {
-      return window.getComputedStyle(el).color;
+  test.describe('authenticated', () => {
+    test.beforeEach(async ({ page }) => {
+      await loginAs(page, { id: 1, email: 'me@example.com', profile: { first_name: 'Jane', last_name: 'Doe' } });
+      await page.route('**/api/users/1/class', (route) => {
+        route.fulfill({
+          status: 200,
+          body: JSON.stringify({ class: { id: 5, year: 2015, school_id: 10, school_name: 'Central High School' } }),
+        });
+      });
+      await page.route('**/api/schools/10/classes/5/events', (route) => {
+        route.fulfill({ status: 200, body: JSON.stringify({ events: [] }) });
+      });
+      await page.route('**/api/classes/5/directory**', (route) => {
+        route.fulfill({ status: 200, body: JSON.stringify({ users: [] }) });
+      });
     });
 
-    // Should have some color defined
-    expect(style).toBeTruthy();
-  });
-
-  test('should handle back navigation', async ({ page }) => {
-    await page.goto('/');
-    await page.goto('/profile');
-    await page.goBack();
-
-    await expect(page.locator('text=Class Reunion')).toBeVisible();
-  });
-
-  test('should preserve form data on navigation', async ({ page }) => {
-    await page.goto('/');
-
-    // Fill form
-    await page.locator('input[placeholder="Enter your email"]').fill('test@example.com');
-
-    // Check value is preserved
-    await expect(page.locator('input[placeholder="Enter your email"]')).toHaveValue('test@example.com');
-  });
-
-  test('should have no broken images', async ({ page }) => {
-    await page.goto('/');
-
-    // Check for image elements
-    const images = page.locator('img');
-    const count = await images.count();
-
-    // For each image, check if it loads
-    for (let i = 0; i < count; i++) {
-      const src = await images.nth(i).getAttribute('src');
-      expect(src).toBeTruthy();
-    }
-  });
-
-  test('should be responsive on different screen sizes', async ({ page }) => {
-    const sizes = [
-      { width: 375, height: 667 },   // Mobile
-      { width: 768, height: 1024 },  // Tablet
-      { width: 1920, height: 1080 }  // Desktop
-    ];
-
-    for (const size of sizes) {
-      await page.setViewportSize(size);
+    test('should reach the home page and see the nav', async ({ page }) => {
       await page.goto('/');
 
-      // Page should render without layout issues
-      await expect(page.locator('text=Class Reunion')).toBeVisible();
-    }
-  });
-
-  test('should have proper text contrast', async ({ page }) => {
-    await page.goto('/');
-
-    // Check heading visibility
-    const heading = page.locator('h1');
-    await expect(heading).toBeVisible();
-
-    // Text should be readable
-    const isVisible = await heading.isVisible();
-    expect(isVisible).toBeTruthy();
-  });
-
-  test('should handle keyboard navigation', async ({ page }) => {
-    await page.goto('/');
-
-    // Tab to email input
-    await page.keyboard.press('Tab');
-    const emailInput = page.locator('input[placeholder="Enter your email"]');
-
-    // Check if email input is focused
-    const focused = await emailInput.evaluate((el) => {
-      return document.activeElement === el;
+      await expect(page.getByText('Welcome back, Jane')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'ReunionConnect' })).toBeVisible();
     });
 
-    expect(focused).toBeTruthy();
-  });
+    test('should navigate to the directory without errors', async ({ page }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (err) => errors.push(err.message));
 
-  test('should show demo credentials', async ({ page }) => {
-    await page.goto('/');
+      await page.goto('/');
+      await clickNavLink(page, 'Directory');
 
-    // Demo credentials should be visible
-    const credentials = page.locator('text=Email: test@example.com');
-    await expect(credentials).toBeVisible();
+      await expect(page).toHaveURL(/\/directory$/);
+      expect(errors).toEqual([]);
+    });
+
+    test('should navigate to the help page', async ({ page }) => {
+      await page.goto('/');
+      await clickNavLink(page, 'Help');
+
+      await expect(page).toHaveURL(/\/help$/);
+      await expect(page.getByRole('heading', { name: 'Help' })).toBeVisible();
+    });
+
+    test('should log out back to the login page', async ({ page }) => {
+      await page.goto('/');
+      await clickSignOut(page);
+
+      await expect(page).toHaveURL(/\/login$/);
+      await expect(page.getByText('Class Reunion')).toBeVisible();
+    });
+
+    test('should have no broken images on the home page', async ({ page }) => {
+      await page.goto('/');
+      await expect(page.getByText('Welcome back, Jane')).toBeVisible();
+
+      const images = page.locator('img');
+      const count = await images.count();
+      for (let i = 0; i < count; i++) {
+        expect(await images.nth(i).getAttribute('src')).toBeTruthy();
+      }
+    });
   });
 });
