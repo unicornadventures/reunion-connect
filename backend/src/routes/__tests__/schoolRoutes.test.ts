@@ -3,8 +3,8 @@ import request from 'supertest';
 
 const mockDb = {
   schools: [
-    { id: 1, name: 'Lincoln High School', location: 'Lincoln, NE', created_at: new Date(), updated_at: new Date() },
-    { id: 2, name: 'Central High School', location: 'Central, NE', created_at: new Date(), updated_at: new Date() }
+    { id: 1, name: 'Lincoln High School', location: 'Lincoln, NE', timezone: 'America/Chicago', created_at: new Date(), updated_at: new Date() },
+    { id: 2, name: 'Central High School', location: 'Central, NE', timezone: null, created_at: new Date(), updated_at: new Date() }
   ],
   events: [
     {
@@ -45,6 +45,7 @@ jest.mock('../../db', () => ({
         id: mockDb.schools.length + 1,
         name: params?.[0],
         location: params?.[1],
+        timezone: params?.[2] ?? null,
         created_at: new Date(),
         updated_at: new Date()
       };
@@ -52,10 +53,12 @@ jest.mock('../../db', () => ({
       return { rows: [school] };
     }
 
-    if (sql.includes('FROM events') && sql.includes('WHERE class_id') && sql.includes('school_id')) {
+    if (sql.includes('FROM events e') && sql.includes('WHERE e.class_id') && sql.includes('e.school_id')) {
       const classId = Number(params?.[0]);
       const schoolId = Number(params?.[1]);
-      const events = mockDb.events.filter(e => e.class_id === classId && e.school_id === schoolId);
+      const events = mockDb.events
+        .filter(e => e.class_id === classId && e.school_id === schoolId)
+        .map(e => ({ ...e, timezone: mockDb.schools.find(s => s.id === e.school_id)?.timezone ?? null }));
       return { rows: events };
     }
 
@@ -75,8 +78,8 @@ describe('School Routes', () => {
 
   beforeEach(() => {
     mockDb.schools = [
-      { id: 1, name: 'Lincoln High School', location: 'Lincoln, NE', created_at: new Date(), updated_at: new Date() },
-      { id: 2, name: 'Central High School', location: 'Central, NE', created_at: new Date(), updated_at: new Date() }
+      { id: 1, name: 'Lincoln High School', location: 'Lincoln, NE', timezone: 'America/Chicago', created_at: new Date(), updated_at: new Date() },
+      { id: 2, name: 'Central High School', location: 'Central, NE', timezone: null, created_at: new Date(), updated_at: new Date() }
     ];
     mockDb.events = [
       {
@@ -206,6 +209,13 @@ describe('School Routes', () => {
       expect(event).toHaveProperty('event_date');
       expect(event).toHaveProperty('event_time');
       expect(event).toHaveProperty('location');
+    });
+
+    it('should include the school timezone', async () => {
+      const response = await request(app).get('/api/schools/1/classes/1/events');
+
+      expect(response.status).toBe(200);
+      expect(response.body.events[0].timezone).toBe('America/Chicago');
     });
 
     it('should return empty array for class with no events', async () => {

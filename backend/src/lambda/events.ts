@@ -40,10 +40,13 @@ export const listEventsHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 
     const result = await query(
-      `SELECT id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at
-       FROM events
-       WHERE class_id = $1 AND school_id = $2
-       ORDER BY event_date ASC, event_time ASC NULLS LAST;`,
+      `SELECT e.id, e.class_id, e.school_id, e.event_name as title, e.description,
+              to_char(e.event_date, 'YYYY-MM-DD') as event_date, e.event_time, e.location,
+              e.created_at, e.updated_at, s.timezone
+       FROM events e
+       LEFT JOIN schools s ON e.school_id = s.id
+       WHERE e.class_id = $1 AND e.school_id = $2
+       ORDER BY e.event_date ASC, e.event_time ASC NULLS LAST;`,
       [classId, schoolId]
     );
 
@@ -70,8 +73,12 @@ export const getEventHandler = async (event: APIGatewayProxyEvent): Promise<APIG
     }
 
     const result = await query(
-      `SELECT id, class_id, school_id, event_name as title, description, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, created_at, updated_at
-       FROM events WHERE id = $1`,
+      `SELECT e.id, e.class_id, e.school_id, e.event_name as title, e.description,
+              to_char(e.event_date, 'YYYY-MM-DD') as event_date, e.event_time, e.location,
+              e.created_at, e.updated_at, s.timezone
+       FROM events e
+       LEFT JOIN schools s ON e.school_id = s.id
+       WHERE e.id = $1`,
       [eventId]
     );
 

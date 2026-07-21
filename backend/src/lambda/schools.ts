@@ -24,7 +24,7 @@ export const listSchoolsHandler = async (event: APIGatewayProxyEvent): Promise<A
   try {
     await dbReady;
     const result = await query(`
-      SELECT id, name, location, created_at
+      SELECT id, name, location, timezone, created_at
       FROM schools
       ORDER BY name ASC;
     `);
@@ -51,7 +51,7 @@ export const getSchoolHandler = async (event: APIGatewayProxyEvent): Promise<API
       return errorResponse(400, 'School ID required.');
     }
 
-    const result = await query('SELECT id, name, location, created_at FROM schools WHERE id = $1', [schoolId]);
+    const result = await query('SELECT id, name, location, timezone, created_at FROM schools WHERE id = $1', [schoolId]);
 
     if (result.rows.length === 0) {
       return errorResponse(404, 'School not found.');
@@ -75,7 +75,7 @@ export const createSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
     await dbReady;
     if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
 
-    const { name, location } = JSON.parse(event.body || '{}');
+    const { name, location, timezone } = JSON.parse(event.body || '{}');
 
     if (!name) {
       return errorResponse(400, 'School name is required.');
@@ -84,8 +84,8 @@ export const createSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
     await query('BEGIN');
 
     const result = await query(
-      'INSERT INTO schools (name, location) VALUES ($1, $2) RETURNING id, name, location, created_at',
-      [name, location || null]
+      'INSERT INTO schools (name, location, timezone) VALUES ($1, $2, $3) RETURNING id, name, location, timezone, created_at',
+      [name, location || null, timezone || null]
     );
 
     const school = result.rows[0];
@@ -96,6 +96,42 @@ export const createSchoolHandler = async (event: APIGatewayProxyEvent): Promise<
   } catch (error: any) {
     await query('ROLLBACK').catch(() => {});
     console.error('Create school handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for PUT /api/admin/schools/{schoolId}
+ */
+export const updateSchoolHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+
+    const { schoolId } = event.pathParameters || {};
+    if (!schoolId) return errorResponse(400, 'School ID required.');
+
+    const { name, location, timezone } = JSON.parse(event.body || '{}');
+
+    if (!name) {
+      return errorResponse(400, 'School name is required.');
+    }
+
+    const result = await query(
+      'UPDATE schools SET name = $1, location = $2, timezone = $3, updated_at = NOW() WHERE id = $4 RETURNING id, name, location, timezone, created_at, updated_at',
+      [name, location || null, timezone || null, schoolId]
+    );
+
+    if (result.rows.length === 0) {
+      return errorResponse(404, 'School not found.');
+    }
+
+    return response(200, { school: result.rows[0] });
+  } catch (error: any) {
+    console.error('Update school handler error:', error);
     return errorResponse(500, 'Internal server error.');
   }
 };

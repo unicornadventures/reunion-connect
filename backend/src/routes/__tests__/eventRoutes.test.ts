@@ -14,6 +14,7 @@ const mockDb = {
     {
       id: 1,
       class_id: 1,
+      school_id: 1,
       event_name: 'Reunion Dinner',
       event_date: daysFromNow(30),
       event_time: '18:00:00',
@@ -25,6 +26,7 @@ const mockDb = {
     {
       id: 2,
       class_id: 1,
+      school_id: 1,
       event_name: 'Golf Outing',
       event_date: daysFromNow(60),
       event_time: '09:00:00',
@@ -37,6 +39,9 @@ const mockDb = {
   classes: [
     { id: 1, school_id: 1, year: 2020 },
     { id: 2, school_id: 1, year: 2021 }
+  ],
+  schools: [
+    { id: 1, timezone: 'America/Chicago' }
   ]
 };
 
@@ -57,10 +62,12 @@ jest.mock('../../db', () => ({
     }
 
     // Get single event by id
-    if (sql.includes('SELECT id, class_id, event_name,') && sql.includes('event_date') && sql.includes('WHERE id')) {
+    if (sql.includes('SELECT e.id, e.class_id,') && sql.includes('event_date') && sql.includes('WHERE e.id')) {
       const eventId = Number(params?.[0]);
       const event = mockDb.events.find(e => e.id === eventId);
-      return { rows: event ? [event] : [] };
+      if (!event) return { rows: [] };
+      const timezone = mockDb.schools.find(s => s.id === event.school_id)?.timezone ?? null;
+      return { rows: [{ ...event, timezone }] };
     }
 
     // Get next event for days-until calculation
@@ -121,6 +128,7 @@ describe('Event Routes', () => {
       {
         id: 1,
         class_id: 1,
+        school_id: 1,
         event_name: 'Reunion Dinner',
         event_date: daysFromNow(30),
         event_time: '18:00:00',
@@ -132,6 +140,7 @@ describe('Event Routes', () => {
       {
         id: 2,
         class_id: 1,
+        school_id: 1,
         event_name: 'Golf Outing',
         event_date: daysFromNow(60),
         event_time: '09:00:00',
@@ -228,6 +237,13 @@ describe('Event Routes', () => {
       expect(event).toHaveProperty('class_id');
       expect(event).toHaveProperty('event_name');
       expect(event).toHaveProperty('event_date');
+    });
+
+    it('should include the school timezone', async () => {
+      const response = await request(app).get('/api/events/1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.event.timezone).toBe('America/Chicago');
     });
   });
 

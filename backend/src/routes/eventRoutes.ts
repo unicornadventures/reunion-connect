@@ -36,9 +36,12 @@ router.get('/:eventId', async (req, res) => {
 
   try {
     const result = await query(
-      `SELECT id, class_id, event_name, to_char(event_date, 'YYYY-MM-DD') as event_date, event_time, location, description, created_at, updated_at
-       FROM events
-       WHERE id = $1`,
+      `SELECT e.id, e.class_id, e.school_id, e.event_name, e.description,
+              to_char(e.event_date, 'YYYY-MM-DD') as event_date, e.event_time, e.location,
+              e.created_at, e.updated_at, s.timezone
+       FROM events e
+       LEFT JOIN schools s ON e.school_id = s.id
+       WHERE e.id = $1`,
       [eventId]
     );
 

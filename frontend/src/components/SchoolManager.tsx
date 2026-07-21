@@ -7,11 +7,18 @@ import UserDeletionWarning from './UserDeletionWarning';
 const inputClass = 'w-full border border-[#E2E8F0] rounded px-4 py-3 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] placeholder:text-[#CBD5E1] transition-colors';
 const labelClass = 'block text-sm font-semibold text-[#0E2240] mb-1.5';
 
+// IANA timezone names, e.g. "America/Chicago" — used so event/comment
+// timestamps can be rendered in the school's local time instead of UTC.
+const TIMEZONES: string[] = typeof Intl.supportedValuesOf === 'function'
+  ? Intl.supportedValuesOf('timeZone')
+  : [];
+
 const SchoolManager: React.FC = () => {
   const { currentUser } = useAppContext();
   const [schools, setSchools] = useState<any[]>([]);
   const [newSchoolName, setNewSchoolName] = useState('');
   const [newSchoolLocation, setNewSchoolLocation] = useState('');
+  const [newSchoolTimezone, setNewSchoolTimezone] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -37,10 +44,15 @@ const SchoolManager: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation);
-      if (editingId) setEditingId(null);
+      if (editingId) {
+        await adminSchoolAPI.updateSchool(editingId, newSchoolName, newSchoolLocation, newSchoolTimezone);
+      } else {
+        await adminSchoolAPI.createSchool(newSchoolName, newSchoolLocation, newSchoolTimezone);
+      }
+      setEditingId(null);
       setNewSchoolName('');
       setNewSchoolLocation('');
+      setNewSchoolTimezone('');
       fetchSchools();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save school.');
@@ -51,6 +63,7 @@ const SchoolManager: React.FC = () => {
     setEditingId(school.id);
     setNewSchoolName(school.name);
     setNewSchoolLocation(school.location || '');
+    setNewSchoolTimezone(school.timezone || '');
   };
 
   const handleDelete = (id: number) => setDeleteModal({ isOpen: true, id });
@@ -71,6 +84,7 @@ const SchoolManager: React.FC = () => {
     setEditingId(null);
     setNewSchoolName('');
     setNewSchoolLocation('');
+    setNewSchoolTimezone('');
   };
 
   if (loading) {
@@ -99,7 +113,7 @@ const SchoolManager: React.FC = () => {
           {editingId ? 'Edit School' : 'Add New School'}
         </h2>
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className={labelClass}>School name</label>
               <input
@@ -120,6 +134,19 @@ const SchoolManager: React.FC = () => {
                 onChange={e => setNewSchoolLocation(e.target.value)}
                 className={inputClass}
               />
+            </div>
+            <div>
+              <label className={labelClass}>Timezone</label>
+              <select
+                value={newSchoolTimezone}
+                onChange={e => setNewSchoolTimezone(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">No timezone set (defaults to UTC)</option>
+                {TIMEZONES.map(tz => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex gap-3">
@@ -159,8 +186,10 @@ const SchoolManager: React.FC = () => {
                 >
                   <div>
                     <div className="text-sm font-semibold text-[#0E2240]">{school.name}</div>
-                    {school.location && (
-                      <div className="text-xs text-[#64748B] mt-0.5">{school.location}</div>
+                    {(school.location || school.timezone) && (
+                      <div className="text-xs text-[#64748B] mt-0.5">
+                        {[school.location, school.timezone].filter(Boolean).join(' · ')}
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-2">

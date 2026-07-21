@@ -281,7 +281,7 @@ router.get('/:id', requireSuperAdmin, async (req: any, res) => {
 
 // POST /api/admin/schools
 router.post('/', requireSuperAdmin, async (req: any, res) => {
-  const { name, location } = req.body;
+  const { name, location, timezone } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'School name is required.' });
@@ -289,8 +289,8 @@ router.post('/', requireSuperAdmin, async (req: any, res) => {
 
   try {
     const result = await query(
-      'INSERT INTO schools (name, location) VALUES ($1, $2) RETURNING *;',
-      [name, location || null]
+      'INSERT INTO schools (name, location, timezone) VALUES ($1, $2, $3) RETURNING *;',
+      [name, location || null, timezone || null]
     );
     res.status(201).json({ school: result.rows[0] });
   } catch (error) {
@@ -302,7 +302,7 @@ router.post('/', requireSuperAdmin, async (req: any, res) => {
 // PUT /api/admin/schools/:id
 router.put('/:id', requireSuperAdmin, async (req: any, res) => {
   const { id } = req.params;
-  const { name, location } = req.body;
+  const { name, location, timezone } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'School name is required.' });
@@ -310,8 +310,8 @@ router.put('/:id', requireSuperAdmin, async (req: any, res) => {
 
   try {
     const result = await query(
-      'UPDATE schools SET name = $1, location = $2, updated_at = NOW() WHERE id = $3 RETURNING *;',
-      [name, location || null, id]
+      'UPDATE schools SET name = $1, location = $2, timezone = $3, updated_at = NOW() WHERE id = $4 RETURNING *;',
+      [name, location || null, timezone || null, id]
     );
 
     if (result.rows.length === 0) {

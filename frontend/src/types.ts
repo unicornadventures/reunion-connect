@@ -48,6 +48,7 @@ export interface School {
   id: number;
   name: string;
   location: string | null;
+  timezone: string | null;
   created_at: string;
   updated_at: string;
 }

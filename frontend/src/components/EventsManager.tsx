@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminSchoolAPI, adminClassAPI, eventAPI, userAPI } from '../apiClient';
 import { useAppContext } from '../context/AppContext';
+import { zonedWallTimeToUtcISOString, formatEventDateTime, eventInstant, utcToZonedWallTime } from '../utils/eventTime';
 
 interface School {
   id: number;
@@ -20,6 +21,7 @@ interface Event {
   event_time: string | null;
   location: string | null;
   description: string | null;
+  timezone: string | null;
 }
 
 interface EventForm {
@@ -38,6 +40,7 @@ const EventsManager: React.FC = () => {
 
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+  const [schoolTimezone, setSchoolTimezone] = useState<string | null>(null);
   const [linkedClasses, setLinkedClasses] = useState<ClassYear[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [ownClassYear, setOwnClassYear] = useState<number | null>(null);
@@ -83,6 +86,13 @@ const EventsManager: React.FC = () => {
     fetchEvents(selectedClassId);
   }, [selectedClassId]);
 
+  useEffect(() => {
+    if (!selectedSchoolId) { setSchoolTimezone(null); return; }
+    adminSchoolAPI.getSchool(selectedSchoolId)
+      .then(r => setSchoolTimezone(r.data.school.timezone))
+      .catch(() => setSchoolTimezone(null));
+  }, [selectedSchoolId]);
+
   const fetchEvents = async (classId: number) => {
     setLoading(true);
     setError(null);
@@ -104,9 +114,7 @@ const EventsManager: React.FC = () => {
     try {
       const payload = {
         title: form.title.trim(),
-        event_date: form.time
-          ? new Date(`${form.date}T${form.time}:00`).toISOString()
-          : new Date(`${form.date}T12:00:00`).toISOString(),
+        event_date: zonedWallTimeToUtcISOString(form.date, form.time || '12:00', schoolTimezone),
         location: form.location.trim() || undefined,
         description: form.description.trim() || undefined,
       };
@@ -127,8 +135,10 @@ const EventsManager: React.FC = () => {
 
   const handleEdit = (ev: Event) => {
     setEditingId(ev.id);
-    const dateStr = ev.event_date.slice(0, 10);
-    const timeStr = ev.event_time ? ev.event_time.slice(0, 5) : '';
+    const { date: dateStr, time: timeStr } = utcToZonedWallTime(
+      eventInstant(ev.event_date, ev.event_time),
+      ev.timezone ?? schoolTimezone
+    );
     setForm({
       title: ev.title,
       date: dateStr,
@@ -226,10 +236,7 @@ const EventsManager: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {events.map(ev => {
-                  const d = new Date(ev.event_date + 'T12:00:00');
-                  const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-                  const day = d.getDate();
-                  const year = d.getFullYear();
+                  const { dateLabel, timeLabel } = formatEventDateTime(ev.event_date, ev.event_time, ev.timezone);
                   const isEditing = editingId === ev.id;
                   return (
                     <div
@@ -238,15 +245,15 @@ const EventsManager: React.FC = () => {
                     >
                       <div className="flex gap-4">
                         <div className="flex-shrink-0 bg-[#0E2240] rounded px-3 py-3 text-center min-w-[60px]">
-                          <div className="font-display text-2xl font-bold text-[#E8A93E] leading-none">{day}</div>
-                          <div className="text-[9px] text-white/60 font-semibold tracking-[0.12em] uppercase mt-0.5">{month}</div>
-                          <div className="text-[9px] text-white/40 tracking-wide">{year}</div>
+                          <div className="font-display text-2xl font-bold text-[#E8A93E] leading-none">{dateLabel.day}</div>
+                          <div className="text-[9px] text-white/60 font-semibold tracking-[0.12em] uppercase mt-0.5">{dateLabel.month}</div>
+                          <div className="text-[9px] text-white/40 tracking-wide">{dateLabel.year}</div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-[#0E2240] text-sm leading-tight">{ev.title}</div>
                           <div className="mt-1.5 space-y-0.5">
-                            {ev.event_time && (
-                              <div className="text-xs text-[#64748B]">{ev.event_time.slice(0, 5)}</div>
+                            {timeLabel && (
+                              <div className="text-xs text-[#64748B]">{timeLabel}</div>
                             )}
                             {ev.location && (
                               <div className="text-xs text-[#64748B] truncate">{ev.location}</div>

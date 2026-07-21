@@ -16,6 +16,10 @@ export async function initializeDatabase() {
     `);
     console.log('✅ Table "schools" ensured.');
 
+    // IANA timezone name (e.g. "America/Chicago") used to render event/comment
+    // timestamps in the school's local time instead of UTC.
+    await query(`ALTER TABLE schools ADD COLUMN IF NOT EXISTS timezone VARCHAR(50);`);
+
     // 2. Classes — global year table, one row per year (no school_id)
     await query(`
       CREATE TABLE IF NOT EXISTS classes (

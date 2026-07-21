@@ -665,6 +665,22 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  UpdateSchoolFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-update-school-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/schools.updateSchoolHandler
+      Events:
+        PutSchool:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/admin/schools/{schoolId}
+            Method: PUT
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
   DeleteSchoolFunction:
     Type: AWS::Serverless::Function
     Properties:

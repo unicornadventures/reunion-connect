@@ -90,6 +90,7 @@ jest.mock('../../db', () => ({
         id: Math.max(...mockDb.schools.map(s => s.id), 0) + 1,
         name: params?.[0],
         location: params?.[1] || null,
+        timezone: params?.[2] || null,
         created_at: new Date(),
         updated_at: new Date()
       };
@@ -100,10 +101,11 @@ jest.mock('../../db', () => ({
     // UPDATE school
     if (sql.includes('UPDATE schools SET')) {
       const schoolId = Number(params?.[params.length - 1]);
-      const school = mockDb.schools.find(s => s.id === schoolId);
+      const school: any = mockDb.schools.find(s => s.id === schoolId);
       if (school) {
         school.name = params?.[0];
         school.location = params?.[1] || null;
+        school.timezone = params?.[2] || null;
         school.updated_at = new Date();
         return { rows: [{ ...school }] };
       }
@@ -334,6 +336,28 @@ describe('Admin School Routes', () => {
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
     });
+
+    it('should create school with a timezone', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools')
+        .send({
+          name: 'South High',
+          location: 'South, NE',
+          timezone: 'America/Chicago'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.school.timezone).toBe('America/Chicago');
+    });
+
+    it('should create school with null timezone by default', async () => {
+      const response = await request(app)
+        .post('/api/admin/schools')
+        .send({ name: 'No TZ High' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.school.timezone).toBeNull();
+    });
   });
 
   describe('PUT /api/admin/schools/:id', () => {
@@ -384,6 +408,28 @@ describe('Admin School Routes', () => {
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
+    });
+
+    it('should update the timezone', async () => {
+      const response = await request(app)
+        .put('/api/admin/schools/1')
+        .send({
+          name: 'Lincoln High',
+          location: 'Lincoln, NE',
+          timezone: 'America/Chicago'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.school.timezone).toBe('America/Chicago');
+    });
+
+    it('should clear the timezone when omitted', async () => {
+      const response = await request(app)
+        .put('/api/admin/schools/1')
+        .send({ name: 'Lincoln High', location: 'Lincoln, NE' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.school.timezone).toBeNull();
     });
   });
 

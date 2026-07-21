@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { eventAPI } from '../apiClient';
+import { eventInstant, formatEventDateTime, utcToZonedWallTime } from '../utils/eventTime';
 
 interface Event {
   id: number;
@@ -10,6 +11,7 @@ interface Event {
   event_time: string | null;
   location: string | null;
   description?: string | null;
+  timezone: string | null;
 }
 
 interface ClassInfo {
@@ -19,22 +21,13 @@ interface ClassInfo {
   school_name?: string;
 }
 
-const formatTime = (t: string) => {
-  const [h, m] = t.slice(0, 5).split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
-};
-
 const daysBetween = (a: Date, b: Date) =>
   Math.round((b.getTime() - a.getTime()) / 86400000);
 
 const EventCard: React.FC<{ event: Event; past?: boolean }> = ({ event, past }) => {
-  const d = new Date(event.event_date + 'T12:00:00');
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-  const year = d.getFullYear();
-  const timeStr = event.event_time ? formatTime(event.event_time) : null;
+  const { dateLabel, timeLabel } = formatEventDateTime(event.event_date, event.event_time, event.timezone);
+  const { day, month, year } = dateLabel;
+  const timeStr = timeLabel;
 
   return (
     <div className={`bg-white rounded-lg border p-6 transition-all duration-200 ${past ? 'border-[#E2E8F0] opacity-60' : 'border-[#E2E8F0] hover:border-[#E8A93E] hover:shadow-sm'}`}>
@@ -100,20 +93,26 @@ const EventsPage: React.FC = () => {
     }
   };
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // All events on this page belong to one class/school, so they share a timezone.
+  const schoolTimezone = events[0]?.timezone ?? null;
+  const todayKey = utcToZonedWallTime(new Date(), schoolTimezone).date;
 
-  const upcoming = events
-    .filter(e => new Date(e.event_date + 'T12:00:00') >= today)
-    .sort((a, b) => a.event_date.localeCompare(b.event_date));
+  const withInstant = events.map(e => {
+    const instant = eventInstant(e.event_date, e.event_time);
+    return { ...e, instant, dateKey: utcToZonedWallTime(instant, schoolTimezone).date };
+  });
 
-  const past = events
-    .filter(e => new Date(e.event_date + 'T12:00:00') < today)
-    .sort((a, b) => b.event_date.localeCompare(a.event_date));
+  const upcoming = withInstant
+    .filter(e => e.dateKey >= todayKey)
+    .sort((a, b) => a.instant.getTime() - b.instant.getTime());
+
+  const past = withInstant
+    .filter(e => e.dateKey < todayKey)
+    .sort((a, b) => b.instant.getTime() - a.instant.getTime());
 
   const nextEvent = upcoming[0] ?? null;
   const daysUntil = nextEvent
-    ? daysBetween(today, new Date(nextEvent.event_date + 'T12:00:00'))
+    ? daysBetween(new Date(`${todayKey}T00:00:00Z`), new Date(`${nextEvent.dateKey}T00:00:00Z`))
     : null;
 
   if (loading) {

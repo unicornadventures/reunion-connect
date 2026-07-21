@@ -74,8 +74,10 @@ export const schoolAPI = {
 export const adminSchoolAPI = {
   getSchools: () => api.get<{ schools: School[] }>('/schools'),
   getSchool: (schoolId: number) => api.get<{ school: School }>(`/schools/${schoolId}`),
-  createSchool: (name: string, location?: string) =>
-    api.post<{ school: School }>('/admin/schools', { name, location }),
+  createSchool: (name: string, location?: string, timezone?: string) =>
+    api.post<{ school: School }>('/admin/schools', { name, location, timezone }),
+  updateSchool: (schoolId: number, name: string, location?: string, timezone?: string) =>
+    api.put<{ school: School }>(`/admin/schools/${schoolId}`, { name, location, timezone }),
 
   deleteSchool: (schoolId: number) =>
     api.delete(`/admin/schools/${schoolId}`),
