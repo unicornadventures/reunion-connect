@@ -154,6 +154,9 @@ export const commentAPI = {
   getPendingComments: (userId: number) =>
     api.get(`/users/${userId}/comments/pending`),
 
+  getAllPendingComments: (requesterId: number) =>
+    api.get(`/comments/pending`, { params: { requesterId } }),
+
   createComment: (targetUserId: number, content: string, commenterId: number) =>
     api.post(`/users/${targetUserId}/comments`, { content, commenterId }),
 

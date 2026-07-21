@@ -376,6 +376,22 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  GetAllPendingCommentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-all-pending-comments-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.getAllPendingCommentsHandler
+      Events:
+        GetAllPending:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/comments/pending
+            Method: GET
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
   UpdateCommentFunction:
     Type: AWS::Serverless::Function
     Properties:

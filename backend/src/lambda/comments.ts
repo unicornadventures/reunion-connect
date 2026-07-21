@@ -161,6 +161,57 @@ export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Pr
 };
 
 /**
+ * Lambda handler for GET /api/comments/pending — every unpublished comment the
+ * requester can moderate, in one query (avoids the caller fetching per-user
+ * pending comments in a loop).
+ */
+export const getAllPendingCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+
+    let result;
+    if (authUser.is_admin) {
+      result = await query(
+        `SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+                p.first_name AS commenter_first_name, p.last_name AS commenter_last_name,
+                tp.first_name AS target_first_name, tp.last_name AS target_last_name
+         FROM comments c
+         LEFT JOIN profiles p ON c.commenter_id = p.user_id
+         LEFT JOIN profiles tp ON c.target_user_id = tp.user_id
+         WHERE c.published = false
+         ORDER BY c.created_at DESC;`
+      );
+    } else if (authUser.is_class_admin) {
+      result = await query(
+        `SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+                p.first_name AS commenter_first_name, p.last_name AS commenter_last_name,
+                tp.first_name AS target_first_name, tp.last_name AS target_last_name
+         FROM comments c
+         LEFT JOIN profiles p ON c.commenter_id = p.user_id
+         LEFT JOIN profiles tp ON c.target_user_id = tp.user_id
+         WHERE c.published = false
+           AND c.commenter_id IN (
+             SELECT cu2.user_id FROM class_user cu2
+             WHERE cu2.class_id IN (SELECT cu1.class_id FROM class_user cu1 WHERE cu1.user_id = $1)
+           )
+         ORDER BY c.created_at DESC;`,
+        [authUser.id]
+      );
+    } else {
+      return errorResponse(403, 'Not authorized to moderate comments.');
+    }
+
+    return response(200, { comments: result.rows });
+  } catch (error: any) {
+    console.error('Get all pending comments handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for PUT /api/comments/{commentId}
  */
 export const updateCommentHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {

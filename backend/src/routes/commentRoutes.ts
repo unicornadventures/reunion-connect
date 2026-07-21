@@ -35,6 +35,63 @@ async function canModerateComments(userId: number, commenterId: number, targetUs
   return false;
 }
 
+// GET /api/comments/pending - Get every unpublished comment the requester can moderate,
+// in a single query (avoids the caller having to fetch per-user pending comments in a loop).
+router.get('/pending', async (req, res) => {
+  const { requesterId } = req.query;
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId query parameter is required.' });
+  }
+
+  try {
+    const requesterIdNum = parseInt(String(requesterId), 10);
+    const requesterResult = await query('SELECT is_admin, is_class_admin FROM users WHERE id = $1', [requesterIdNum]);
+
+    if (requesterResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Requester not found.' });
+    }
+
+    const requester = requesterResult.rows[0];
+    let result;
+
+    if (requester.is_admin) {
+      result = await query(`
+        SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+               p.first_name AS commenter_first_name, p.last_name AS commenter_last_name,
+               tp.first_name AS target_first_name, tp.last_name AS target_last_name
+        FROM comments c
+        LEFT JOIN profiles p ON c.commenter_id = p.user_id
+        LEFT JOIN profiles tp ON c.target_user_id = tp.user_id
+        WHERE c.published = false
+        ORDER BY c.created_at DESC;
+      `);
+    } else if (requester.is_class_admin) {
+      result = await query(`
+        SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+               p.first_name AS commenter_first_name, p.last_name AS commenter_last_name,
+               tp.first_name AS target_first_name, tp.last_name AS target_last_name
+        FROM comments c
+        LEFT JOIN profiles p ON c.commenter_id = p.user_id
+        LEFT JOIN profiles tp ON c.target_user_id = tp.user_id
+        WHERE c.published = false
+          AND c.commenter_id IN (
+            SELECT cu2.user_id FROM class_user cu2
+            WHERE cu2.class_id IN (SELECT cu1.class_id FROM class_user cu1 WHERE cu1.user_id = $1)
+          )
+        ORDER BY c.created_at DESC;
+      `, [requesterIdNum]);
+    } else {
+      return res.status(403).json({ error: 'Not authorized to moderate comments.' });
+    }
+
+    res.status(200).json({ comments: result.rows });
+  } catch (error) {
+    console.error('Get All Pending Comments Error:', error);
+    res.status(500).json({ error: 'Could not fetch comments.' });
+  }
+});
+
 // GET /api/comments/my-comments/:commenterId - Get comments posted by a user
 router.get('/my-comments/:commenterId', async (req, res) => {
   const { commenterId } = req.params;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
+import { commentAPI } from '../apiClient';
 import { Comment } from '../types';
 import ConfirmModal from './ConfirmModal';
 
@@ -24,49 +25,16 @@ const AdminCommentsPage: React.FC = () => {
   }, []);
 
   const fetchAllUnpublishedComments = async () => {
+    if (!currentUser?.user_id) return;
     setLoading(true);
     try {
-      let users: { id: number; first_name?: string | null; last_name?: string | null }[] = [];
+      const response = await commentAPI.getAllPendingComments(currentUser.user_id);
+      const comments: CommentWithProfile[] = (response.data.comments || []).map((c: any) => ({
+        ...c,
+        target_user_profile: { first_name: c.target_first_name, last_name: c.target_last_name }
+      }));
 
-      if (currentUser?.is_admin) {
-        // Super admins review comments across every class
-        const usersResponse = await api.get('/admin/users');
-        users = usersResponse.data.users || [];
-      } else if (currentUser?.user_id) {
-        // Class admins are scoped to their own class year
-        const classResponse = await api.get(`/users/${currentUser.user_id}/class`);
-        const classId = classResponse.data.class.id;
-        const directoryResponse = await api.get(`/classes/${classId}/directory`, {
-          params: { userId: currentUser.user_id }
-        });
-        users = directoryResponse.data.users || [];
-      }
-
-      const allComments: CommentWithProfile[] = [];
-      for (const user of users) {
-        try {
-          const commentsResponse = await api.get(`/users/${user.id}/comments/pending`, {
-            params: { requesterId: currentUser?.user_id }
-          });
-          const userComments = commentsResponse.data.comments || [];
-          userComments.forEach((comment: Comment) => {
-            allComments.push({
-              ...comment,
-              target_user_profile: { first_name: user.first_name, last_name: user.last_name }
-            });
-          });
-        } catch (err: any) {
-          if (err.response?.status === 403) continue;
-          console.error(`Error fetching comments for user ${user.id}:`, err);
-          continue;
-        }
-      }
-
-      const unpublished = allComments
-        .filter(c => !c.published)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      setComments(unpublished);
+      setComments(comments);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load comments.');

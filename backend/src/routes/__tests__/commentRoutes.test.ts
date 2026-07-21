@@ -36,7 +36,8 @@ const mockDb = {
     { id: 2, email: 'user2@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
     { id: 3, email: 'user3@example.com', is_admin: false, is_class_admin: false, created_at: new Date() },
     { id: 4, email: 'classadmin-same@example.com', is_admin: false, is_class_admin: true, created_at: new Date() },
-    { id: 5, email: 'classadmin-other@example.com', is_admin: false, is_class_admin: true, created_at: new Date() }
+    { id: 5, email: 'classadmin-other@example.com', is_admin: false, is_class_admin: true, created_at: new Date() },
+    { id: 6, email: 'superadmin@example.com', is_admin: true, is_class_admin: false, created_at: new Date() }
   ],
   profiles: [
     { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe' },
@@ -77,6 +78,21 @@ jest.mock('../../db', () => ({
       const comments = mockDb.comments
         .filter(c => c.target_user_id === targetUserId)
         .sort((a, b) => (a.published === b.published ? 0 : a.published ? 1 : -1));
+      return { rows: comments };
+    }
+
+    // GET all pending comments the requester can moderate (bulk)
+    if (sql.includes('WHERE c.published = false') && !sql.includes('c.commenter_id IN')) {
+      const comments = mockDb.comments.filter(c => !c.published);
+      return { rows: comments };
+    }
+    if (sql.includes('WHERE c.published = false') && sql.includes('c.commenter_id IN')) {
+      const requesterId = Number(params?.[0]);
+      const requesterClasses = mockDb.classUsers.filter(cu => cu.user_id === requesterId).map(cu => cu.class_id);
+      const eligibleCommenters = mockDb.classUsers
+        .filter(cu => requesterClasses.includes(cu.class_id))
+        .map(cu => cu.user_id);
+      const comments = mockDb.comments.filter(c => !c.published && eligibleCommenters.includes(c.commenter_id));
       return { rows: comments };
     }
 
@@ -205,6 +221,68 @@ describe('Comment Routes', () => {
     app.use(express.json());
     app.use('/api/comments', commentRoutes);
     jest.clearAllMocks();
+  });
+
+  describe('GET /api/comments/pending', () => {
+    it('should reject without requesterId', async () => {
+      const response = await request(app).get('/api/comments/pending');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 404 for a non-existent requester', async () => {
+      const response = await request(app).get('/api/comments/pending?requesterId=999');
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject a regular (non-admin) requester', async () => {
+      // user 1 is neither admin nor class admin
+      const response = await request(app).get('/api/comments/pending?requesterId=1');
+
+      expect(response.status).toBe(403);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return every unpublished comment for a super admin, in one request', async () => {
+      const response = await request(app).get('/api/comments/pending?requesterId=6');
+
+      expect(response.status).toBe(200);
+      expect(response.body.comments.length).toBe(1);
+      expect(response.body.comments[0].id).toBe(2);
+      expect(response.body.comments[0].published).toBe(false);
+    });
+
+    it('should scope a class admin to unpublished comments from their own class', async () => {
+      // user 4 is a class admin sharing class 1 with commenter of comment 2 (user 3)
+      const response = await request(app).get('/api/comments/pending?requesterId=4');
+
+      expect(response.status).toBe(200);
+      expect(response.body.comments.length).toBe(1);
+      expect(response.body.comments[0].id).toBe(2);
+    });
+
+    it('should return no comments for a class admin whose class has no unpublished comments', async () => {
+      // user 5 is a class admin for the unrelated class 2
+      const response = await request(app).get('/api/comments/pending?requesterId=5');
+
+      expect(response.status).toBe(200);
+      expect(response.body.comments).toEqual([]);
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app).get('/api/comments/pending?requesterId=6');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
   });
 
   describe('GET /api/comments/my-comments/:commenterId', () => {
