@@ -31,6 +31,11 @@ export interface GalleryPhoto {
   created_at: string;
 }
 
+export interface SlideshowPhoto {
+  url: string;
+  userId: number;
+}
+
 export interface AuthResponse {
   id: number;
   email: string;

@@ -839,6 +839,24 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Ref ReunionConnectPrivateFileBucket
 
+  GetClassPhotosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-class-photos-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/classes.getClassPhotosHandler
+      Events:
+        GetPhotos:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/classes/{classId}/photos
+            Method: GET
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+        - S3ReadPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
+
   ListEventsFunction:
     Type: AWS::Serverless::Function
     Properties:

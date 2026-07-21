@@ -1,5 +1,5 @@
 import api from './api';
-import { User, Profile, School, Class, AuthResponse, CurrentUser } from './types';
+import { User, Profile, School, Class, AuthResponse, CurrentUser, SlideshowPhoto } from './types';
 
 // Auth endpoints
 export const authAPI = {
@@ -87,6 +87,8 @@ export const classAPI = {
   getClass: (classId: number) => api.get<{ class: Class }>(`/classes/${classId}`),
   getClassMembers: (classId: number) =>
     api.get<{ members: (User & { profile: Profile | null })[] }>(`/classes/${classId}/members`),
+  getPhotos: (classId: number, userId: number) =>
+    api.get<{ photos: SlideshowPhoto[] }>(`/classes/${classId}/photos`, { params: { userId } }),
 };
 
 // Admin class endpoints

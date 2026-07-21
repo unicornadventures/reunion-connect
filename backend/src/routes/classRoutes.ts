@@ -81,6 +81,56 @@ router.get('/:id/directory', async (req, res) => {
   }
 });
 
+// GET /api/classes/:id/photos — flat list of then/now/gallery photos for the class slideshow
+router.get('/:id/photos', async (req, res) => {
+  const { id } = req.params;
+  const userId = req.query.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  try {
+    const userClassCheck = await query(
+      'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
+      [userId, id]
+    );
+
+    if (userClassCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied. You are not in this class.' });
+    }
+
+    const profileResult = await query(`
+      SELECT u.id AS user_id, p.then_photo_url, p.now_photo_url
+      FROM class_user cu
+      JOIN users u ON cu.user_id = u.id
+      LEFT JOIN profiles p ON u.id = p.user_id
+      WHERE cu.class_id = $1
+    `, [id]);
+
+    const galleryResult = await query(`
+      SELECT gp.user_id, gp.s3_key
+      FROM gallery_photos gp
+      JOIN class_user cu ON gp.user_id = cu.user_id
+      WHERE cu.class_id = $1
+    `, [id]);
+
+    const photos: { url: string; userId: number }[] = [];
+    for (const row of profileResult.rows) {
+      if (row.then_photo_url) photos.push({ url: row.then_photo_url, userId: row.user_id });
+      if (row.now_photo_url) photos.push({ url: row.now_photo_url, userId: row.user_id });
+    }
+    for (const row of galleryResult.rows) {
+      photos.push({ url: row.s3_key, userId: row.user_id });
+    }
+
+    res.status(200).json({ photos });
+  } catch (error) {
+    console.error('Get Class Photos Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 // GET /api/classes/:id/alumni-count
 router.get('/:id/alumni-count', async (req, res) => {
   const { id } = req.params;

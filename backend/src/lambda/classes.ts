@@ -354,6 +354,67 @@ export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Pro
 };
 
 /**
+ * Lambda handler for GET /api/classes/{classId}/photos — flat list of then/now/gallery
+ * photos for members of the class, used by the Slideshow page.
+ */
+export const getClassPhotosHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { classId } = event.pathParameters || {};
+    if (!classId) return errorResponse(400, 'Class ID required.');
+
+    if (!authUser.is_admin) {
+      const memberCheck = await query(
+        'SELECT class_id FROM class_user WHERE user_id = $1 AND class_id = $2',
+        [authUser.id, classId]
+      );
+      if (memberCheck.rows.length === 0) {
+        return errorResponse(403, 'Access denied. You are not in this class.');
+      }
+    }
+
+    const profileResult = await query(
+      `SELECT u.id AS user_id, p.then_photo_url, p.now_photo_url
+       FROM class_user cu
+       JOIN users u ON cu.user_id = u.id
+       LEFT JOIN profiles p ON u.id = p.user_id
+       WHERE cu.class_id = $1`,
+      [classId]
+    );
+
+    const galleryResult = await query(
+      `SELECT gp.user_id, gp.s3_key
+       FROM gallery_photos gp
+       JOIN class_user cu ON gp.user_id = cu.user_id
+       WHERE cu.class_id = $1`,
+      [classId]
+    );
+
+    const rawPhotos: { key: string; userId: number }[] = [];
+    for (const row of profileResult.rows) {
+      if (row.then_photo_url) rawPhotos.push({ key: row.then_photo_url, userId: row.user_id });
+      if (row.now_photo_url) rawPhotos.push({ key: row.now_photo_url, userId: row.user_id });
+    }
+    for (const row of galleryResult.rows) {
+      rawPhotos.push({ key: row.s3_key, userId: row.user_id });
+    }
+
+    const photos = (await Promise.all(rawPhotos.map(async (p) => ({
+      url: await resolvePhotoUrl(p.key),
+      userId: p.userId
+    })))).filter((p) => !!p.url);
+
+    return response(200, { photos });
+  } catch (error: any) {
+    console.error('Get class photos handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for GET /api/classes/{classId}/members
  */
 export const getClassMembersHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {

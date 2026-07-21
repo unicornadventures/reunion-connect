@@ -28,6 +28,10 @@ const mockDb = {
     { id: 2, class_id: 1, user_id: 2, school_id: 1 },
     { id: 3, class_id: 2, user_id: 3, school_id: 1 }
   ],
+  galleryPhotos: [
+    { id: 1, user_id: 3, s3_key: 'photos/other/3-gallery-abc.jpg' },
+    { id: 2, user_id: 3, s3_key: 'photos/other/3-gallery-def.jpg' }
+  ],
   comments: [
     { id: 1, target_user_id: 1, commenter_id: 2, content: 'Great to see you!', published: true, created_at: new Date() },
     { id: 2, target_user_id: 2, commenter_id: 1, content: 'How have you been?', published: true, created_at: new Date() }
@@ -82,6 +86,32 @@ jest.mock('../../db', () => ({
       const classId = Number(params?.[1]);
       const found = mockDb.classUsers.find(cu => cu.user_id === userId && cu.class_id === classId);
       return { rows: found ? [{ class_id: classId }] : [] };
+    }
+
+    // GET class photos — then/now photos per user
+    if (sql.includes('u.id AS user_id') && sql.includes('p.then_photo_url')) {
+      const classId = Number(params?.[0]);
+      const rows = mockDb.classUsers
+        .filter(cu => cu.class_id === classId)
+        .map(cu => {
+          const profile = mockDb.profiles.find(p => p.user_id === cu.user_id);
+          return {
+            user_id: cu.user_id,
+            then_photo_url: profile?.then_photo_url ?? null,
+            now_photo_url: profile?.now_photo_url ?? null
+          };
+        });
+      return { rows };
+    }
+
+    // GET class photos — gallery photos per user
+    if (sql.includes('FROM gallery_photos gp')) {
+      const classId = Number(params?.[0]);
+      const classUserIds = mockDb.classUsers.filter(cu => cu.class_id === classId).map(cu => cu.user_id);
+      const rows = mockDb.galleryPhotos
+        .filter(gp => classUserIds.includes(gp.user_id))
+        .map(gp => ({ user_id: gp.user_id, s3_key: gp.s3_key }));
+      return { rows };
     }
 
     // GET directory users
@@ -345,6 +375,54 @@ describe('Class Routes', () => {
       query.mockImplementationOnce(async () => { throw new Error('Database error'); });
 
       const response = await request(app).get('/api/classes/1/directory?userId=1');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('GET /api/classes/:id/photos', () => {
+    it('should require userId query parameter', async () => {
+      const response = await request(app).get('/api/classes/2/photos');
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should deny access for user not in class', async () => {
+      const response = await request(app).get('/api/classes/2/photos?userId=999');
+
+      expect(response.status).toBe(403);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return then/now and gallery photos flattened, tagged with userId', async () => {
+      const response = await request(app).get('/api/classes/2/photos?userId=3');
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.photos)).toBe(true);
+      expect(response.body.photos).toEqual(expect.arrayContaining([
+        { url: 'https://example.com/bob_then.jpg', userId: 3 },
+        { url: 'https://example.com/bob_now.jpg', userId: 3 },
+        { url: 'photos/other/3-gallery-abc.jpg', userId: 3 },
+        { url: 'photos/other/3-gallery-def.jpg', userId: 3 }
+      ]));
+      expect(response.body.photos.length).toBe(4);
+    });
+
+    it('should omit missing then/now photos rather than returning nulls', async () => {
+      const response = await request(app).get('/api/classes/1/photos?userId=1');
+
+      expect(response.status).toBe(200);
+      expect(response.body.photos).toEqual([]);
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => { throw new Error('Database error'); });
+
+      const response = await request(app).get('/api/classes/2/photos?userId=3');
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');
