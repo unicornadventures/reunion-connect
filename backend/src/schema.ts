@@ -156,6 +156,7 @@ export async function initializeDatabase() {
     await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nickname VARCHAR(100)`);
     await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS former_first_name VARCHAR(100)`);
     await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS former_last_name VARCHAR(100)`);
+    await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_color VARCHAR(7)`);
 
     // 6. class_user junction (many-to-many: classes ↔ users, with school context)
     const hasIdColumn = await query(`

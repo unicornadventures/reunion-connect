@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { dbReady } from './init.js';
 import { getAuthUser } from './authUtils.js';
 import { resolvePhotoUrl } from './photos.js';
+import { isValidAvatarColor } from '../utils/avatarColors.js';
 
 const response = (statusCode: number, body: any): APIGatewayProxyResult => ({
   statusCode,
@@ -34,7 +35,7 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     const userResult = await query(
       `SELECT u.id, u.email, u.is_admin, u.is_class_admin,
               p.first_name, p.last_name, p.nickname, p.former_first_name, p.former_last_name,
-              p.bio, p.then_photo_url, p.now_photo_url, p.tags
+              p.bio, p.then_photo_url, p.now_photo_url, p.avatar_color, p.tags
        FROM users u
        LEFT JOIN profiles p ON u.id = p.user_id
        WHERE u.id = $1`,
@@ -66,6 +67,7 @@ export const getProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
         bio: row.bio,
         then_photo_url: thenUrl,
         now_photo_url: nowUrl,
+        avatar_color: row.avatar_color,
         tags: row.tags || []
       }
     });
@@ -85,7 +87,7 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
 
     await dbReady;
     const { userId } = event.pathParameters || {};
-    const { first_name, last_name, nickname, former_first_name, former_last_name, bio, email, tags } = JSON.parse(event.body || '{}');
+    const { first_name, last_name, nickname, former_first_name, former_last_name, bio, email, tags, avatar_color } = JSON.parse(event.body || '{}');
 
     if (!userId) {
       return errorResponse(400, 'User ID required.');
@@ -93,6 +95,10 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
 
     if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
       return errorResponse(403, 'You can only edit your own profile.');
+    }
+
+    if (avatar_color !== undefined && avatar_color !== null && !isValidAvatarColor(avatar_color)) {
+      return errorResponse(400, 'Invalid avatar color.');
     }
 
     // Update email if provided
@@ -119,11 +125,17 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
        tags !== undefined ? JSON.stringify(tags) : null]
     );
 
+    // avatar_color is handled separately since it must support being explicitly
+    // reset to NULL, which COALESCE above can't distinguish from "not provided".
+    if (avatar_color !== undefined) {
+      await query('UPDATE profiles SET avatar_color = $1 WHERE user_id = $2', [avatar_color, userId]);
+    }
+
     // Fetch updated profile
     const result = await query(
       `SELECT u.id, u.email, u.is_admin, u.is_class_admin,
               p.first_name, p.last_name, p.nickname, p.former_first_name, p.former_last_name,
-              p.bio, p.then_photo_url, p.now_photo_url, p.tags
+              p.bio, p.then_photo_url, p.now_photo_url, p.avatar_color, p.tags
        FROM users u
        LEFT JOIN profiles p ON u.id = p.user_id
        WHERE u.id = $1`,
@@ -155,6 +167,7 @@ export const updateProfileHandler = async (event: APIGatewayProxyEvent): Promise
         bio: row.bio,
         then_photo_url: thenUrl,
         now_photo_url: nowUrl,
+        avatar_color: row.avatar_color,
         tags: row.tags || []
       }
     });

@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../db.ts';
+import { isValidAvatarColor } from '../utils/avatarColors.ts';
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
@@ -205,7 +206,11 @@ router.post('/:userId/assign-class', async (req: any, res) => {
 // PUT /api/users/:userId/profile - Update user profile and email
 router.put('/:userId/profile', async (req: any, res) => {
   const { userId } = req.params;
-  const { bio, nickname, email, first_name, last_name, former_first_name, former_last_name, tags } = req.body;
+  const { bio, nickname, email, first_name, last_name, former_first_name, former_last_name, tags, avatar_color } = req.body;
+
+  if (avatar_color !== undefined && avatar_color !== null && !isValidAvatarColor(avatar_color)) {
+    return res.status(400).json({ error: 'Invalid avatar color.' });
+  }
 
   try {
     // Check if user exists
@@ -243,7 +248,7 @@ router.put('/:userId/profile', async (req: any, res) => {
     const updateValues = [];
     let paramCount = 1;
 
-    const profileFields: Record<string, any> = { bio, nickname, first_name, last_name, former_first_name, former_last_name };
+    const profileFields: Record<string, any> = { bio, nickname, first_name, last_name, former_first_name, former_last_name, avatar_color };
     for (const [field, val] of Object.entries(profileFields)) {
       if (val !== undefined) {
         updateFields.push(`${field} = $${paramCount}`);

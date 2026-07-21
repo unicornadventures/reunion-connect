@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
+import { getColorForInitials } from '../avatarColors';
 
 interface DirectoryUser {
   id: number;
@@ -13,6 +14,7 @@ interface DirectoryUser {
   former_first_name: string | null;
   former_last_name: string | null;
   now_photo_url: string | null;
+  avatar_color: string | null;
   tags: string[] | null;
 }
 
@@ -22,15 +24,6 @@ interface ClassInfo {
   school_id?: number;
   school_name?: string;
 }
-
-const getColorForInitials = (initials: string): string => {
-  const colors = ['#E91E63', '#3F51B5', '#009688', '#FF5722', '#9C27B0', '#4CAF50', '#FF9800', '#607D8B', '#795548', '#00BCD4', '#F06292', '#7986CB'];
-  let hash = 0;
-  for (let i = 0; i < initials.length; i++) {
-    hash = initials.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
 
 const getInitials = (firstName?: string | null, lastName?: string | null): string => {
   const first = (firstName || '').charAt(0).toUpperCase();
@@ -161,7 +154,7 @@ const DirectoryPage: React.FC = () => {
                         width: 96,
                         height: 96,
                         fontSize: 30,
-                        background: getColorForInitials(getInitials(displayName.first, displayName.last)),
+                        background: user.avatar_color || getColorForInitials(getInitials(displayName.first, displayName.last)),
                       }}
                     >
                       {getInitials(displayName.first, displayName.last)}

@@ -28,6 +28,8 @@ const Header: React.FC = () => {
     return ((firstName.charAt(0) + lastName.charAt(0)).toUpperCase()) || '?';
   };
 
+  const avatarColor = currentUser?.profile?.avatar_color;
+
   const linkClass = (to: string) =>
     `text-sm font-medium transition-colors duration-200 ${
       location.pathname === to ? 'text-[#E8A93E]' : 'text-white/70 hover:text-[#E8A93E]'
@@ -56,7 +58,10 @@ const Header: React.FC = () => {
             to="/profile"
             className="flex items-center gap-2 text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
           >
-            <div className="w-8 h-8 rounded-full bg-[#E8A93E] flex items-center justify-center text-[#0E2240] text-xs font-bold flex-shrink-0">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              style={{ background: avatarColor || '#E8A93E', color: avatarColor ? '#FFFFFF' : '#0E2240' }}
+            >
               {getInitials()}
             </div>
             <span className="hidden sm:inline">Profile</span>

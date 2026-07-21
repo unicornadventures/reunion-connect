@@ -331,6 +331,7 @@ export const getClassDirectoryHandler = async (event: APIGatewayProxyEvent): Pro
          p.former_last_name,
          p.now_photo_url,
          p.then_photo_url,
+         p.avatar_color,
          p.tags
        FROM class_user cu
        JOIN users u ON cu.user_id = u.id

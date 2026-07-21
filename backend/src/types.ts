@@ -36,6 +36,7 @@ export interface Profile {
   bio: string | null;
   then_photo_url: string | null;
   now_photo_url: string | null;
+  avatar_color: string | null;
   created_at: Date;
   updated_at: Date;
 }

@@ -102,6 +102,31 @@ test.describe('Own Profile', () => {
     expect(putBody.tags).toEqual(['band', 'honor roll', 'soccer']);
   });
 
+  test('should let the user pick and clear an avatar color', async ({ page }) => {
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+
+    let putBody: any;
+    await page.route('**/api/users/1/profile', (route) => {
+      putBody = route.request().postDataJSON();
+      route.fulfill({
+        status: 200,
+        body: JSON.stringify({ profile: { ...PROFILE, avatar_color: putBody.avatar_color } }),
+      });
+    });
+
+    await page.getByRole('button', { name: 'Avatar color #E91E63' }).click();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('button', { name: 'Edit profile' })).toBeVisible();
+    expect(putBody.avatar_color).toBe('#E91E63');
+
+    // Re-enter edit mode and click the same swatch again to clear it back to the default.
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    await page.getByRole('button', { name: 'Avatar color #E91E63' }).click();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByRole('button', { name: 'Edit profile' })).toBeVisible();
+    expect(putBody.avatar_color).toBeNull();
+  });
+
   test('should remove a tag while editing', async ({ page }) => {
     await page.getByRole('button', { name: 'Edit profile' }).click();
     await expect(page.getByText('band')).toBeVisible();

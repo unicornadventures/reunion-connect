@@ -86,6 +86,7 @@ describe('Type Definitions', () => {
         bio: 'Test bio',
         then_photo_url: 'http://example.com/then.jpg',
         now_photo_url: 'http://example.com/now.jpg',
+        avatar_color: null,
         created_at: new Date(),
         updated_at: new Date()
       };
@@ -112,6 +113,7 @@ describe('Type Definitions', () => {
         bio: null,
         then_photo_url: null,
         now_photo_url: null,
+        avatar_color: null,
         created_at: new Date(),
         updated_at: new Date()
       };

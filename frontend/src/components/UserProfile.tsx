@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { User, Profile, GalleryPhoto } from '../types';
 import { galleryAPI } from '../apiClient';
+import { AVATAR_COLORS } from '../avatarColors';
 
 interface UserWithProfile {
   user: User;
@@ -154,6 +155,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
         user: { ...prev.user, email: editData.email || prev.user.email }
       } : null);
       setEditTags(response.data.profile?.tags || editTags);
+      updateCurrentUser({ profile: response.data.profile } as any);
       setEditMode(false);
       setError(null);
     } catch (err: any) {
@@ -289,12 +291,34 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                 <img src={profile.now_photo_url} alt={displayName}
                   className="w-24 h-24 rounded-full object-cover" />
               ) : (
-                <div className="flex items-center justify-center rounded-full bg-[#0E2240] text-[#E8A93E] font-bold text-2xl"
-                  style={{ width: 96, height: 96 }}>
+                <div className="flex items-center justify-center rounded-full font-bold text-2xl"
+                  style={{
+                    width: 96,
+                    height: 96,
+                    background: (editMode && isOwnProfile ? editData.avatar_color : profile?.avatar_color) || '#0E2240',
+                    color: (editMode && isOwnProfile ? editData.avatar_color : profile?.avatar_color) ? '#FFFFFF' : '#E8A93E',
+                  }}>
                   {profile?.first_name?.charAt(0)}{profile?.last_name?.charAt(0)}
                 </div>
               )}
             </div>
+            {isOwnProfile && editMode && (
+              <div className="flex flex-wrap justify-center gap-2 mb-4">
+                {AVATAR_COLORS.map(color => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setEditData({ ...editData, avatar_color: editData.avatar_color === color ? null : color })}
+                    aria-label={`Avatar color ${color}`}
+                    className="w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110 border-none"
+                    style={{
+                      background: color,
+                      boxShadow: editData.avatar_color === color ? '0 0 0 2px #FFFFFF, 0 0 0 4px #0E2240' : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             <h2 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight">
               {displayName}
             </h2>
