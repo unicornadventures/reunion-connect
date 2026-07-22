@@ -1,10 +1,12 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
 const AdminHeader: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout, currentUser } = useAppContext();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -22,10 +24,29 @@ const AdminHeader: React.FC = () => {
 
   const avatarColor = currentUser?.profile?.avatar_color;
   const isSuperAdmin = !!currentUser?.is_admin;
+  const isClassAdmin = !isSuperAdmin && !!currentUser?.is_class_admin;
+
+  const navLinks: { to: string; label: string }[] = [
+    ...(isSuperAdmin ? [
+      { to: '/admin/schools', label: 'Schools' },
+      { to: '/admin/classes', label: 'Classes' },
+      { to: '/admin/users', label: 'Users' },
+    ] : []),
+    ...(isClassAdmin ? [
+      { to: '/', label: 'Home' },
+      { to: '/directory', label: 'Directory' },
+      { to: '/slideshow', label: 'Slideshow' },
+    ] : []),
+    ...(isSuperAdmin || isClassAdmin ? [
+      { to: '/admin/events', label: 'Events' },
+      { to: '/admin/comments', label: 'Comments' },
+    ] : []),
+    ...(isClassAdmin ? [{ to: '/help', label: 'Help' }] : []),
+  ];
 
   return (
-    <header className="sticky top-0 z-[100] bg-[#0E2240] h-16 flex items-center px-5">
-      <div className="max-w-[1200px] w-full mx-auto flex items-center justify-between">
+    <header className="sticky top-0 z-[100] bg-[#0E2240]">
+      <div className="max-w-[1200px] mx-auto px-5 h-16 flex items-center justify-between">
         <Link
           to={isSuperAdmin ? '/admin/schools' : '/'}
           className="font-display text-xl font-bold text-[#E8A93E] tracking-tight hover:opacity-90 transition-opacity"
@@ -34,74 +55,15 @@ const AdminHeader: React.FC = () => {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
-          {isSuperAdmin && (
-            <>
-              <Link
-                to="/admin/schools"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Schools
-              </Link>
-              <Link
-                to="/admin/classes"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Classes
-              </Link>
-              <Link
-                to="/admin/users"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Users
-              </Link>
-            </>
-          )}
-          {!isSuperAdmin && currentUser?.is_class_admin && (
-            <>
-              <Link
-                to="/"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Home
-              </Link>
-              <Link
-                to="/directory"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Directory
-              </Link>
-              <Link
-                to="/slideshow"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Slideshow
-              </Link>
-            </>
-          )}
-          {(currentUser?.is_admin || currentUser?.is_class_admin) && (
-            <>
-              <Link
-                to="/admin/events"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Events
-              </Link>
-              <Link
-                to="/admin/comments"
-                className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
-              >
-                Comments
-              </Link>
-            </>
-          )}
-          {!isSuperAdmin && currentUser?.is_class_admin && (
+          {navLinks.map(({ to, label }) => (
             <Link
-              to="/help"
+              key={to}
+              to={to}
               className="text-sm font-medium text-white/70 hover:text-[#E8A93E] transition-colors duration-200"
             >
-              Help
+              {label}
             </Link>
-          )}
+          ))}
         </nav>
 
         <div className="flex items-center gap-3">
@@ -131,12 +93,49 @@ const AdminHeader: React.FC = () => {
           )}
           <button
             onClick={handleLogout}
-            className="text-xs text-white/40 hover:text-white/70 transition-colors duration-200 font-medium ml-2"
+            className="hidden md:inline text-xs text-white/40 hover:text-white/70 transition-colors duration-200 font-medium ml-2"
           >
             Sign out
           </button>
+
+          {/* Hamburger */}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5 bg-transparent border-none cursor-pointer ml-1"
+            aria-label="Toggle menu"
+          >
+            <span className={`block w-5 h-0.5 bg-white/70 transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-white/70 transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-white/70 transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+          </button>
         </div>
       </div>
+
+      {/* Mobile dropdown */}
+      {menuOpen && (
+        <div className="md:hidden bg-[#0a1a30] border-t border-white/10 px-5 py-4 flex flex-col gap-4">
+          {navLinks.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className={`text-sm font-medium transition-colors duration-200 ${
+                location.pathname === to ? 'text-[#E8A93E]' : 'text-white/70'
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              {label}
+            </Link>
+          ))}
+          <div className="border-t border-white/10 pt-3 mt-1">
+            <button
+              onClick={() => { handleLogout(); setMenuOpen(false); }}
+              className="text-sm text-white/40 hover:text-white/70 transition-colors duration-200 font-medium bg-transparent border-none cursor-pointer p-0"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
