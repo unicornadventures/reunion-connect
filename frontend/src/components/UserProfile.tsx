@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
-import { User, Profile, GalleryPhoto } from '../types';
+import { User, Profile, GalleryPhoto, Comment } from '../types';
 import { galleryAPI } from '../apiClient';
 import { AVATAR_COLORS } from '../avatarColors';
 
@@ -46,6 +46,12 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [editTags, setEditTags] = useState<string[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isCanModerate, setIsCanModerate] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
 
   const profileUserId = userId ? Number(userId) : currentUser?.user_id;
   const isOwnProfile = profileUserId === currentUser?.user_id;
@@ -87,6 +93,26 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       } catch {
         setGalleryPhotos([]);
       }
+
+      const canModerate = isOwnProfile || !!currentUser?.is_admin;
+      setIsCanModerate(canModerate);
+
+      let allComments: Comment[] = [];
+      if (canModerate) {
+        try {
+          const pendingResponse = await api.get(`/users/${profileUserId}/comments/pending`, {
+            params: { requesterId: currentUser?.user_id }
+          });
+          allComments = pendingResponse.data.comments || [];
+        } catch {
+          const commentsResponse = await api.get(`/users/${profileUserId}/comments`);
+          allComments = commentsResponse.data.comments || [];
+        }
+      } else {
+        const commentsResponse = await api.get(`/users/${profileUserId}/comments`);
+        allComments = commentsResponse.data.comments || [];
+      }
+      setComments(allComments);
 
       setError(null);
     } catch (err: any) {
@@ -197,6 +223,70 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to delete gallery photo.');
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newCommentText.trim()) { setError('Comment cannot be empty.'); return; }
+    if (!currentUser?.user_id || !profileUserId) { setError('User not authenticated.'); return; }
+    setSubmittingComment(true);
+    try {
+      const response = await api.post(`/users/${profileUserId}/comments`, {
+        commenterId: currentUser.user_id,
+        content: newCommentText
+      });
+      setComments([...comments, response.data.comment]);
+      setNewCommentText('');
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to post comment.');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handlePublishComment = async (commentId: number, shouldPublish: boolean) => {
+    try {
+      const response = await api.put(`/comments/${commentId}`, {
+        published: shouldPublish,
+        requesterId: currentUser?.user_id
+      });
+      setComments(comments.map(c =>
+        c.id === commentId ? { ...c, published: response.data.comment.published } : c
+      ));
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update comment.');
+    }
+  };
+
+  const handleEditComment = async (commentId: number) => {
+    if (!editCommentText.trim()) return;
+    try {
+      const response = await api.put(`/comments/${commentId}`, {
+        content: editCommentText,
+        requesterId: currentUser?.user_id
+      });
+      setComments(comments.map(c =>
+        c.id === commentId ? { ...c, ...response.data.comment } : c
+      ));
+      setEditingCommentId(null);
+      setEditCommentText('');
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to edit comment.');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await api.delete(`/comments/${commentId}`, {
+        params: { requesterId: currentUser?.user_id }
+      });
+      setComments(comments.filter(c => c.id !== commentId));
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete comment.');
     }
   };
 
@@ -629,6 +719,137 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Comments */}
+          <div className="bg-white rounded-lg border border-[#E2E8F0] p-6">
+            <h3 className="text-sm font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-4">
+              Comments ({comments.length})
+            </h3>
+
+            <div className="bg-[#F6F8FC] border border-[#E2E8F0] rounded-lg p-5 mb-6">
+              <h4 className="text-sm font-semibold text-[#0E2240] mb-3">Leave a comment</h4>
+              <textarea
+                value={newCommentText}
+                onChange={e => setNewCommentText(e.target.value)}
+                placeholder="Share your message..."
+                className="w-full min-h-24 px-3 py-3 border border-[#E2E8F0] rounded text-sm resize-vertical mb-3 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] disabled:bg-[#F6F8FC] transition-colors"
+                disabled={submittingComment}
+              />
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleAddComment}
+                  disabled={submittingComment || !newCommentText.trim()}
+                  className={`px-5 py-2 rounded text-sm font-semibold transition-opacity ${
+                    submittingComment || !newCommentText.trim()
+                      ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                      : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
+                  }`}
+                >
+                  {submittingComment ? 'Posting...' : 'Post comment'}
+                </button>
+                <p className="text-xs text-[#94A3B8]">Comments appear after review.</p>
+              </div>
+            </div>
+
+            {comments.length === 0 ? (
+              <div className="py-10 text-center text-[#94A3B8] text-sm bg-[#F6F8FC] rounded-lg border border-[#E2E8F0]">
+                No comments yet. Be the first to leave one!
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {comments.map((comment) => {
+                  const isAuthor = comment.commenter_id === currentUser?.user_id;
+                  const commenterName = comment.commenter_first_name
+                    ? `${comment.commenter_first_name} ${comment.commenter_last_name || ''}`.trim()
+                    : null;
+                  const isEditing = editingCommentId === comment.id;
+
+                  return (
+                    <div
+                      key={comment.id}
+                      className={`rounded-lg border p-4 ${!comment.published ? 'bg-[#FFF8EE] border-[#E8A93E]/40' : 'bg-white border-[#E2E8F0]'}`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {commenterName && (
+                            <span className="text-xs font-semibold text-[#0E2240]">{commenterName}</span>
+                          )}
+                          <span className="text-xs text-[#94A3B8]">
+                            {new Date(comment.created_at).toLocaleDateString()} at{' '}
+                            {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {!comment.published && (
+                            <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {isAuthor && !isEditing && (
+                            <>
+                              <button
+                                onClick={() => { setEditingCommentId(comment.id); setEditCommentText(comment.content); }}
+                                className="px-2 py-1 rounded text-xs font-semibold border border-[#E2E8F0] text-[#64748B] hover:bg-[#F6F8FC] cursor-pointer bg-white transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="px-2 py-1 rounded text-xs font-semibold bg-[#FFEBEE] text-[#C62828] hover:opacity-80 cursor-pointer border-none transition-opacity"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                          {isCanModerate && !isEditing && (
+                            <button
+                              onClick={() => handlePublishComment(comment.id, !comment.published)}
+                              className={`px-3 py-1 rounded text-xs font-semibold border-none cursor-pointer transition-opacity ${
+                                comment.published
+                                  ? 'bg-[#E2E8F0] text-[#64748B] hover:opacity-80'
+                                  : 'bg-[#0E2240] text-white hover:opacity-90'
+                              }`}
+                            >
+                              {comment.published ? 'Unpublish' : 'Publish'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {isEditing ? (
+                        <div>
+                          <textarea
+                            value={editCommentText}
+                            onChange={e => setEditCommentText(e.target.value)}
+                            className="w-full min-h-20 px-3 py-2 border border-[#E2E8F0] rounded text-sm resize-vertical mb-2 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors"
+                            autoFocus
+                          />
+                          <div className="flex gap-2 items-center">
+                            <button
+                              onClick={() => handleEditComment(comment.id)}
+                              disabled={!editCommentText.trim()}
+                              className="px-3 py-1 text-xs font-semibold bg-[#0E2240] text-white rounded hover:opacity-90 cursor-pointer border-none disabled:opacity-50"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => { setEditingCommentId(null); setEditCommentText(''); }}
+                              className="px-3 py-1 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] cursor-pointer bg-white"
+                            >
+                              Cancel
+                            </button>
+                            <span className="text-[10px] text-[#94A3B8]">Edits require re-approval</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-[#64748B] leading-relaxed break-words">{comment.content}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
