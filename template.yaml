@@ -1172,6 +1172,54 @@ Resources:
             BucketName: !Ref ReunionConnectPrivateFileBucket
         - !Ref LambdaSecretsManagerPolicy
 
+  # Pings a curated set of hot-path Lambdas every 5 minutes to prevent cold
+  # starts. Each target is invoked with an empty payload and rejects on
+  # auth/missing params before touching the DB, so Aurora's MinCapacity: 0
+  # pause-on-idle behavior (see RDSCluster below) is left untouched — DB
+  # cold starts stay observable, only Lambda cold starts are eliminated.
+  # Runs outside the VPC (like ForgotPasswordFunction) since there's no NAT
+  # or Lambda-service VPC endpoint for the AWS SDK call to reach.
+  WarmerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-warmer-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/warmer.warmerHandler
+      Timeout: 10
+      VpcConfig: !Ref 'AWS::NoValue'
+      Environment:
+        Variables:
+          WARM_FUNCTION_NAMES: !Sub
+            - '${Login},${GetUserProfile},${ListUsers},${GetClassDirectory},${GetComments},${ListEvents},${ListClasses},${GetClassMembers}'
+            - Login: !Ref LoginFunction
+              GetUserProfile: !Ref GetUserProfileFunction
+              ListUsers: !Ref ListUsersFunction
+              GetClassDirectory: !Ref GetClassDirectoryFunction
+              GetComments: !Ref GetCommentsFunction
+              ListEvents: !Ref ListEventsFunction
+              ListClasses: !Ref ListClassesFunction
+              GetClassMembers: !Ref GetClassMembersFunction
+      Events:
+        WarmSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource:
+                - !GetAtt LoginFunction.Arn
+                - !GetAtt GetUserProfileFunction.Arn
+                - !GetAtt ListUsersFunction.Arn
+                - !GetAtt GetClassDirectoryFunction.Arn
+                - !GetAtt GetCommentsFunction.Arn
+                - !GetAtt ListEventsFunction.Arn
+                - !GetAtt ListClassesFunction.Arn
+                - !GetAtt GetClassMembersFunction.Arn
+
   # Optional: Aurora Serverless v2 database (only for AWS, not LocalStack).
   # MinCapacity 0 lets the cluster pause when idle (~15s resume on first
   # connection) so cold-start behavior is observable in every environment.
