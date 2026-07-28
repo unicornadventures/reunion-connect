@@ -25,6 +25,7 @@ Globals:
         JWT_SECRET: !Ref JWTSecret
         ADMIN_SEED_PASSWORD_PARAM: !If [IsLocalStack, !Ref 'AWS::NoValue', !Ref AdminSeedPasswordParam]
         FRONTEND_URL: !Ref FrontendURL
+        SES_FROM_EMAIL: !Sub 'noreply@${DomainName}'
         S3_BUCKET_NAME: !Ref ReunionConnectPrivateFileBucket
         DATABASE_SECRET_ARN: !If [IsLocalStack, !Ref 'AWS::NoValue', !GetAtt RDSCluster.MasterUserSecret.SecretArn]
 
@@ -155,6 +156,19 @@ Resources:
               - ec2:UnassignPrivateIpAddresses
             Resource: '*'
 
+  LambdaSESPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Allow Lambda functions to send transactional email via SES
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource: '*'
+
   # API Gateway
   ClassYearAPI:
     Type: AWS::Serverless::Api
@@ -215,12 +229,20 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  # Runs outside the VPC (no direct Postgres connection) so it can reach both
+  # the RDS Data API and SQS over normal internet egress with no VPC endpoint
+  # cost. See SendPasswordResetEmailFunction for the actual SES send.
   ForgotPasswordFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'classyear-forgot-password-${Environment}'
       CodeUri: backend/
-      Handler: dist/src/lambda/auth.forgotPasswordHandler
+      Handler: dist/src/lambda/forgotPassword.forgotPasswordHandler
+      VpcConfig: !Ref 'AWS::NoValue'
+      Environment:
+        Variables:
+          DB_CLUSTER_ARN: !If [IsLocalStack, !Ref 'AWS::NoValue', !GetAtt RDSCluster.DBClusterArn]
+          PASSWORD_RESET_QUEUE_URL: !Ref PasswordResetEmailQueue
       Events:
         PostForgot:
           Type: Api
@@ -230,6 +252,61 @@ Resources:
             Method: POST
       Policies:
         - !Ref LambdaSecretsManagerPolicy
+        - !Ref LambdaRDSDataAPIPolicy
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt PasswordResetEmailQueue.QueueName
+
+  # SQS-triggered, non-VPC worker that does the actual SES send — decoupled
+  # from ForgotPasswordFunction so the DB-touching request path never blocks
+  # on email delivery.
+  SendPasswordResetEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-send-password-reset-email-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/emailWorker.sendPasswordResetEmailHandler
+      VpcConfig: !Ref 'AWS::NoValue'
+      Events:
+        PasswordResetQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PasswordResetEmailQueue.Arn
+            BatchSize: 1
+      Policies:
+        - !Ref LambdaSESPolicy
+
+  PasswordResetEmailDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'classyear-password-reset-email-dlq-${Environment}'
+      MessageRetentionPeriod: 1209600 # 14 days
+      SqsManagedSseEnabled: true
+
+  PasswordResetEmailQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'classyear-password-reset-email-${Environment}'
+      VisibilityTimeout: 60
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PasswordResetEmailDLQ.Arn
+        maxReceiveCount: 3
+
+  LambdaRDSDataAPIPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Allow Lambda functions to query Aurora via the RDS Data API
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - rds-data:ExecuteStatement
+              - rds-data:BatchExecuteStatement
+            Resource: !If
+              - IsLocalStack
+              - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:*"
+              - !GetAtt RDSCluster.DBClusterArn
 
   ResetPasswordFunction:
     Type: AWS::Serverless::Function
@@ -1111,6 +1188,7 @@ Resources:
       MasterUsername: classyear_admin
       ManageMasterUserPassword: true
       StorageEncrypted: true
+      EnableHttpEndpoint: true
       ServerlessV2ScalingConfiguration:
         MinCapacity: 0
         MaxCapacity: !If [IsProduction, 8, 2]

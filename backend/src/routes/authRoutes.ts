@@ -208,7 +208,7 @@ router.post('/register', async (req, res) => {
     );
 
     // Send verification email
-    await sendVerificationEmail(user.email, token);
+    await sendVerificationEmail(user.email, token, process.env.FRONTEND_URL);
 
     res.status(201).json({
       message: 'Registration successful. Please check your email to verify your account.',
@@ -256,7 +256,7 @@ router.post('/forgot-password', async (req, res) => {
     );
 
     // Send reset email
-    await sendPasswordResetEmail(normalizedEmail, token);
+    await sendPasswordResetEmail(normalizedEmail, token, process.env.FRONTEND_URL);
 
     res.status(200).json({ message: 'If the email exists, a password reset link has been sent.' });
   } catch (error) {

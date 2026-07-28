@@ -206,49 +206,9 @@ export const getRegistrationLinkHandler = async (
   }
 };
 
-/**
- * Lambda handler for POST /api/auth/forgot-password
- */
-export const forgotPasswordHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  try {
-    await dbReady;
-    const { email } = JSON.parse(event.body || '{}');
-
-    if (!email) {
-      return errorResponse(400, 'Email is required.');
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const userResult = await query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
-
-    // Don't reveal if email exists for security
-    if (userResult.rows.length === 0) {
-      return response(200, { message: 'If the email exists, a password reset link has been sent.' });
-    }
-
-    const user = userResult.rows[0];
-
-    // Delete existing reset tokens
-    await query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]);
-
-    // Generate reset token
-    const token = crypto.randomBytes(32).toString('hex');
-    const hash = crypto.createHash('sha256').update(token).digest('hex');
-    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
-
-    await query(
-      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-      [user.id, hash, expiresAt]
-    );
-
-    return response(200, {
-      message: 'If the email exists, a password reset link has been sent.'
-    });
-  } catch (error: any) {
-    console.error('Forgot password handler error:', error);
-    return errorResponse(500, 'Internal server error.');
-  }
-};
+// forgotPasswordHandler lives in forgotPassword.ts — it's deliberately kept
+// out of this file so it doesn't pull in init.js's dbReady (a direct pg
+// connection this VPC-free function can't use; see that file for why).
 
 /**
  * Lambda handler for POST /api/auth/reset-password

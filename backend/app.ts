@@ -1,6 +1,7 @@
 import { APIGatewayProxyResult } from 'aws-lambda';
 import { pulseHandler } from './src/lambda/pulse.js';
-import { loginHandler, registerHandler, getRegistrationLinkHandler, forgotPasswordHandler, resetPasswordHandler } from './src/lambda/auth.js';
+import { loginHandler, registerHandler, getRegistrationLinkHandler, resetPasswordHandler } from './src/lambda/auth.js';
+import { forgotPasswordHandler } from './src/lambda/forgotPassword.js';
 import { listUsersHandler, getProfileHandler, updateProfileHandler, getUserClassHandler } from './src/lambda/users.js';
 import { createCommentHandler, getCommentsHandler, getPendingCommentsHandler, updateCommentHandler, deleteCommentHandler } from './src/lambda/comments.js';
 import { getAdminUsersHandler, updateUserClassAdminHandler, deleteUserHandler, getClassUsersHandler, createUserHandler, importUsersHandler, createRegistrationLinkHandler } from './src/lambda/admin.js';

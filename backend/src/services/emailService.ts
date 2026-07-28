@@ -6,17 +6,15 @@ interface EmailOptions {
   html: string;
 }
 
-// Initialize AWS SES Client
+// Initialize AWS SES Client. Credentials come from the default provider chain
+// (Lambda execution role, shared config, etc.) — never hardcode static keys here.
 const sesClient = new SESClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
-  }
+  region: process.env.AWS_REGION || 'us-east-1'
 });
 
-// Determine if we're in development mode (use console logging if no AWS credentials)
-const isDevelopment = !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY;
+// Real sends require a verified SES sender identity. Local/Express dev doesn't
+// configure one, so it falls back to logging the email to the console instead.
+const isDevelopment = !process.env.SES_FROM_EMAIL;
 
 const sendEmail = async (options: EmailOptions): Promise<void> => {
   if (isDevelopment) {
