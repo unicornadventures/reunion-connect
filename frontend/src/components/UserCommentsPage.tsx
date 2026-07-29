@@ -426,30 +426,32 @@ const UserCommentsPage: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-[#F6F8FC] border border-[#E2E8F0] rounded-lg p-5 mb-6">
-          <h4 className="text-sm font-semibold text-[#0E2240] mb-3">Leave a comment</h4>
-          <textarea
-            value={newCommentText}
-            onChange={e => setNewCommentText(e.target.value)}
-            placeholder="Share your message..."
-            className="w-full min-h-24 px-3 py-3 border border-[#E2E8F0] rounded text-sm resize-vertical mb-3 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] disabled:bg-[#F6F8FC] transition-colors"
-            disabled={submitting}
-          />
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleAddComment}
-              disabled={submitting || !newCommentText.trim()}
-              className={`px-5 py-2 rounded text-sm font-semibold transition-opacity ${
-                submitting || !newCommentText.trim()
-                  ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
-                  : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
-              }`}
-            >
-              {submitting ? 'Posting...' : 'Post comment'}
-            </button>
-            <p className="text-xs text-[#94A3B8]">Comments appear after review.</p>
+        {!isOwnPage && (
+          <div className="bg-[#F6F8FC] border border-[#E2E8F0] rounded-lg p-5 mb-6">
+            <h4 className="text-sm font-semibold text-[#0E2240] mb-3">Leave a comment</h4>
+            <textarea
+              value={newCommentText}
+              onChange={e => setNewCommentText(e.target.value)}
+              placeholder="Share your message..."
+              className="w-full min-h-24 px-3 py-3 border border-[#E2E8F0] rounded text-sm resize-vertical mb-3 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] disabled:bg-[#F6F8FC] transition-colors"
+              disabled={submitting}
+            />
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleAddComment}
+                disabled={submitting || !newCommentText.trim()}
+                className={`px-5 py-2 rounded text-sm font-semibold transition-opacity ${
+                  submitting || !newCommentText.trim()
+                    ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
+                    : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
+                }`}
+              >
+                {submitting ? 'Posting...' : 'Post comment'}
+              </button>
+              <p className="text-xs text-[#94A3B8]">Comments appear after review.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {comments.length === 0 ? (
           <div className="py-10 text-center text-[#94A3B8] text-sm bg-[#F6F8FC] rounded-lg border border-[#E2E8F0]">
