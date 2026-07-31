@@ -161,6 +161,40 @@ export const getPendingCommentsHandler = async (event: APIGatewayProxyEvent): Pr
 };
 
 /**
+ * Lambda handler for GET /api/comments/my-comments/{commenterId}
+ * Comments the requester has posted, with the name of each comment's target.
+ */
+export const getMyCommentsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { commenterId } = event.pathParameters || {};
+    if (!commenterId) return errorResponse(400, 'commenterId required.');
+
+    if (authUser.id !== parseInt(commenterId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only view your own comments.');
+    }
+
+    const result = await query(
+      `SELECT c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+              tp.first_name AS target_first_name, tp.last_name AS target_last_name
+       FROM comments c
+       LEFT JOIN profiles tp ON c.target_user_id = tp.user_id
+       WHERE c.commenter_id = $1
+       ORDER BY c.created_at DESC;`,
+      [commenterId]
+    );
+
+    return response(200, { comments: result.rows });
+  } catch (error: any) {
+    console.error('Get my comments handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for GET /api/comments/pending — every unpublished comment the
  * requester can moderate, in one query (avoids the caller fetching per-user
  * pending comments in a loop).

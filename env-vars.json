@@ -109,6 +109,16 @@
     "JWT_SECRET": "test-secret-key",
     "FRONTEND_URL": "http://localhost:5173"
   },
+  "GetMyCommentsFunction": {
+    "NODE_ENV": "dev",
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "class_reunion",
+    "DB_USER": "postgres",
+    "DB_PASSWORD": "testpass",
+    "JWT_SECRET": "test-secret-key",
+    "FRONTEND_URL": "http://localhost:5173"
+  },
   "GetPendingCommentsFunction": {
     "NODE_ENV": "dev",
     "DB_HOST": "postgres",

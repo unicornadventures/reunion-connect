@@ -99,8 +99,10 @@ router.get('/my-comments/:commenterId', async (req, res) => {
   try {
     const result = await query(`
       SELECT
-        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at
+        c.id, c.target_user_id, c.commenter_id, c.content, c.published, c.created_at, c.updated_at,
+        tp.first_name AS target_first_name, tp.last_name AS target_last_name
       FROM comments c
+      LEFT JOIN profiles tp ON c.target_user_id = tp.user_id
       WHERE c.commenter_id = $1
       ORDER BY c.created_at DESC;
     `, [commenterId]);

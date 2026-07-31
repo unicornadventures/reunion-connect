@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import CommentSection from '../CommentSection';
 import * as api from '../../api';
@@ -21,9 +22,14 @@ const mockComments = [
     content: 'Great memories!',
     published: true,
     created_at: '2024-06-19T10:00:00Z',
-    updated_at: '2024-06-19T10:00:00Z'
+    updated_at: '2024-06-19T10:00:00Z',
+    target_first_name: 'John',
+    target_last_name: 'Doe'
   }
 ];
+
+// The page links to the directory and each comment's target, so it needs a router
+const renderPage = () => render(<CommentSection />, { wrapper: MemoryRouter });
 
 describe('CommentSection Component', () => {
   beforeEach(() => {
@@ -34,7 +40,7 @@ describe('CommentSection Component', () => {
   });
 
   it('should render comment section', async () => {
-    render(<CommentSection />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText(/My Comments/i)).toBeInTheDocument();
@@ -42,16 +48,36 @@ describe('CommentSection Component', () => {
   });
 
   it('should display loading state initially', () => {
-    render(<CommentSection />);
+    renderPage();
 
     expect(screen.getByText('Loading comments...')).toBeInTheDocument();
   });
 
   it('should display comments after loading', async () => {
-    render(<CommentSection />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('Great memories!')).toBeInTheDocument();
+    });
+  });
+
+  it('should show who each comment was left for, linking to their page', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'John Doe' })).toHaveAttribute('href', '/user/1');
+    });
+  });
+
+  it('should show a Pending badge for unpublished comments', async () => {
+    vi.mocked(api.default.get).mockResolvedValueOnce({
+      data: { comments: [{ ...mockComments[0], published: false }] }
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Pending')).toBeInTheDocument();
     });
   });
 
@@ -60,7 +86,7 @@ describe('CommentSection Component', () => {
       data: { comments: [] }
     });
 
-    render(<CommentSection />);
+    renderPage();
 
     await waitFor(() => {
       expect(
@@ -69,72 +95,10 @@ describe('CommentSection Component', () => {
     });
   });
 
-  it('should allow user to post comment', async () => {
-    const user = userEvent.setup();
-
-    vi.mocked(api.default.post).mockResolvedValueOnce({
-      data: {
-        comment: {
-          id: 2,
-          target_user_id: 1,
-          commenter_id: 2,
-          content: 'New comment',
-          published: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      }
-    });
-
-    render(<CommentSection />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Share your thoughts...')).toBeInTheDocument();
-    });
-
-    const textarea = screen.getByPlaceholderText('Share your thoughts...');
-    const submitButton = screen.getByRole('button', { name: /Post comment/i });
-
-    await user.type(textarea, 'New comment');
-    await user.click(submitButton);
-
-    await waitFor(() => {
-      expect(api.default.post).toHaveBeenCalledWith(
-        expect.stringContaining('/comments'),
-        expect.objectContaining({ content: 'New comment' })
-      );
-    });
-  });
-
-  it('should show error when comment submission fails', async () => {
-    const user = userEvent.setup();
-    const errorMsg = 'Failed to post comment';
-
-    vi.mocked(api.default.post).mockRejectedValueOnce({
-      response: { data: { error: errorMsg } }
-    });
-
-    render(<CommentSection />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Share your thoughts...')).toBeInTheDocument();
-    });
-
-    const textarea = screen.getByPlaceholderText('Share your thoughts...');
-    const submitButton = screen.getByRole('button', { name: /Post comment/i });
-
-    await user.type(textarea, 'Test comment');
-    await user.click(submitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(errorMsg)).toBeInTheDocument();
-    });
-  });
-
   it('should allow editing own comments', async () => {
     const user = userEvent.setup();
 
-    render(<CommentSection />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('Great memories!')).toBeInTheDocument();
@@ -155,7 +119,7 @@ describe('CommentSection Component', () => {
       data: { message: 'Deleted' }
     });
 
-    render(<CommentSection />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('Great memories!')).toBeInTheDocument();

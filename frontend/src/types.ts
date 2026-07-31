@@ -73,6 +73,8 @@ export interface Comment {
   updated_at: string;
   commenter_first_name?: string | null;
   commenter_last_name?: string | null;
+  target_first_name?: string | null;
+  target_last_name?: string | null;
 }
 
 export interface Feedback {

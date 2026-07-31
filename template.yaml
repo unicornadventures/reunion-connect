@@ -462,6 +462,22 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
+  GetMyCommentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-get-my-comments-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/comments.getMyCommentsHandler
+      Events:
+        GetMyComments:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/comments/my-comments/{commenterId}
+            Method: GET
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
   GetAllPendingCommentsFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { Comment } from '../types';
 import ConfirmModal from './ConfirmModal';
 
+// "My Comments" page: every comment the signed-in user has left on classmates'
+// pages, with edit and delete. Directory pages are read-only, so this is the
+// one place authors manage their own comments.
 const CommentSection: React.FC = () => {
   const { currentUser } = useAppContext();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newCommentText, setNewCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -34,32 +37,12 @@ const CommentSection: React.FC = () => {
     if (currentUser?.user_id) fetchComments();
   }, [currentUser?.user_id]);
 
-  const handleAddComment = async () => {
-    if (!newCommentText.trim()) { setError('Comment cannot be empty.'); return; }
-    if (!currentUser?.user_id) { setError('User not authenticated.'); return; }
-
-    setSubmitting(true);
-    try {
-      const response = await api.post(`/users/${currentUser.user_id}/comments`, {
-        commenterId: currentUser.user_id,
-        content: newCommentText
-      });
-      setComments([response.data.comment, ...comments]);
-      setNewCommentText('');
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to post comment.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleUpdateComment = async (commentId: number) => {
     if (!editingText.trim()) { setError('Comment cannot be empty.'); return; }
     setSubmitting(true);
     try {
       const response = await api.put(`/comments/${commentId}`, { content: editingText, requesterId: currentUser?.user_id });
-      setComments(comments.map(c => c.id === commentId ? response.data.comment : c));
+      setComments(comments.map(c => c.id === commentId ? { ...c, ...response.data.comment } : c));
       setEditingId(null);
       setEditingText('');
       setError(null);
@@ -85,13 +68,23 @@ const CommentSection: React.FC = () => {
     }
   };
 
+  const targetName = (comment: Comment) =>
+    comment.target_first_name
+      ? `${comment.target_first_name} ${comment.target_last_name || ''}`.trim()
+      : 'a classmate';
+
   const inputClass = 'w-full border border-[#E2E8F0] rounded text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors disabled:bg-[#F6F8FC]';
 
   return (
-    <div className="bg-[#F6F8FC] rounded-lg border border-[#E2E8F0] p-6">
-      <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight mb-5">
-        My Comments ({comments.length})
-      </h3>
+    <div className="max-w-[800px] mx-auto px-5 py-8">
+      <div className="mb-6">
+        <h1 className="font-display text-3xl font-bold text-[#0E2240] uppercase tracking-tight mb-2">
+          My Comments ({comments.length})
+        </h1>
+        <p className="text-sm text-[#64748B]">
+          Comments you've left on classmates' pages. Edits go back for review before reappearing.
+        </p>
+      </div>
 
       {error && (
         <div className="bg-[#FFEBEE] text-[#C62828] border border-[#EF5350] rounded px-4 py-3 text-sm mb-4">
@@ -99,45 +92,39 @@ const CommentSection: React.FC = () => {
         </div>
       )}
 
-      {/* New comment form */}
-      <div className="bg-white rounded-lg border border-[#E2E8F0] p-5 mb-5">
-        <h4 className="text-sm font-semibold text-[#0E2240] mb-3">Add a comment to your profile</h4>
-        <textarea
-          value={newCommentText}
-          onChange={e => setNewCommentText(e.target.value)}
-          placeholder="Share your thoughts..."
-          className={`${inputClass} min-h-[100px] resize-vertical p-3 mb-3`}
-          disabled={submitting}
-        />
-        <button
-          onClick={handleAddComment}
-          disabled={submitting || !newCommentText.trim()}
-          className={`px-5 py-2 rounded text-sm font-semibold transition-opacity ${
-            submitting || !newCommentText.trim()
-              ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed'
-              : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'
-          }`}
-        >
-          {submitting ? 'Posting...' : 'Post comment'}
-        </button>
-      </div>
-
-      {/* Comments list */}
       <div className="space-y-3">
         {loading ? (
           <div className="py-5 text-center text-[#94A3B8] text-sm">Loading comments...</div>
         ) : comments.length === 0 ? (
           <div className="py-10 text-center bg-white rounded-lg border border-[#E2E8F0]">
-            <p className="text-sm text-[#94A3B8]">You haven't posted any comments yet.</p>
+            <p className="text-sm text-[#94A3B8] mb-1">You haven't posted any comments yet.</p>
+            <p className="text-sm text-[#94A3B8]">
+              Visit the <Link to="/directory" className="text-[#E8A93E] font-semibold hover:opacity-70">Directory</Link> to leave one on a classmate's page.
+            </p>
           </div>
         ) : (
           comments.map(comment => (
-            <div key={comment.id} className="bg-white rounded-lg border border-[#E2E8F0] p-4">
-              <div className="flex justify-between items-start mb-2">
+            <div
+              key={comment.id}
+              className={`rounded-lg border p-4 ${!comment.published ? 'bg-[#FFF8EE] border-[#E8A93E]/40' : 'bg-white border-[#E2E8F0]'}`}
+            >
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <span className="text-xs font-semibold text-[#0E2240]">
+                  On{' '}
+                  <Link to={`/user/${comment.target_user_id}`} className="text-[#E8A93E] hover:opacity-70 transition-opacity">
+                    {targetName(comment)}
+                  </Link>
+                  's page
+                </span>
                 <span className="text-xs text-[#94A3B8]">
                   {new Date(comment.created_at).toLocaleDateString()} at{' '}
                   {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
+                {!comment.published && (
+                  <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
+                    Pending
+                  </span>
+                )}
               </div>
 
               {editingId === comment.id ? (
@@ -147,8 +134,9 @@ const CommentSection: React.FC = () => {
                     onChange={e => setEditingText(e.target.value)}
                     className={`${inputClass} min-h-20 resize-vertical p-3 mb-3`}
                     disabled={submitting}
+                    autoFocus
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <button
                       onClick={() => handleUpdateComment(comment.id)}
                       disabled={submitting}
@@ -162,6 +150,7 @@ const CommentSection: React.FC = () => {
                     >
                       Cancel
                     </button>
+                    <span className="text-[10px] text-[#94A3B8]">Edits require re-approval</span>
                   </div>
                 </div>
               ) : (

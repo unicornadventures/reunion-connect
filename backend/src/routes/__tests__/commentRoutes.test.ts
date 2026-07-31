@@ -56,11 +56,19 @@ const mockDb = {
 
 jest.mock('../../db', () => ({
   query: jest.fn(async (sql: string, params?: any[]) => {
-    // GET my comments (comments posted by a user)
-    if (sql.includes('WHERE c.commenter_id = $1') && !sql.includes('LEFT JOIN profiles')) {
+    // GET my comments (comments posted by a user, with target names)
+    if (sql.includes('WHERE c.commenter_id = $1')) {
       const commenterId = Number(params?.[0]);
       const comments = mockDb.comments
-        .filter(c => c.commenter_id === commenterId);
+        .filter(c => c.commenter_id === commenterId)
+        .map(c => {
+          const targetProfile = mockDb.profiles.find(p => p.user_id === c.target_user_id);
+          return {
+            ...c,
+            target_first_name: targetProfile?.first_name ?? null,
+            target_last_name: targetProfile?.last_name ?? null
+          };
+        });
       return { rows: comments };
     }
 
