@@ -292,6 +292,10 @@ const JoinPage: React.FC = () => {
                   className={`w-full font-semibold py-3 rounded text-sm transition-opacity mt-1 ${claiming || !email || !password || !confirmPassword ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
                   {claiming ? 'Creating account…' : 'Create my account'}
                 </button>
+                <p className="text-xs text-[#94A3B8] text-center">
+                  By creating an account, you agree to the{' '}
+                  <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>.
+                </p>
               </form>
               <button onClick={() => setStep(matches.length > 1 ? 'results' : 'search')}
                 className="mt-4 text-sm text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer transition-colors">

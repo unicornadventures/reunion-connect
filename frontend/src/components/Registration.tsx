@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 
 const Registration: React.FC = () => {
@@ -116,6 +116,10 @@ const Registration: React.FC = () => {
             >
               {loading ? 'Creating account...' : 'Create account'}
             </button>
+            <p className="text-xs text-[#94A3B8] text-center">
+              By creating an account, you agree to the{' '}
+              <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>.
+            </p>
           </form>
 
           <div className="mt-5 pt-5 border-t border-[#E2E8F0] text-center">

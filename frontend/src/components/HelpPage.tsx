@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const section = (title: string, items: string[]) => (
   <div className="mb-8">
@@ -60,6 +61,11 @@ const HelpPage: React.FC = () => (
         'Use the "Forgot password" link on the login page to reset your password via email.',
         'Your email address is only visible to you — other classmates see only your name and photos.',
       ])}
+
+      <p className="text-sm text-[#64748B]">
+        Using ReunionConnect is subject to our{' '}
+        <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>.
+      </p>
     </div>
   </div>
 );

@@ -25,6 +25,7 @@ import SlideshowPage from './SlideshowPage';
 import JoinPage from './JoinPage';
 import HelpPage from './HelpPage';
 import FeedbackPage from './FeedbackPage';
+import TermsPage from './TermsPage';
 import { FEEDBACK_ENABLED } from '../featureFlags';
 
 const AppRouter: React.FC = () => {
@@ -44,6 +45,7 @@ const AppRouter: React.FC = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -70,6 +72,7 @@ const AppRouter: React.FC = () => {
           <Route path="/profile" element={!isSuperAdmin ? <UserProfile /> : <Navigate to="/" replace />} />
           <Route path="/comments" element={!isSuperAdmin ? <CommentSection /> : <Navigate to="/" replace />} />
           <Route path="/help" element={<HelpPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/feedback" element={FEEDBACK_ENABLED ? <FeedbackPage /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

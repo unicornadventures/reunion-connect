@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { CurrentUser } from '../types';
@@ -118,7 +118,10 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        <p className="text-xs text-[#94A3B8]">Secure access for alumni only</p>
+        <p className="text-xs text-[#94A3B8]">
+          Secure access for alumni only ·{' '}
+          <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>
+        </p>
       </div>
     </div>
   );

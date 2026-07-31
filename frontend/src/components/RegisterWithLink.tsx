@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 
 interface SchoolInfo {
@@ -230,6 +230,10 @@ const RegisterWithLink: React.FC = () => {
             >
               {linkLoading ? 'Creating account...' : 'Create account'}
             </button>
+            <p className="text-xs text-[#94A3B8] text-center">
+              By creating an account, you agree to the{' '}
+              <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>.
+            </p>
           </form>
 
           <div className="mt-5 pt-5 border-t border-[#E2E8F0] text-center">
