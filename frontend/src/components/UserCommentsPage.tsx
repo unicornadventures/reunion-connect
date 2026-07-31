@@ -24,7 +24,7 @@ const UserCommentsPage: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
-  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<GalleryPhoto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
@@ -401,16 +401,21 @@ const UserCommentsPage: React.FC = () => {
           </h3>
           <div className="grid grid-cols-3 gap-3">
             {galleryPhotos.map(photo => (
-              <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden bg-[#F6F8FC]">
-                {photo.url ? (
-                  <img
-                    src={photo.url}
-                    alt="Gallery"
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => setLightboxPhoto(photo.url)}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs">No image</div>
+              <div key={photo.id}>
+                <div className="relative aspect-square rounded-lg overflow-hidden bg-[#F6F8FC]">
+                  {photo.url ? (
+                    <img
+                      src={photo.url}
+                      alt={photo.caption || 'Gallery'}
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setLightboxPhoto(photo)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs">No image</div>
+                  )}
+                </div>
+                {photo.caption && (
+                  <p className="mt-1.5 text-xs text-[#64748B]">{photo.caption}</p>
                 )}
               </div>
             ))}
@@ -571,12 +576,16 @@ const UserCommentsPage: React.FC = () => {
           >
             ×
           </button>
-          <img
-            src={lightboxPhoto}
-            alt="Gallery photo"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          />
+          <div className="flex flex-col items-center max-w-full" onClick={e => e.stopPropagation()}>
+            <img
+              src={lightboxPhoto.url || ''}
+              alt={lightboxPhoto.caption || 'Gallery photo'}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            />
+            {lightboxPhoto.caption && (
+              <p className="mt-3 text-sm text-white/80 text-center max-w-[600px]">{lightboxPhoto.caption}</p>
+            )}
+          </div>
         </div>
       )}
     </div>

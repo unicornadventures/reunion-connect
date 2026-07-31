@@ -74,6 +74,13 @@ export async function deleteS3Folder(prefix: string): Promise<void> {
   } while (continuationToken);
 }
 
+/** Trim a user-supplied caption and cap its length; empty becomes NULL. */
+function normalizeCaption(caption: any): string | null {
+  if (typeof caption !== 'string') return null;
+  const trimmed = caption.trim();
+  return trimmed ? trimmed.slice(0, 255) : null;
+}
+
 /** Convert an S3 key stored in the DB to a short-lived presigned GET URL, or return null. */
 export async function resolvePhotoUrl(key: string | null | undefined): Promise<string | null> {
   if (!key) return null;
@@ -231,6 +238,7 @@ export const uploadGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Pr
 
     await dbReady;
     const { userId } = event.pathParameters || {};
+    const { caption } = JSON.parse(event.body || '{}');
 
     if (!userId) return errorResponse(400, 'userId required.');
 
@@ -263,8 +271,8 @@ export const uploadGalleryPhotoHandler = async (event: APIGatewayProxyEvent): Pr
     const presignedUrl = await getSignedUrl(s3Client, putCmd, { expiresIn: 3600 });
 
     const insertResult = await query(
-      'INSERT INTO gallery_photos (user_id, s3_key) VALUES ($1, $2) RETURNING id',
-      [userId, key]
+      'INSERT INTO gallery_photos (user_id, s3_key, caption) VALUES ($1, $2, $3) RETURNING id',
+      [userId, key, normalizeCaption(caption)]
     );
 
     return response(200, { presignedUrl, key, id: insertResult.rows[0].id });
@@ -291,19 +299,60 @@ export const listGalleryPhotosHandler = async (event: APIGatewayProxyEvent): Pro
     }
 
     const result = await query(
-      'SELECT id, s3_key, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
+      'SELECT id, s3_key, caption, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
       [userId]
     );
 
     const photos = await Promise.all(result.rows.map(async (row) => ({
       id: row.id,
       url: await resolvePhotoUrl(row.s3_key),
+      caption: row.caption,
       created_at: row.created_at
     })));
 
     return response(200, { photos });
   } catch (error: any) {
     console.error('List gallery photos handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
+ * Lambda handler for PUT /api/users/{userId}/gallery/{photoId}
+ * Update a gallery photo's caption.
+ */
+export const updateGalleryCaptionHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  if (event.httpMethod === 'OPTIONS') return optionsResponse();
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { userId, photoId } = event.pathParameters || {};
+    const { caption } = JSON.parse(event.body || '{}');
+    if (!userId || !photoId) return errorResponse(400, 'userId and photoId required.');
+
+    if (authUser.id !== parseInt(userId, 10) && !authUser.is_admin) {
+      return errorResponse(403, 'You can only edit captions on your own gallery photos.');
+    }
+
+    const result = await query(
+      'UPDATE gallery_photos SET caption = $1 WHERE id = $2 AND user_id = $3 RETURNING id, s3_key, caption, created_at',
+      [normalizeCaption(caption), photoId, userId]
+    );
+    if (result.rows.length === 0) return errorResponse(404, 'Photo not found.');
+
+    const row = result.rows[0];
+    return response(200, {
+      photo: {
+        id: row.id,
+        url: await resolvePhotoUrl(row.s3_key),
+        caption: row.caption,
+        created_at: row.created_at
+      }
+    });
+  } catch (error: any) {
+    console.error('Update gallery caption handler error:', error);
     return errorResponse(500, 'Internal server error.');
   }
 };

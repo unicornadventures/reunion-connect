@@ -183,8 +183,11 @@ export const galleryAPI = {
   list: (userId: number, requesterId: number) =>
     api.get(`/users/${userId}/gallery`, { params: { requesterId } }),
 
-  upload: (userId: number, requesterId: number) =>
-    api.post(`/users/${userId}/gallery`, { requesterId }),
+  upload: (userId: number, requesterId: number, caption?: string) =>
+    api.post(`/users/${userId}/gallery`, { requesterId, caption }),
+
+  updateCaption: (userId: number, photoId: number, caption: string, requesterId: number) =>
+    api.put(`/users/${userId}/gallery/${photoId}`, { caption, requesterId }),
 
   delete: (userId: number, photoId: number, requesterId: number) =>
     api.delete(`/users/${userId}/gallery/${photoId}`, { params: { requesterId } }),

@@ -246,6 +246,8 @@ export async function initializeDatabase() {
     `);
     console.log('✅ Table "gallery_photos" ensured.');
 
+    await query(`ALTER TABLE gallery_photos ADD COLUMN IF NOT EXISTS caption VARCHAR(255);`);
+
     // 9. Password reset tokens
     await query(`
       CREATE TABLE IF NOT EXISTS password_reset_tokens (

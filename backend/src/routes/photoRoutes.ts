@@ -222,6 +222,13 @@ router.delete('/:userId/photo/:photoType', async (req, res) => {
   }
 });
 
+// Trim a user-supplied caption and cap its length; empty becomes NULL.
+function normalizeCaption(caption: any): string | null {
+  if (typeof caption !== 'string') return null;
+  const trimmed = caption.trim();
+  return trimmed ? trimmed.slice(0, 255) : null;
+}
+
 // GET /api/users/:userId/gallery
 router.get('/:userId/gallery', async (req, res) => {
   const { userId } = req.params;
@@ -238,10 +245,10 @@ router.get('/:userId/gallery', async (req, res) => {
     }
 
     const result = await query(
-      'SELECT id, s3_key, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
+      'SELECT id, s3_key, caption, created_at FROM gallery_photos WHERE user_id = $1 ORDER BY created_at ASC',
       [userId]
     );
-    res.status(200).json({ photos: result.rows.map(r => ({ id: r.id, url: r.s3_key, created_at: r.created_at })) });
+    res.status(200).json({ photos: result.rows.map(r => ({ id: r.id, url: r.s3_key, caption: r.caption, created_at: r.created_at })) });
   } catch (error) {
     console.error('List gallery photos error:', error);
     res.status(500).json({ error: 'Could not fetch gallery photos.' });
@@ -251,7 +258,7 @@ router.get('/:userId/gallery', async (req, res) => {
 // POST /api/users/:userId/gallery - returns presigned URL (dev: returns placeholder URL)
 router.post('/:userId/gallery', async (req, res) => {
   const { userId } = req.params;
-  const { requesterId } = req.body;
+  const { requesterId, caption } = req.body;
 
   if (!requesterId) {
     return res.status(400).json({ error: 'requesterId is required.' });
@@ -270,14 +277,43 @@ router.post('/:userId/gallery', async (req, res) => {
     const suffix = Date.now().toString(36);
     const key = `photos/other/${userId}-gallery-${suffix}.jpg`;
     const insertResult = await query(
-      'INSERT INTO gallery_photos (user_id, s3_key) VALUES ($1, $2) RETURNING id',
-      [userId, key]
+      'INSERT INTO gallery_photos (user_id, s3_key, caption) VALUES ($1, $2, $3) RETURNING id',
+      [userId, key, normalizeCaption(caption)]
     );
     const presignedUrl = await generatePresignedUrl(parseInt(userId), `gallery-${suffix}.jpg`);
     res.status(200).json({ presignedUrl, key, id: insertResult.rows[0].id });
   } catch (error) {
     console.error('Upload gallery photo error:', error);
     res.status(500).json({ error: 'Could not initiate gallery upload.' });
+  }
+});
+
+// PUT /api/users/:userId/gallery/:photoId - update a photo's caption
+router.put('/:userId/gallery/:photoId', async (req, res) => {
+  const { userId, photoId } = req.params;
+  const { requesterId, caption } = req.body;
+
+  if (!requesterId) {
+    return res.status(400).json({ error: 'requesterId is required.' });
+  }
+
+  try {
+    const authorized = await canManagePhotos(parseInt(String(requesterId), 10), parseInt(userId, 10));
+    if (!authorized) {
+      return res.status(403).json({ error: 'You do not have permission to manage this gallery.' });
+    }
+
+    const result = await query(
+      'UPDATE gallery_photos SET caption = $1 WHERE id = $2 AND user_id = $3 RETURNING id, s3_key, caption, created_at',
+      [normalizeCaption(caption), photoId, userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Photo not found.' });
+
+    const r = result.rows[0];
+    res.status(200).json({ photo: { id: r.id, url: r.s3_key, caption: r.caption, created_at: r.created_at } });
+  } catch (error) {
+    console.error('Update gallery caption error:', error);
+    res.status(500).json({ error: 'Could not update gallery caption.' });
   }
 });
 

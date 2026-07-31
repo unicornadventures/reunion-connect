@@ -29,6 +29,7 @@ export interface Profile {
 export interface GalleryPhoto {
   id: number;
   url: string | null;
+  caption?: string | null;
   created_at: string;
 }
 

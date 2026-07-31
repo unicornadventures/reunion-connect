@@ -1190,6 +1190,24 @@ Resources:
             BucketName: !Ref ReunionConnectPrivateFileBucket
         - !Ref LambdaSecretsManagerPolicy
 
+  UpdateGalleryCaptionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-update-gallery-caption-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/photos.updateGalleryCaptionHandler
+      Events:
+        PutGalleryCaption:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/users/{userId}/gallery/{photoId}
+            Method: PUT
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ReunionConnectPrivateFileBucket
+        - !Ref LambdaSecretsManagerPolicy
+
   DeleteGalleryPhotoFunction:
     Type: AWS::Serverless::Function
     Properties:

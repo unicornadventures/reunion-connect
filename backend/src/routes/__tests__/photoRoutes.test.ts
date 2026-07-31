@@ -1,7 +1,8 @@
 import express, { Express } from 'express';
 import request from 'supertest';
 
-const mockDb = {
+const mockDb: any = {
+  galleryPhotos: [] as { id: number; user_id: number; s3_key: string; caption: string | null; created_at: Date }[],
   users: [
     { id: 1, email: 'user1@example.com', is_admin: false, is_class_admin: false, created_at: new Date(), updated_at: new Date() },
     { id: 2, email: 'user2@example.com', is_admin: false, is_class_admin: false, created_at: new Date(), updated_at: new Date() },
@@ -52,6 +53,12 @@ jest.mock('../../db', () => ({
       return { rows: user ? [{ is_admin: user.is_admin, is_class_admin: user.is_class_admin }] : [] };
     }
 
+    if (sql.includes('SELECT is_admin FROM users WHERE id')) {
+      const userId = Number(params?.[0]);
+      const user = mockDb.users.find(u => u.id === userId);
+      return { rows: user ? [{ is_admin: user.is_admin }] : [] };
+    }
+
     if (sql.includes('class_user cu1') && sql.includes('class_user cu2')) {
       const [requesterId, targetId] = (params || []).map(Number);
       const requesterClasses = mockDb.classUsers.filter(cu => cu.user_id === requesterId).map(cu => cu.class_id);
@@ -72,6 +79,48 @@ jest.mock('../../db', () => ({
       if (!profile) return { rows: [] };
       const column = sql.includes('then_photo_url') ? 'then_photo_url' : 'now_photo_url';
       return { rows: [{ [column]: profile[column as 'then_photo_url' | 'now_photo_url'] }] };
+    }
+
+    if (sql.includes('SELECT COUNT(*) FROM gallery_photos')) {
+      const userId = Number(params?.[0]);
+      const count = mockDb.galleryPhotos.filter((p: any) => p.user_id === userId).length;
+      return { rows: [{ count: String(count) }] };
+    }
+
+    if (sql.includes('FROM gallery_photos WHERE user_id')) {
+      const userId = Number(params?.[0]);
+      const rows = mockDb.galleryPhotos
+        .filter((p: any) => p.user_id === userId)
+        .sort((a: any, b: any) => a.created_at.getTime() - b.created_at.getTime());
+      return { rows };
+    }
+
+    if (sql.includes('INSERT INTO gallery_photos')) {
+      const newPhoto = {
+        id: mockDb.galleryPhotos.length + 1,
+        user_id: Number(params?.[0]),
+        s3_key: String(params?.[1]),
+        caption: params?.[2] ?? null,
+        created_at: new Date()
+      };
+      mockDb.galleryPhotos.push(newPhoto);
+      return { rows: [{ id: newPhoto.id }] };
+    }
+
+    if (sql.includes('UPDATE gallery_photos SET caption')) {
+      const [caption, photoId, userId] = params || [];
+      const photo = mockDb.galleryPhotos.find((p: any) => p.id === Number(photoId) && p.user_id === Number(userId));
+      if (!photo) return { rows: [] };
+      photo.caption = caption;
+      return { rows: [{ ...photo }] };
+    }
+
+    if (sql.includes('DELETE FROM gallery_photos')) {
+      const [photoId, userId] = (params || []).map(Number);
+      const photo = mockDb.galleryPhotos.find((p: any) => p.id === photoId && p.user_id === userId);
+      if (!photo) return { rows: [] };
+      mockDb.galleryPhotos = mockDb.galleryPhotos.filter((p: any) => p.id !== photoId);
+      return { rows: [{ id: photoId }] };
     }
 
     if (sql.includes('UPDATE profiles SET') && sql.includes('= NULL')) {
@@ -174,6 +223,12 @@ describe('Photo Routes', () => {
         created_at: new Date(),
         updated_at: new Date()
       }
+    ];
+
+    mockDb.galleryPhotos = [
+      { id: 1, user_id: 1, s3_key: 'photos/other/1-gallery-a.jpg', caption: 'Prom night 1975', created_at: new Date('2026-01-01') },
+      { id: 2, user_id: 1, s3_key: 'photos/other/1-gallery-b.jpg', caption: null, created_at: new Date('2026-01-02') },
+      { id: 3, user_id: 2, s3_key: 'photos/other/2-gallery-a.jpg', caption: 'Not yours', created_at: new Date('2026-01-03') }
     ];
 
     app = express();
@@ -494,6 +549,91 @@ describe('Photo Routes', () => {
         .delete('/api/users/1/photo/then?requesterId=5');
 
       expect(response.status).toBe(403);
+    });
+  });
+
+  describe('Gallery captions', () => {
+    it('GET /gallery should include captions', async () => {
+      const response = await request(app).get('/api/users/1/gallery?requesterId=2');
+
+      expect(response.status).toBe(200);
+      expect(response.body.photos).toHaveLength(2);
+      expect(response.body.photos[0].caption).toBe('Prom night 1975');
+      expect(response.body.photos[1].caption).toBeNull();
+    });
+
+    it('POST /gallery should store a caption at upload', async () => {
+      const response = await request(app)
+        .post('/api/users/1/gallery')
+        .send({ requesterId: 1, caption: '  Senior trip  ' });
+
+      expect(response.status).toBe(200);
+      const created = mockDb.galleryPhotos.find((p: any) => p.id === response.body.id);
+      expect(created.caption).toBe('Senior trip');
+    });
+
+    it('POST /gallery should store null when caption is missing or blank', async () => {
+      const response = await request(app)
+        .post('/api/users/1/gallery')
+        .send({ requesterId: 1, caption: '   ' });
+
+      expect(response.status).toBe(200);
+      const created = mockDb.galleryPhotos.find((p: any) => p.id === response.body.id);
+      expect(created.caption).toBeNull();
+    });
+
+    it('POST /gallery should truncate captions longer than 255 characters', async () => {
+      const response = await request(app)
+        .post('/api/users/1/gallery')
+        .send({ requesterId: 1, caption: 'x'.repeat(300) });
+
+      expect(response.status).toBe(200);
+      const created = mockDb.galleryPhotos.find((p: any) => p.id === response.body.id);
+      expect(created.caption).toHaveLength(255);
+    });
+
+    it('PUT /gallery/:photoId should update the caption', async () => {
+      const response = await request(app)
+        .put('/api/users/1/gallery/2')
+        .send({ requesterId: 1, caption: 'Homecoming game' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.photo.caption).toBe('Homecoming game');
+      expect(mockDb.galleryPhotos.find((p: any) => p.id === 2).caption).toBe('Homecoming game');
+    });
+
+    it('PUT /gallery/:photoId should clear the caption when blank', async () => {
+      const response = await request(app)
+        .put('/api/users/1/gallery/1')
+        .send({ requesterId: 1, caption: '' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.photo.caption).toBeNull();
+    });
+
+    it('PUT /gallery/:photoId should reject a non-owner regular user', async () => {
+      const response = await request(app)
+        .put('/api/users/1/gallery/1')
+        .send({ requesterId: 2, caption: 'Hijacked' });
+
+      expect(response.status).toBe(403);
+      expect(mockDb.galleryPhotos.find((p: any) => p.id === 1).caption).toBe('Prom night 1975');
+    });
+
+    it('PUT /gallery/:photoId should require requesterId', async () => {
+      const response = await request(app)
+        .put('/api/users/1/gallery/1')
+        .send({ caption: 'No requester' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('PUT /gallery/:photoId should 404 for a photo belonging to another user', async () => {
+      const response = await request(app)
+        .put('/api/users/1/gallery/3')
+        .send({ requesterId: 1, caption: 'Wrong owner' });
+
+      expect(response.status).toBe(404);
     });
   });
 

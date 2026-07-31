@@ -43,7 +43,12 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
   const [updatingClassAdmin, setUpdatingClassAdmin] = useState(false);
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>([]);
   const [uploadingGallery, setUploadingGallery] = useState(false);
-  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<GalleryPhoto | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [uploadCaption, setUploadCaption] = useState('');
+  const [editingCaptionId, setEditingCaptionId] = useState<number | null>(null);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [savingCaption, setSavingCaption] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [editTags, setEditTags] = useState<string[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -189,27 +194,62 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
     }
   };
 
-  const handleGalleryUpload = async (file: File) => {
+  // Choosing a file opens a small dialog with a preview and optional caption
+  // before anything is uploaded.
+  const startGalleryUpload = (file: File) => {
     if (!file || !isOwnProfile || !profileUserId) return;
     if (galleryPhotos.length >= 9) { setError('Gallery limit of 9 photos reached.'); return; }
+    setUploadCaption('');
+    setPendingUpload({ file, previewUrl: URL.createObjectURL(file) });
+  };
+
+  const cancelGalleryUpload = () => {
+    if (pendingUpload) URL.revokeObjectURL(pendingUpload.previewUrl);
+    setPendingUpload(null);
+    setUploadCaption('');
+  };
+
+  const confirmGalleryUpload = async () => {
+    if (!pendingUpload || !isOwnProfile || !profileUserId) return;
     setUploadingGallery(true);
     try {
-      const initRes = await galleryAPI.upload(profileUserId, currentUser!.user_id);
+      const initRes = await galleryAPI.upload(profileUserId, currentUser!.user_id, uploadCaption.trim() || undefined);
       const { presignedUrl, id, key } = initRes.data;
       const putRes = await fetch(presignedUrl, {
         method: 'PUT',
-        body: file,
+        body: pendingUpload.file,
         headers: { 'Content-Type': 'image/jpeg' }
       });
       if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`);
-      setGalleryPhotos(prev => [...prev, { id, url: key, created_at: new Date().toISOString() }]);
+      setGalleryPhotos(prev => [...prev, { id, url: key, caption: uploadCaption.trim() || null, created_at: new Date().toISOString() }]);
       const refreshed = await galleryAPI.list(profileUserId, currentUser!.user_id);
       setGalleryPhotos(refreshed.data.photos || []);
       setError(null);
+      cancelGalleryUpload();
     } catch (err: any) {
       setError(`Gallery upload failed: ${err.response?.data?.error || err.message}`);
     } finally {
       setUploadingGallery(false);
+    }
+  };
+
+  const startCaptionEdit = (photo: GalleryPhoto) => {
+    setEditingCaptionId(photo.id);
+    setCaptionDraft(photo.caption || '');
+  };
+
+  const saveCaption = async (photoId: number) => {
+    if (!isOwnProfile || !profileUserId) return;
+    setSavingCaption(true);
+    try {
+      await galleryAPI.updateCaption(profileUserId, photoId, captionDraft.trim(), currentUser!.user_id);
+      setGalleryPhotos(prev => prev.map(p => p.id === photoId ? { ...p, caption: captionDraft.trim() || null } : p));
+      setEditingCaptionId(null);
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to save caption.');
+    } finally {
+      setSavingCaption(false);
     }
   };
 
@@ -659,7 +699,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                     type="file"
                     id="gallery-upload"
                     accept="image/*"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleGalleryUpload(f); e.target.value = ''; }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) startGalleryUpload(f); e.target.value = ''; }}
                     className="hidden"
                     disabled={uploadingGallery}
                   />
@@ -677,25 +717,67 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 {galleryPhotos.map(photo => (
-                  <div key={photo.id} className="relative group aspect-square rounded-lg overflow-hidden bg-[#F6F8FC]">
-                    {photo.url ? (
-                      <img
-                        src={photo.url}
-                        alt="Gallery"
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setLightboxPhoto(photo.url)}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs">No image</div>
-                    )}
-                    {isOwnProfile && (
+                  <div key={photo.id}>
+                    <div className="relative group aspect-square rounded-lg overflow-hidden bg-[#F6F8FC]">
+                      {photo.url ? (
+                        <img
+                          src={photo.url}
+                          alt={photo.caption || 'Gallery'}
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setLightboxPhoto(photo)}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[#94A3B8] text-xs">No image</div>
+                      )}
+                      {isOwnProfile && (
+                        <button
+                          onClick={() => handleGalleryDelete(photo.id)}
+                          className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    {editingCaptionId === photo.id ? (
+                      <div className="mt-1.5 flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={captionDraft}
+                          onChange={e => setCaptionDraft(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveCaption(photo.id);
+                            if (e.key === 'Escape') setEditingCaptionId(null);
+                          }}
+                          maxLength={255}
+                          autoFocus
+                          placeholder="Caption"
+                          className="min-w-0 flex-1 border border-[#E2E8F0] rounded px-2 py-1 text-xs text-[#0E2240] focus:outline-none focus:border-[#E8A93E]"
+                        />
+                        <button
+                          onClick={() => saveCaption(photo.id)}
+                          disabled={savingCaption}
+                          className="px-2 py-1 rounded text-xs font-semibold bg-[#0E2240] text-white cursor-pointer border-none disabled:opacity-50"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => setEditingCaptionId(null)}
+                          className="px-2 py-1 rounded text-xs font-semibold border border-[#E2E8F0] text-[#64748B] bg-white cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : isOwnProfile ? (
                       <button
-                        onClick={() => handleGalleryDelete(photo.id)}
-                        className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none"
+                        onClick={() => startCaptionEdit(photo)}
+                        title="Edit caption"
+                        className={`mt-1.5 block w-full text-left text-xs bg-transparent border-none cursor-pointer p-0 hover:text-[#E8A93E] transition-colors ${photo.caption ? 'text-[#64748B]' : 'text-[#94A3B8] italic'}`}
                       >
-                        ×
+                        {photo.caption || '+ Add caption'}
                       </button>
-                    )}
+                    ) : photo.caption ? (
+                      <p className="mt-1.5 text-xs text-[#64748B]">{photo.caption}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -822,12 +904,64 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
           >
             ×
           </button>
-          <img
-            src={lightboxPhoto}
-            alt="Gallery photo"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+          <div className="flex flex-col items-center max-w-full" onClick={e => e.stopPropagation()}>
+            <img
+              src={lightboxPhoto.url || ''}
+              alt={lightboxPhoto.caption || 'Gallery photo'}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            />
+            {lightboxPhoto.caption && (
+              <p className="mt-3 text-sm text-white/80 text-center max-w-[600px]">{lightboxPhoto.caption}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Gallery upload dialog: preview + optional caption */}
+      {pendingUpload && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4"
+          onClick={() => { if (!uploadingGallery) cancelGalleryUpload(); }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-5"
             onClick={e => e.stopPropagation()}
-          />
+          >
+            <h3 className="text-sm font-semibold text-[#94A3B8] uppercase tracking-[0.12em] mb-3">
+              Add to gallery
+            </h3>
+            <img
+              src={pendingUpload.previewUrl}
+              alt="Upload preview"
+              className="w-full aspect-square object-cover rounded-lg mb-3 bg-[#F6F8FC]"
+            />
+            <input
+              type="text"
+              value={uploadCaption}
+              onChange={e => setUploadCaption(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !uploadingGallery) confirmGalleryUpload(); }}
+              maxLength={255}
+              autoFocus
+              placeholder="Add a caption (optional)"
+              className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm text-[#0E2240] placeholder-[#94A3B8] focus:outline-none focus:border-[#E8A93E]"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={cancelGalleryUpload}
+                disabled={uploadingGallery}
+                className="px-4 py-2 rounded text-xs font-semibold border border-[#E2E8F0] text-[#64748B] bg-white hover:bg-[#F6F8FC] cursor-pointer transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmGalleryUpload}
+                disabled={uploadingGallery}
+                className="px-4 py-2 rounded text-xs font-semibold bg-[#0E2240] text-white hover:bg-[#1a3358] cursor-pointer border-none transition-colors disabled:opacity-50"
+              >
+                {uploadingGallery ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
