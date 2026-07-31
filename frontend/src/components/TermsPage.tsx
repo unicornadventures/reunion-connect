@@ -44,6 +44,7 @@ const TermsPage: React.FC = () => (
 
       {section('5. Privacy', [
         'Profiles, photos, and comments are visible only to signed-in members — they are not public on the internet. Your email address is not shown to other members.',
+        'We do not sell the information we collect. Your profile, photos, comments, and email address are used only to run this community — they are never sold, rented, or shared with third parties for marketing or advertising.',
         'Please extend the same courtesy: what classmates share here is for this community, not for redistribution.',
       ])}
 
