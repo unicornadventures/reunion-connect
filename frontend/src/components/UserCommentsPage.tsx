@@ -11,6 +11,7 @@ interface UserProfile {
   profile: {
     first_name: string | null;
     last_name: string | null;
+    bio: string | null;
     then_photo_url: string | null;
     now_photo_url: string | null;
   };
@@ -381,6 +382,12 @@ const UserCommentsPage: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-[#E2E8F0] p-6 mb-6">
+        <p className="text-sm text-[#64748B] leading-relaxed">
+          {profile?.bio || "Tell your classmates what you've been up to for the past 20 years!"}
+        </p>
       </div>
 
       {error && (
