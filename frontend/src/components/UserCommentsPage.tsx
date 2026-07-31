@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import jsPDF from 'jspdf';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { galleryAPI } from '../apiClient';
@@ -29,9 +28,6 @@ const UserCommentsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [isCanModerate, setIsCanModerate] = useState(false);
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-  const [editText, setEditText] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState<'then' | 'now' | null>(null);
 
   const isOwnPage = currentUser?.user_id === parseInt(userId || '0');
@@ -59,26 +55,10 @@ const UserCommentsPage: React.FC = () => {
         setGalleryPhotos([]);
       }
 
-      const canModerate = currentUser.user_id === parseInt(userId) || currentUser.is_admin;
-      setIsCanModerate(canModerate);
-
-      let allComments: Comment[] = [];
-      if (canModerate) {
-        try {
-          const pendingResponse = await api.get(`/users/${userId}/comments/pending`, {
-            params: { requesterId: currentUser.user_id }
-          });
-          allComments = pendingResponse.data.comments || [];
-        } catch {
-          const commentsResponse = await api.get(`/users/${userId}/comments`);
-          allComments = commentsResponse.data.comments || [];
-        }
-      } else {
-        const commentsResponse = await api.get(`/users/${userId}/comments`);
-        allComments = commentsResponse.data.comments || [];
-      }
-
-      setComments(allComments);
+      // Directory pages are read-only: everyone sees only published comments.
+      // Moderation, editing, and PDF download live on the profile page.
+      const commentsResponse = await api.get(`/users/${userId}/comments`);
+      setComments(commentsResponse.data.comments || []);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load user profile.');
@@ -147,154 +127,6 @@ const UserCommentsPage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handlePublishComment = async (commentId: number, shouldPublish: boolean) => {
-    try {
-      const response = await api.put(`/comments/${commentId}`, {
-        published: shouldPublish,
-        requesterId: currentUser?.user_id
-      });
-      setComments(comments.map(c =>
-        c.id === commentId ? { ...c, published: response.data.comment.published } : c
-      ));
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update comment.');
-    }
-  };
-
-  const handleEditComment = async (commentId: number) => {
-    if (!editText.trim()) return;
-    try {
-      const response = await api.put(`/comments/${commentId}`, {
-        content: editText,
-        requesterId: currentUser?.user_id
-      });
-      setComments(comments.map(c =>
-        c.id === commentId ? { ...c, ...response.data.comment } : c
-      ));
-      setEditingCommentId(null);
-      setEditText('');
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to edit comment.');
-    }
-  };
-
-  const handleDeleteComment = async (commentId: number) => {
-    try {
-      await api.delete(`/comments/${commentId}`, {
-        params: { requesterId: currentUser?.user_id }
-      });
-      setComments(comments.filter(c => c.id !== commentId));
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to delete comment.');
-    }
-  };
-
-  const handleDownloadPdf = () => {
-    if (!userProfile) return;
-    const { profile } = userProfile;
-    const displayName = profile?.first_name
-      ? `${profile.first_name} ${profile.last_name || ''}`.trim()
-      : userProfile.user.email;
-    const published = comments.filter(c => c.published);
-
-    const NAVY: [number, number, number] = [14, 34, 64];
-    const GOLD: [number, number, number] = [232, 169, 62];
-    const LIGHT_GRAY: [number, number, number] = [148, 163, 184];
-    const BORDER: [number, number, number] = [226, 232, 240];
-    const TEXT: [number, number, number] = [51, 65, 85];
-    const WHITE: [number, number, number] = [255, 255, 255];
-    const HEADER_SUBTEXT: [number, number, number] = [200, 210, 225];
-
-    const PAGE_WIDTH = 210;
-    const PAGE_HEIGHT = 297;
-    const MARGIN = 18;
-    const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-    const HEADER_HEIGHT = 40;
-    const FOOTER_Y = PAGE_HEIGHT - 12;
-    const LINE_HEIGHT = 5;
-    const BOX_PADDING = 6;
-    const TEXT_WIDTH = CONTENT_WIDTH - BOX_PADDING * 2;
-
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-
-    const drawHeader = (continued: boolean) => {
-      doc.setFillColor(...NAVY);
-      doc.rect(0, 0, PAGE_WIDTH, HEADER_HEIGHT, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(continued ? 14 : 22);
-      doc.setTextColor(...GOLD);
-      doc.text(displayName, MARGIN, continued ? 16 : 20);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(...WHITE);
-      doc.text(
-        continued ? 'Comments (continued)' : `${published.length} published comment${published.length === 1 ? '' : 's'}`,
-        MARGIN,
-        continued ? 24 : 29
-      );
-      doc.setFontSize(8);
-      doc.setTextColor(...HEADER_SUBTEXT);
-      doc.text(`Generated ${new Date().toLocaleDateString()}`, PAGE_WIDTH - MARGIN, continued ? 16 : 20, { align: 'right' });
-    };
-
-    drawHeader(false);
-    let y = HEADER_HEIGHT + 12;
-
-    published.forEach(comment => {
-      const commenterName = comment.commenter_first_name
-        ? `${comment.commenter_first_name} ${comment.commenter_last_name || ''}`.trim()
-        : 'Anonymous';
-      const dateStr = new Date(comment.created_at).toLocaleDateString();
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      const lines: string[] = doc.splitTextToSize(comment.content, TEXT_WIDTH);
-      const boxHeight = BOX_PADDING * 2 + LINE_HEIGHT + lines.length * LINE_HEIGHT;
-
-      if (y + boxHeight > PAGE_HEIGHT - 20) {
-        doc.addPage();
-        drawHeader(true);
-        y = HEADER_HEIGHT + 12;
-      }
-
-      doc.setDrawColor(...BORDER);
-      doc.setFillColor(...WHITE);
-      doc.roundedRect(MARGIN, y, CONTENT_WIDTH, boxHeight, 2, 2, 'FD');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(...NAVY);
-      doc.text(commenterName, MARGIN + BOX_PADDING, y + BOX_PADDING + 2);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(...LIGHT_GRAY);
-      doc.text(dateStr, MARGIN + CONTENT_WIDTH - BOX_PADDING, y + BOX_PADDING + 2, { align: 'right' });
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(...TEXT);
-      lines.forEach((line, idx) => {
-        doc.text(line, MARGIN + BOX_PADDING, y + BOX_PADDING + 2 + LINE_HEIGHT + idx * LINE_HEIGHT);
-      });
-
-      y += boxHeight + 6;
-    });
-
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(...LIGHT_GRAY);
-      doc.text(`Page ${i} of ${totalPages}`, PAGE_WIDTH / 2, FOOTER_Y, { align: 'center' });
-    }
-
-    doc.save(`comments-${displayName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
   };
 
   if (loading) {
@@ -424,19 +256,9 @@ const UserCommentsPage: React.FC = () => {
       )}
 
       <div className="bg-white rounded-lg border border-[#E2E8F0] p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight">
-            Comments ({comments.length})
-          </h3>
-          {isOwnPage && comments.some(c => c.published) && (
-            <button
-              onClick={handleDownloadPdf}
-              className="px-3 py-1.5 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] transition-colors cursor-pointer bg-white"
-            >
-              Download PDF
-            </button>
-          )}
-        </div>
+        <h3 className="font-display text-xl font-bold text-[#0E2240] uppercase tracking-tight mb-5">
+          Comments ({comments.length})
+        </h3>
 
         {!isOwnPage && (
           <div className="bg-[#F6F8FC] border border-[#E2E8F0] rounded-lg p-5 mb-6">
@@ -472,92 +294,30 @@ const UserCommentsPage: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {comments.map((comment) => {
-              const isAuthor = comment.commenter_id === currentUser?.user_id;
               const commenterName = comment.commenter_first_name
                 ? `${comment.commenter_first_name} ${comment.commenter_last_name || ''}`.trim()
                 : null;
-              const isEditing = editingCommentId === comment.id;
 
               return (
                 <div
                   key={comment.id}
                   className={`rounded-lg border p-4 ${!comment.published ? 'bg-[#FFF8EE] border-[#E8A93E]/40' : 'bg-white border-[#E2E8F0]'}`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {commenterName && (
-                        <span className="text-xs font-semibold text-[#0E2240]">{commenterName}</span>
-                      )}
-                      <span className="text-xs text-[#94A3B8]">
-                        {new Date(comment.created_at).toLocaleDateString()} at{' '}
-                        {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    {commenterName && (
+                      <span className="text-xs font-semibold text-[#0E2240]">{commenterName}</span>
+                    )}
+                    <span className="text-xs text-[#94A3B8]">
+                      {new Date(comment.created_at).toLocaleDateString()} at{' '}
+                      {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {!comment.published && (
+                      <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
+                        Pending
                       </span>
-                      {!comment.published && (
-                        <span className="px-2 py-0.5 bg-[#E8A93E] text-[#0E2240] text-[10px] font-bold uppercase tracking-wide rounded">
-                          Pending
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {isAuthor && !isEditing && (
-                        <>
-                          <button
-                            onClick={() => { setEditingCommentId(comment.id); setEditText(comment.content); }}
-                            className="px-2 py-1 rounded text-xs font-semibold border border-[#E2E8F0] text-[#64748B] hover:bg-[#F6F8FC] cursor-pointer bg-white transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            className="px-2 py-1 rounded text-xs font-semibold bg-[#FFEBEE] text-[#C62828] hover:opacity-80 cursor-pointer border-none transition-opacity"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                      {isCanModerate && !isEditing && (
-                        <button
-                          onClick={() => handlePublishComment(comment.id, !comment.published)}
-                          className={`px-3 py-1 rounded text-xs font-semibold border-none cursor-pointer transition-opacity ${
-                            comment.published
-                              ? 'bg-[#E2E8F0] text-[#64748B] hover:opacity-80'
-                              : 'bg-[#0E2240] text-white hover:opacity-90'
-                          }`}
-                        >
-                          {comment.published ? 'Unpublish' : 'Publish'}
-                        </button>
-                      )}
-                    </div>
+                    )}
                   </div>
-
-                  {isEditing ? (
-                    <div>
-                      <textarea
-                        value={editText}
-                        onChange={e => setEditText(e.target.value)}
-                        className="w-full min-h-20 px-3 py-2 border border-[#E2E8F0] rounded text-sm resize-vertical mb-2 focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors"
-                        autoFocus
-                      />
-                      <div className="flex gap-2 items-center">
-                        <button
-                          onClick={() => handleEditComment(comment.id)}
-                          disabled={!editText.trim()}
-                          className="px-3 py-1 text-xs font-semibold bg-[#0E2240] text-white rounded hover:opacity-90 cursor-pointer border-none disabled:opacity-50"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => { setEditingCommentId(null); setEditText(''); }}
-                          className="px-3 py-1 text-xs font-semibold border border-[#E2E8F0] text-[#64748B] rounded hover:bg-[#F6F8FC] cursor-pointer bg-white"
-                        >
-                          Cancel
-                        </button>
-                        <span className="text-[10px] text-[#94A3B8]">Edits require re-approval</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#64748B] leading-relaxed break-words">{comment.content}</p>
-                  )}
+                  <p className="text-sm text-[#64748B] leading-relaxed break-words">{comment.content}</p>
                 </div>
               );
             })}
