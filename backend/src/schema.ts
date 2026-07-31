@@ -271,6 +271,17 @@ export async function initializeDatabase() {
     `);
     console.log('✅ Table "email_verification_tokens" ensured.');
 
+    // 11. Feedback (self-contained module, toggled via FEEDBACK_ENABLED)
+    await query(`
+      CREATE TABLE IF NOT EXISTS feedback (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+        comment TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('✅ Table "feedback" ensured.');
+
     console.log('🚀 Database schema initialization complete!');
 
   } catch (error) {

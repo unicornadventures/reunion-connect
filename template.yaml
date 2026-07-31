@@ -28,6 +28,7 @@ Globals:
         SES_FROM_EMAIL: !Sub 'noreply@${DomainName}'
         S3_BUCKET_NAME: !Ref ReunionConnectPrivateFileBucket
         DATABASE_SECRET_ARN: !If [IsLocalStack, !Ref 'AWS::NoValue', !GetAtt RDSCluster.MasterUserSecret.SecretArn]
+        FEEDBACK_ENABLED: !Ref FeedbackEnabled
 
 Parameters:
   Environment:
@@ -52,6 +53,14 @@ Parameters:
     Type: String
     Default: http://localhost:5173
     Description: Frontend URL for CORS and registration links
+
+  FeedbackEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Toggle for the self-contained user feedback module ('false' makes its endpoints return 404)
 
   UseLocalStack:
     Type: String
@@ -498,6 +507,39 @@ Resources:
             RestApiId: !Ref ClassYearAPI
             Path: /api/comments/{commentId}
             Method: DELETE
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
+  # Feedback Routes (self-contained module, toggled via FeedbackEnabled parameter)
+  CreateFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-create-feedback-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/feedback.createFeedbackHandler
+      Events:
+        PostFeedback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/feedback
+            Method: POST
+      Policies:
+        - !Ref LambdaSecretsManagerPolicy
+
+  ListMyFeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'classyear-list-my-feedback-${Environment}'
+      CodeUri: backend/
+      Handler: dist/src/lambda/feedback.listMyFeedbackHandler
+      Events:
+        GetFeedback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ClassYearAPI
+            Path: /api/feedback
+            Method: GET
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 

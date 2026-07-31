@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { FEEDBACK_ENABLED } from '../featureFlags';
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -8,6 +9,7 @@ const NAV_LINKS = [
   { to: '/events', label: 'Events' },
   { to: '/slideshow', label: 'Slideshow' },
   { to: '/help', label: 'Help' },
+  ...(FEEDBACK_ENABLED ? [{ to: '/feedback', label: 'Feedback' }] : []),
 ];
 
 const Header: React.FC = () => {

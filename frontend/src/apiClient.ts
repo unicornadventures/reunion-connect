@@ -1,5 +1,5 @@
 import api from './api';
-import { User, Profile, School, Class, AuthResponse, CurrentUser, SlideshowPhoto } from './types';
+import { User, Profile, School, Class, AuthResponse, CurrentUser, SlideshowPhoto, Feedback } from './types';
 
 // Auth endpoints
 export const authAPI = {
@@ -167,6 +167,15 @@ export const commentAPI = {
     api.delete(`/comments/${commentId}`, {
       params: requesterId ? { requesterId } : undefined
     }),
+};
+
+// Feedback endpoints (the backend scopes both to the authenticated user)
+export const feedbackAPI = {
+  getMyFeedback: () =>
+    api.get<{ feedback: Feedback[] }>('/feedback'),
+
+  createFeedback: (comment: string) =>
+    api.post<{ feedback: Feedback }>('/feedback', { comment }),
 };
 
 // Gallery endpoints

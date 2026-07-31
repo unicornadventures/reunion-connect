@@ -17,6 +17,7 @@ import { adminSchoolRoutes } from './routes/adminSchoolRoutes.ts';
 import { adminClassRoutes } from './routes/adminClassRoutes.ts';
 import { adminEventRoutes } from './routes/adminEventRoutes.ts';
 import { eventRoutes } from './routes/eventRoutes.ts';
+import { feedbackRoutes } from './routes/feedbackRoutes.ts';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +50,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/feedback', feedbackRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/schools', adminSchoolRoutes);
 app.use('/api/admin/classes', adminClassRoutes);

@@ -87,6 +87,10 @@ Three role levels enforced in both frontend routing and backend:
 - **Class admin** (`is_class_admin`)  — can manage comments for their class
 - **Super admin** (`is_admin`) — full access: manage schools, classes, users, toggle class admin
 
+### Feedback Module (toggleable)
+
+Self-contained feature letting logged-in users submit site feedback (`feedback` table: user_id + comment) and view only their own submissions. On by default; turn off by setting `FEEDBACK_ENABLED=false` on the backend (Express env or the `FeedbackEnabled` SAM template parameter — endpoints then return 404) and `VITE_FEEDBACK_ENABLED=false` on the frontend (hides the navbar link and `/feedback` route; see `frontend/src/featureFlags.ts`). Backend surface: `backend/src/routes/feedbackRoutes.ts` (Express) and `backend/src/lambda/feedback.ts` (Lambda), both mounted at `/api/feedback`.
+
 ### Auth Flow
 
 JWT is returned from login and stored in `localStorage`. The frontend injects it as `Bearer <token>` on every API call. The Express server uses `authenticateToken` middleware (`src/utils/auth.ts`). Lambda handlers validate the token inline. Cookies are enabled globally via `axios.defaults.withCredentials = true` (see `App.tsx`).

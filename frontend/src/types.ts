@@ -74,6 +74,13 @@ export interface Comment {
   commenter_last_name?: string | null;
 }
 
+export interface Feedback {
+  id: number;
+  user_id: number;
+  comment: string;
+  created_at: string;
+}
+
 export interface CurrentUser extends User {
   profile: Profile | null;
 }
