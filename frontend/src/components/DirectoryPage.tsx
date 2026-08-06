@@ -162,12 +162,12 @@ const DirectoryPage: React.FC = () => {
                   </div>
                 )}
                 <div className="w-full">
-                  <div className={`font-display text-sm font-bold uppercase tracking-wide leading-tight ${deceased ? 'text-[#64748B]' : 'text-[#0E2240]'}`}>
+                  {displayName.first && displayName.last && (
+                    <div className={`text-xs ${deceased ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>{displayName.first}</div>
+                  )}
+                  <div className={`font-display text-sm font-bold uppercase tracking-wide leading-tight ${deceased ? 'text-[#64748B]' : 'text-[#0E2240]'} ${displayName.first && displayName.last ? 'mt-0.5' : ''}`}>
                     {displayName.last || displayName.first || 'Alumni'}
                   </div>
-                  {displayName.first && displayName.last && (
-                    <div className={`text-xs mt-0.5 ${deceased ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>{displayName.first}</div>
-                  )}
                   {user.nickname && (
                     <div className={`text-[10px] mt-0.5 ${deceased ? 'text-[#CBD5E1]' : 'text-[#94A3B8]'}`}>"{user.nickname}"</div>
                   )}
