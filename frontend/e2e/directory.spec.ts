@@ -116,7 +116,11 @@ test.describe('Alumni Directory', () => {
     const deceasedCard = page.locator('button', { has: page.getByText('Walsh', { exact: true }) });
     await expect(deceasedCard.getByText('Dee', { exact: true })).toBeVisible();
     await expect(deceasedCard.getByText('DW', { exact: true })).toBeVisible();
+    await expect(deceasedCard.getByText('Deceased', { exact: true })).toBeVisible();
     await expect(page.getByText('Diane')).toHaveCount(0);
+
+    const livingCard = page.locator('button', { has: page.getByText('Chen', { exact: true }) });
+    await expect(livingCard.getByText('Deceased', { exact: true })).toHaveCount(0);
   });
 
   test('renders all classmates sorted by effective (former-first) last name', async ({ page }) => {
