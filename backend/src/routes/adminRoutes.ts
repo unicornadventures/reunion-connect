@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.ts';
 import { seedAdminUser } from '../seed.ts';
 import { encodeRegistrationHash } from '../utils/registrationLink.ts';
+import { requireUserAdmin } from '../middleware/adminAuth.ts';
 
 const router = express.Router();
 
@@ -140,6 +141,35 @@ router.put('/users/:userId', async (req, res) => {
     res.status(200).json({ user: updateResult.rows[0] });
   } catch (error) {
     console.error('Update User Error:', error);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// PUT /api/admin/users/:userId/deceased - Mark/unmark a user as deceased (super admin or class admin for their own class)
+router.put('/users/:userId/deceased', requireUserAdmin, async (req, res) => {
+  const { userId } = req.params;
+  const { is_deceased } = req.body;
+
+  if (typeof is_deceased !== 'boolean') {
+    return res.status(400).json({ error: 'Missing required field: is_deceased.' });
+  }
+
+  try {
+    const userIdNum = parseInt(userId);
+
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userIdNum]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const updateResult = await query(
+      'UPDATE users SET is_deceased = $1 WHERE id = $2 RETURNING id, email, is_deceased',
+      [is_deceased, userIdNum]
+    );
+
+    res.status(200).json({ user: updateResult.rows[0] });
+  } catch (error) {
+    console.error('Update User Deceased Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });

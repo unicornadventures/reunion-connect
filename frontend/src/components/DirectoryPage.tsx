@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
+import { adminAPI } from '../apiClient';
 import { getColorForInitials } from '../avatarColors';
 
 interface DirectoryUser {
@@ -44,6 +45,11 @@ const DirectoryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [editingUser, setEditingUser] = useState<DirectoryUser | null>(null);
+  const [editingDeceasedValue, setEditingDeceasedValue] = useState(false);
+  const [savingDeceased, setSavingDeceased] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const canEditDeceased = !!currentUser?.is_admin || !!currentUser?.is_class_admin;
 
   useEffect(() => {
     if (currentUser?.user_id) {
@@ -84,6 +90,21 @@ const DirectoryPage: React.FC = () => {
     (u.email?.toLowerCase() || '').includes(searchLower) ||
     (u.tags || []).some(tag => tag.toLowerCase().includes(searchLower))
   );
+  const handleSaveDeceased = async () => {
+    if (!editingUser) return;
+    setSavingDeceased(true);
+    setEditError(null);
+    try {
+      await adminAPI.updateDeceased(editingUser.id, editingDeceasedValue);
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, is_deceased: editingDeceasedValue } : u));
+      setEditingUser(null);
+    } catch (err: any) {
+      setEditError(err.response?.data?.error || 'Failed to update user.');
+    } finally {
+      setSavingDeceased(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-[1200px] mx-auto px-5 py-8">
@@ -135,12 +156,26 @@ const DirectoryPage: React.FC = () => {
               <button
                 key={user.id}
                 onClick={() => navigate(`/user/${user.id}`)}
-                className={`rounded-lg border p-2 text-center hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px] ${
+                className={`relative rounded-lg border p-2 text-center hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px] ${
                   deceased
                     ? 'bg-[#F8FAFC] border-[#E2E8F0] hover:border-[#94A3B8] opacity-75'
                     : 'bg-white border-[#E2E8F0] hover:border-[#E8A93E]'
                 }`}
               >
+                {canEditDeceased && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingUser(user);
+                      setEditingDeceasedValue(user.is_deceased);
+                      setEditError(null);
+                    }}
+                    title="Edit deceased status"
+                    className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] text-[#94A3B8] text-xs hover:text-[#0E2240] hover:border-[#E8A93E] cursor-pointer"
+                  >
+                    ✎
+                  </button>
+                )}
                 {user.now_photo_url ? (
                   <img
                     src={user.now_photo_url}
@@ -178,6 +213,39 @@ const DirectoryPage: React.FC = () => {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold text-[#0E2240]">
+                Edit {getDisplayName(editingUser).first} {getDisplayName(editingUser).last}
+              </h2>
+              <button onClick={() => setEditingUser(null)} className="text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer text-lg leading-none">✕</button>
+            </div>
+            {editError && (
+              <div className="bg-[#FFF8F8] text-[#C62828] border border-[#FFCDD2] rounded px-4 py-3 text-sm mb-4">{editError}</div>
+            )}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none mb-5">
+              <input type="checkbox" checked={editingDeceasedValue}
+                onChange={e => setEditingDeceasedValue(e.target.checked)}
+                disabled={savingDeceased} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
+              <span className="text-sm text-[#64748B]">Mark as deceased</span>
+            </label>
+            <div className="flex gap-3">
+              <button onClick={handleSaveDeceased} disabled={savingDeceased}
+                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${savingDeceased ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
+                {savingDeceased ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setEditingUser(null)}
+                className="px-5 py-2.5 rounded text-sm font-semibold border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

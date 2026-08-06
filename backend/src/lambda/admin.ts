@@ -201,6 +201,69 @@ export const updateUserClassAdminHandler = async (event: APIGatewayProxyEvent): 
 };
 
 /**
+ * Whether the requester can manage (mark deceased) the given target user.
+ * Super admins can manage anyone; class admins only users in their own class.
+ */
+async function canManageUserDeceased(
+  authUser: { id: number; is_admin: boolean; is_class_admin: boolean },
+  targetUserId: number
+): Promise<boolean> {
+  if (authUser.is_admin) return true;
+  if (!authUser.is_class_admin) return false;
+
+  const sameClass = await query(
+    `SELECT cu1.class_id
+     FROM class_user cu1
+     WHERE cu1.user_id = $1
+     AND cu1.class_id IN (
+       SELECT cu2.class_id FROM class_user cu2 WHERE cu2.user_id = $2
+     )`,
+    [authUser.id, targetUserId]
+  );
+  return sameClass.rows.length > 0;
+}
+
+/**
+ * Lambda handler for PUT /api/admin/users/{userId}/deceased
+ */
+export const updateUserDeceasedHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  try {
+    const authUser = getAuthUser(event);
+    if (!authUser) return errorResponse(401, 'Authentication required.');
+
+    await dbReady;
+    const { userId } = event.pathParameters || {};
+    const { is_deceased } = JSON.parse(event.body || '{}');
+
+    if (!userId || typeof is_deceased !== 'boolean') {
+      return errorResponse(400, 'Missing required fields.');
+    }
+
+    const userIdNum = parseInt(userId);
+
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userIdNum]);
+    if (userCheck.rows.length === 0) {
+      return errorResponse(404, 'User not found.');
+    }
+
+    const authorized = await canManageUserDeceased(authUser, userIdNum);
+    if (!authorized) {
+      return errorResponse(403, 'Access denied. You can only manage users in your class.');
+    }
+
+    const updateResult = await query(
+      'UPDATE users SET is_deceased = $1 WHERE id = $2 RETURNING id, email, is_deceased',
+      [is_deceased, userIdNum]
+    );
+
+    return response(200, { user: updateResult.rows[0] });
+  } catch (error: any) {
+    console.error('Update user deceased handler error:', error);
+    return errorResponse(500, 'Internal server error.');
+  }
+};
+
+/**
  * Lambda handler for POST /api/admin/schools/{schoolId}/classes/{classId}/users
  */
 export const createUserHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {

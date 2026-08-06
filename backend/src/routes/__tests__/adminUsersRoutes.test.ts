@@ -3,9 +3,9 @@ import request from 'supertest';
 
 const mockDb = {
   users: [
-    { id: 1, email: 'user1@example.com', is_admin: false, created_at: new Date() },
-    { id: 2, email: 'user2@example.com', is_admin: false, created_at: new Date() },
-    { id: 3, email: 'user3@example.com', is_admin: false, created_at: new Date() }
+    { id: 1, email: 'user1@example.com', is_admin: false, is_deceased: false, created_at: new Date() },
+    { id: 2, email: 'user2@example.com', is_admin: false, is_deceased: false, created_at: new Date() },
+    { id: 3, email: 'user3@example.com', is_admin: false, is_deceased: false, created_at: new Date() }
   ],
   profiles: [
     { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe' },
@@ -113,6 +113,15 @@ jest.mock('../../db', () => ({
       return { rows: user ? [{ id: user.id }] : [] };
     }
 
+    // UPDATE is_deceased
+    if (sql.includes('UPDATE users SET is_deceased')) {
+      const [is_deceased, userId] = params as [boolean, number];
+      const user = mockDb.users.find(u => u.id === userId);
+      if (!user) return { rows: [] };
+      user.is_deceased = is_deceased;
+      return { rows: [{ id: user.id, email: user.email, is_deceased: user.is_deceased }] };
+    }
+
     // DELETE user
     if (sql.includes('DELETE FROM users') && sql.includes('WHERE id')) {
       const userId = parseInt(params?.[0]);
@@ -165,6 +174,10 @@ jest.mock('../../middleware/adminAuth.ts', () => ({
     next();
   },
   requireSuperAdmin: (req: any, res: any, next: any) => {
+    req.user = { id: 1, is_admin: true, is_class_admin: false };
+    next();
+  },
+  requireUserAdmin: (req: any, res: any, next: any) => {
     req.user = { id: 1, is_admin: true, is_class_admin: false };
     next();
   }
@@ -261,6 +274,68 @@ describe('Admin Users Routes', () => {
         .delete('/api/admin/users/999');
 
       expect([400, 404]).toContain(response.status);
+    });
+  });
+
+  describe('PUT /api/admin/users/:userId/deceased', () => {
+    it('should mark a user as deceased', async () => {
+      const response = await request(app)
+        .put('/api/admin/users/1/deceased')
+        .send({ is_deceased: true });
+
+      expect(response.status).toBe(200);
+      expect(response.body.user).toMatchObject({ id: 1, is_deceased: true });
+    });
+
+    it('should unmark a user as deceased', async () => {
+      const response = await request(app)
+        .put('/api/admin/users/1/deceased')
+        .send({ is_deceased: false });
+
+      expect(response.status).toBe(200);
+      expect(response.body.user).toMatchObject({ id: 1, is_deceased: false });
+    });
+
+    it('should reject a missing is_deceased field', async () => {
+      const response = await request(app)
+        .put('/api/admin/users/1/deceased')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject a non-boolean is_deceased field', async () => {
+      const response = await request(app)
+        .put('/api/admin/users/1/deceased')
+        .send({ is_deceased: 'yes' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 404 for a non-existent user', async () => {
+      const response = await request(app)
+        .put('/api/admin/users/999/deceased')
+        .send({ is_deceased: true });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should handle database error', async () => {
+      const { query } = require('../../db');
+      jest.clearAllMocks();
+      query.mockImplementationOnce(async () => {
+        throw new Error('Database error');
+      });
+
+      const response = await request(app)
+        .put('/api/admin/users/1/deceased')
+        .send({ is_deceased: true });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 

@@ -73,6 +73,54 @@ export async function requireSuperAdmin(req: any, res: any, next: any) {
   }
 }
 
+export async function requireUserAdmin(req: any, res: any, next: any) {
+  try {
+    const userId = getUserIdFromAuthHeader(req);
+    if (userId === null) {
+      return res.status(401).json({ error: 'Missing or invalid authorization token.' });
+    }
+
+    const userResult = await query('SELECT * FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'User not found.' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Super admins can manage any user
+    if (user.is_admin) {
+      req.user = user;
+      return next();
+    }
+
+    // Class admins can only manage users in their own class
+    if (!user.is_class_admin) {
+      return res.status(403).json({ error: 'Admin access required.' });
+    }
+
+    const targetUserId = req.params.userId;
+    const sameClass = await query(
+      `SELECT cu1.class_id
+       FROM class_user cu1
+       WHERE cu1.user_id = $1
+       AND cu1.class_id IN (
+         SELECT cu2.class_id FROM class_user cu2 WHERE cu2.user_id = $2
+       )`,
+      [user.id, targetUserId]
+    );
+
+    if (sameClass.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied. You can only manage users in your class.' });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('User Admin Middleware Error:', error);
+    res.status(500).json({ error: 'Authentication error.' });
+  }
+}
+
 export async function requireEventAdmin(req: any, res: any, next: any) {
   try {
     const userId = getUserIdFromAuthHeader(req);

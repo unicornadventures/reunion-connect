@@ -150,6 +150,11 @@ const UsersManager: React.FC = () => {
   const [moveTargetClassId, setMoveTargetClassId] = useState<number | null>(null);
   const [moveLoading, setMoveLoading] = useState(false);
 
+  // Edit-deceased state
+  const [editDeceasedUser, setEditDeceasedUser] = useState<User | null>(null);
+  const [editDeceasedValue, setEditDeceasedValue] = useState(false);
+  const [editDeceasedLoading, setEditDeceasedLoading] = useState(false);
+
   // Session restore
   useEffect(() => {
     api.get('/schools').then(r => setSchools(r.data.schools || [])).catch(() => {});
@@ -295,6 +300,21 @@ const UsersManager: React.FC = () => {
     }
   };
 
+  const handleUpdateDeceased = async () => {
+    if (!editDeceasedUser) return;
+    setEditDeceasedLoading(true);
+    setError(null);
+    try {
+      await adminAPI.updateDeceased(editDeceasedUser.id, editDeceasedValue);
+      setEditDeceasedUser(null);
+      fetchUsers();
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Failed to update user.');
+    } finally {
+      setEditDeceasedLoading(false);
+    }
+  };
+
   const totalPages = Math.ceil(totalUsers / pageSize);
   const validRows = csvRows.filter(r => r._valid);
   const invalidRows = csvRows.filter(r => !r._valid);
@@ -422,6 +442,11 @@ const UsersManager: React.FC = () => {
                         <button onClick={() => navigate(`/admin/user/${user.id}`)}
                           className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none">
                           View
+                        </button>
+                        <button
+                          onClick={() => { setEditDeceasedUser(user); setEditDeceasedValue(user.is_deceased); }}
+                          className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none">
+                          Edit
                         </button>
                         <button
                           onClick={() => {
@@ -577,6 +602,40 @@ const UsersManager: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit deceased modal */}
+      {editDeceasedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditDeceasedUser(null)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold text-[#0E2240]">
+                Edit {editDeceasedUser.first_name} {editDeceasedUser.last_name}
+              </h2>
+              <button onClick={() => setEditDeceasedUser(null)} className="text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer text-lg leading-none">✕</button>
+            </div>
+            {error && (
+              <div className="bg-[#FFF8F8] text-[#C62828] border border-[#FFCDD2] rounded px-4 py-3 text-sm mb-4">{error}</div>
+            )}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none mb-5">
+              <input type="checkbox" checked={editDeceasedValue}
+                onChange={e => setEditDeceasedValue(e.target.checked)}
+                disabled={editDeceasedLoading} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
+              <span className="text-sm text-[#64748B]">Mark as deceased</span>
+            </label>
+            <div className="flex gap-3">
+              <button onClick={handleUpdateDeceased} disabled={editDeceasedLoading}
+                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${editDeceasedLoading ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
+                {editDeceasedLoading ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setEditDeceasedUser(null)}
+                className="px-5 py-2.5 rounded text-sm font-semibold border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer transition-colors">
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -142,6 +142,9 @@ export const adminAPI = {
   moveUserClass: (userId: number, classId: number) =>
     api.put(`/admin/users/${userId}/move-class`, { class_id: classId }),
 
+  updateDeceased: (userId: number, is_deceased: boolean) =>
+    api.put(`/admin/users/${userId}/deceased`, { is_deceased }),
+
   createPasswordLink: (userId: number) =>
     api.post<{ passwordSetupUrl: string; expiresAt: string }>(`/admin/users/${userId}/password-link`),
 };

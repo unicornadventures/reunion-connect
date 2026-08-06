@@ -187,6 +187,34 @@ test.describe('Alumni Directory', () => {
     await expect(page).toHaveURL(/\/user\/101$/);
   });
 
+  test('does not show an edit control for a regular classmate', async ({ page }) => {
+    await mockDirectory(page);
+    await page.goto('/directory');
+
+    await expect(page.getByTitle('Edit deceased status')).toHaveCount(0);
+  });
+
+  test('lets a class admin mark a classmate as deceased', async ({ page }) => {
+    await loginAs(page, { id: 1, email: 'admin@example.com', is_class_admin: true, profile: { first_name: 'Me', last_name: 'User' } });
+    await mockDirectory(page);
+    let updateBody: any = null;
+    await page.route('**/api/admin/users/102/deceased', (route) => {
+      updateBody = route.request().postDataJSON();
+      route.fulfill({ status: 200, body: JSON.stringify({ user: { id: 102, email: 'amy@example.com', is_deceased: true } }) });
+    });
+    await page.goto('/directory');
+
+    const amyCard = page.locator('button', { has: page.getByText('Chen', { exact: true }) });
+    await amyCard.getByTitle('Edit deceased status').click();
+
+    await expect(page.getByText('Edit Amy Chen')).toBeVisible();
+    await page.getByLabel('Mark as deceased').check();
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Edit Amy Chen')).toHaveCount(0);
+    expect(updateBody).toEqual({ is_deceased: true });
+  });
+
   test('shows an error message when the directory fails to load', async ({ page }) => {
     await page.route('**/api/users/1/class', (route) => {
       route.fulfill({ status: 200, body: JSON.stringify({ class: CLASS_INFO }) });
