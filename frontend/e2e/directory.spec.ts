@@ -191,28 +191,51 @@ test.describe('Alumni Directory', () => {
     await mockDirectory(page);
     await page.goto('/directory');
 
-    await expect(page.getByTitle('Edit deceased status')).toHaveCount(0);
+    await expect(page.getByTitle('Edit name / deceased status')).toHaveCount(0);
   });
 
   test('lets a class admin mark a classmate as deceased', async ({ page }) => {
     await loginAs(page, { id: 1, email: 'admin@example.com', is_class_admin: true, profile: { first_name: 'Me', last_name: 'User' } });
     await mockDirectory(page);
     let updateBody: any = null;
-    await page.route('**/api/admin/users/102/deceased', (route) => {
+    await page.route('**/api/admin/users/102/profile', (route) => {
       updateBody = route.request().postDataJSON();
-      route.fulfill({ status: 200, body: JSON.stringify({ user: { id: 102, email: 'amy@example.com', is_deceased: true } }) });
+      route.fulfill({ status: 200, body: JSON.stringify({ user: { id: 102, email: 'amy@example.com', is_deceased: true, first_name: 'Amy', last_name: 'Chen' } }) });
     });
     await page.goto('/directory');
 
     const amyCard = page.locator('button', { has: page.getByText('Chen', { exact: true }) });
-    await amyCard.getByTitle('Edit deceased status').click();
+    await amyCard.getByTitle('Edit name / deceased status').click();
 
     await expect(page.getByText('Edit Amy Chen')).toBeVisible();
     await page.getByLabel('Mark as deceased').check();
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page.getByText('Edit Amy Chen')).toHaveCount(0);
-    expect(updateBody).toEqual({ is_deceased: true });
+    expect(updateBody).toEqual({ is_deceased: true, first_name: 'Amy', last_name: 'Chen' });
+  });
+
+  test('lets a class admin correct a classmate\'s name', async ({ page }) => {
+    await loginAs(page, { id: 1, email: 'admin@example.com', is_class_admin: true, profile: { first_name: 'Me', last_name: 'User' } });
+    await mockDirectory(page);
+    let updateBody: any = null;
+    await page.route('**/api/admin/users/102/profile', (route) => {
+      updateBody = route.request().postDataJSON();
+      route.fulfill({ status: 200, body: JSON.stringify({ user: { id: 102, email: 'amy@example.com', is_deceased: false, first_name: 'Amelia', last_name: 'Chen' } }) });
+    });
+    await page.goto('/directory');
+
+    const amyCard = page.locator('button', { has: page.getByText('Chen', { exact: true }) });
+    await amyCard.getByTitle('Edit name / deceased status').click();
+
+    await expect(page.getByText('Edit Amy Chen')).toBeVisible();
+    const firstNameInput = page.getByPlaceholder('Current legal name');
+    await firstNameInput.fill('Amelia');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Edit Amy Chen')).toHaveCount(0);
+    expect(updateBody).toEqual({ is_deceased: false, first_name: 'Amelia', last_name: 'Chen' });
+    await expect(page.getByText('Amelia', { exact: true })).toBeVisible();
   });
 
   test('shows an error message when the directory fails to load', async ({ page }) => {

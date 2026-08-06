@@ -46,10 +46,12 @@ const DirectoryPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [editingUser, setEditingUser] = useState<DirectoryUser | null>(null);
-  const [editingDeceasedValue, setEditingDeceasedValue] = useState(false);
-  const [savingDeceased, setSavingDeceased] = useState(false);
+  const [editForm, setEditForm] = useState({
+    first_name: '', last_name: '', former_first_name: '', former_last_name: '', is_deceased: false,
+  });
+  const [savingUser, setSavingUser] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const canEditDeceased = !!currentUser?.is_admin || !!currentUser?.is_class_admin;
+  const canEditUsers = !!currentUser?.is_admin || !!currentUser?.is_class_admin;
 
   useEffect(() => {
     if (currentUser?.user_id) {
@@ -90,18 +92,31 @@ const DirectoryPage: React.FC = () => {
     (u.email?.toLowerCase() || '').includes(searchLower) ||
     (u.tags || []).some(tag => tag.toLowerCase().includes(searchLower))
   );
-  const handleSaveDeceased = async () => {
+  const handleSaveUser = async () => {
     if (!editingUser) return;
-    setSavingDeceased(true);
+    setSavingUser(true);
     setEditError(null);
     try {
-      await adminAPI.updateDeceased(editingUser.id, editingDeceasedValue);
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, is_deceased: editingDeceasedValue } : u));
+      await adminAPI.updateUserProfile(editingUser.id, {
+        is_deceased: editForm.is_deceased,
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        former_first_name: editForm.former_first_name || undefined,
+        former_last_name: editForm.former_last_name || undefined,
+      });
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? {
+        ...u,
+        is_deceased: editForm.is_deceased,
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        former_first_name: editForm.former_first_name || null,
+        former_last_name: editForm.former_last_name || null,
+      } : u));
       setEditingUser(null);
     } catch (err: any) {
       setEditError(err.response?.data?.error || 'Failed to update user.');
     } finally {
-      setSavingDeceased(false);
+      setSavingUser(false);
     }
   };
 
@@ -162,15 +177,21 @@ const DirectoryPage: React.FC = () => {
                     : 'bg-white border-[#E2E8F0] hover:border-[#E8A93E]'
                 }`}
               >
-                {canEditDeceased && (
+                {canEditUsers && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditingUser(user);
-                      setEditingDeceasedValue(user.is_deceased);
+                      setEditForm({
+                        first_name: user.first_name || '',
+                        last_name: user.last_name || '',
+                        former_first_name: user.former_first_name || '',
+                        former_last_name: user.former_last_name || '',
+                        is_deceased: user.is_deceased,
+                      });
                       setEditError(null);
                     }}
-                    title="Edit deceased status"
+                    title="Edit name / deceased status"
                     className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] text-[#94A3B8] text-xs hover:text-[#0E2240] hover:border-[#E8A93E] cursor-pointer"
                   >
                     ✎
@@ -219,7 +240,7 @@ const DirectoryPage: React.FC = () => {
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
           <div className="absolute inset-0 bg-black/50" />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-semibold text-[#0E2240]">
                 Edit {getDisplayName(editingUser).first} {getDisplayName(editingUser).last}
@@ -229,16 +250,46 @@ const DirectoryPage: React.FC = () => {
             {editError && (
               <div className="bg-[#FFF8F8] text-[#C62828] border border-[#FFCDD2] rounded px-4 py-3 text-sm mb-4">{editError}</div>
             )}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#94A3B8] tracking-[0.1em] uppercase mb-1.5">Original first name</label>
+                <input type="text" value={editForm.former_first_name}
+                  onChange={e => setEditForm(f => ({ ...f, former_first_name: e.target.value }))}
+                  placeholder="As it appears in the yearbook" disabled={savingUser}
+                  className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors placeholder:text-[#CBD5E1]" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#94A3B8] tracking-[0.1em] uppercase mb-1.5">Original last name</label>
+                <input type="text" value={editForm.former_last_name}
+                  onChange={e => setEditForm(f => ({ ...f, former_last_name: e.target.value }))}
+                  placeholder="Maiden or birth name" disabled={savingUser}
+                  className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors placeholder:text-[#CBD5E1]" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#94A3B8] tracking-[0.1em] uppercase mb-1.5">Current first name <span className="text-[#f44336]">*</span></label>
+                <input type="text" value={editForm.first_name} required
+                  onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))}
+                  placeholder="Current legal name" disabled={savingUser}
+                  className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors placeholder:text-[#CBD5E1]" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#94A3B8] tracking-[0.1em] uppercase mb-1.5">Current last name <span className="text-[#f44336]">*</span></label>
+                <input type="text" value={editForm.last_name} required
+                  onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Current last name" disabled={savingUser}
+                  className="w-full border border-[#E2E8F0] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#E8A93E] focus:ring-1 focus:ring-[#E8A93E] transition-colors placeholder:text-[#CBD5E1]" />
+              </div>
+            </div>
             <label className="flex items-center gap-2.5 cursor-pointer select-none mb-5">
-              <input type="checkbox" checked={editingDeceasedValue}
-                onChange={e => setEditingDeceasedValue(e.target.checked)}
-                disabled={savingDeceased} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
+              <input type="checkbox" checked={editForm.is_deceased}
+                onChange={e => setEditForm(f => ({ ...f, is_deceased: e.target.checked }))}
+                disabled={savingUser} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
               <span className="text-sm text-[#64748B]">Mark as deceased</span>
             </label>
             <div className="flex gap-3">
-              <button onClick={handleSaveDeceased} disabled={savingDeceased}
-                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${savingDeceased ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
-                {savingDeceased ? 'Saving…' : 'Save'}
+              <button onClick={handleSaveUser} disabled={savingUser || !editForm.first_name || !editForm.last_name}
+                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${savingUser || !editForm.first_name || !editForm.last_name ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
+                {savingUser ? 'Saving…' : 'Save'}
               </button>
               <button type="button" onClick={() => setEditingUser(null)}
                 className="px-5 py-2.5 rounded text-sm font-semibold border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer transition-colors">

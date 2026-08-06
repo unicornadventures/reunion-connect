@@ -8,9 +8,9 @@ const mockDb = {
     { id: 3, email: 'user3@example.com', is_admin: false, is_deceased: false, created_at: new Date() }
   ],
   profiles: [
-    { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe' },
-    { id: 2, user_id: 2, first_name: 'Jane', last_name: 'Smith' },
-    { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson' }
+    { id: 1, user_id: 1, first_name: 'John', last_name: 'Doe', former_first_name: null as string | null, former_last_name: null as string | null },
+    { id: 2, user_id: 2, first_name: 'Jane', last_name: 'Smith', former_first_name: null as string | null, former_last_name: null as string | null },
+    { id: 3, user_id: 3, first_name: 'Bob', last_name: 'Johnson', former_first_name: null as string | null, former_last_name: null as string | null }
   ],
   classUsers: [
     { id: 1, class_id: 1, user_id: 1 },
@@ -78,8 +78,8 @@ jest.mock('../../db', () => ({
         .map(cu => mockDb.users.find(u => u.id === cu.user_id))
         .filter(Boolean) as any[];
 
-      // Handle search by last name (second param if present)
-      if (params.length > 1 && params?.[1]) {
+      // Handle search by last name (only present when the real query added an ILIKE clause)
+      if (sql.includes('ILIKE')) {
         const searchTerm = String(params?.[1]).replace('%', '').toLowerCase();
         users = users.filter(u => {
           const profile = mockDb.profiles.find(p => p.user_id === u.id);
@@ -96,12 +96,20 @@ jest.mock('../../db', () => ({
         return (profileA?.first_name || '').localeCompare(profileB?.first_name || '');
       });
 
+      // LIMIT/OFFSET are always the last two bound params
+      const offset = Number(params?.[params.length - 1]) || 0;
+      const limit = Number(params?.[params.length - 2]) || users.length;
+      users = users.slice(offset, offset + limit);
+
       return {
         rows: users.map(u => ({
           id: u.id,
           email: u.email,
+          is_deceased: u.is_deceased,
           first_name: mockDb.profiles.find(p => p.user_id === u.id)?.first_name,
-          last_name: mockDb.profiles.find(p => p.user_id === u.id)?.last_name
+          last_name: mockDb.profiles.find(p => p.user_id === u.id)?.last_name,
+          former_first_name: mockDb.profiles.find(p => p.user_id === u.id)?.former_first_name,
+          former_last_name: mockDb.profiles.find(p => p.user_id === u.id)?.former_last_name
         }))
       };
     }
@@ -120,6 +128,20 @@ jest.mock('../../db', () => ({
       if (!user) return { rows: [] };
       user.is_deceased = is_deceased;
       return { rows: [{ id: user.id, email: user.email, is_deceased: user.is_deceased }] };
+    }
+
+    // UPDATE profile name fields
+    if (sql.includes('UPDATE profiles SET first_name')) {
+      const [first_name, last_name, former_first_name, former_last_name, userId] = params as
+        [string, string, string | null, string | null, number];
+      const profile = mockDb.profiles.find(p => p.user_id === userId);
+      if (profile) {
+        profile.first_name = first_name;
+        profile.last_name = last_name;
+        profile.former_first_name = former_first_name;
+        profile.former_last_name = former_last_name;
+      }
+      return { rows: [] };
     }
 
     // DELETE user
@@ -277,29 +299,36 @@ describe('Admin Users Routes', () => {
     });
   });
 
-  describe('PUT /api/admin/users/:userId/deceased', () => {
-    it('should mark a user as deceased', async () => {
+  describe('PUT /api/admin/users/:userId/profile', () => {
+    it('should update a user\'s name and deceased status', async () => {
       const response = await request(app)
-        .put('/api/admin/users/1/deceased')
-        .send({ is_deceased: true });
+        .put('/api/admin/users/1/profile')
+        .send({ is_deceased: true, first_name: 'Johnny', last_name: 'Doe', former_first_name: 'Jon', former_last_name: 'Doer' });
 
       expect(response.status).toBe(200);
-      expect(response.body.user).toMatchObject({ id: 1, is_deceased: true });
+      expect(response.body.user).toMatchObject({
+        id: 1, is_deceased: true, first_name: 'Johnny', last_name: 'Doe',
+        former_first_name: 'Jon', former_last_name: 'Doer',
+      });
+
+      const listResponse = await request(app).get('/api/admin/classes/1/users');
+      const updated = listResponse.body.users.find((u: any) => u.id === 1);
+      expect(updated.first_name).toBe('Johnny');
     });
 
-    it('should unmark a user as deceased', async () => {
+    it('should update without former name fields', async () => {
       const response = await request(app)
-        .put('/api/admin/users/1/deceased')
-        .send({ is_deceased: false });
+        .put('/api/admin/users/1/profile')
+        .send({ is_deceased: false, first_name: 'John', last_name: 'Doe' });
 
       expect(response.status).toBe(200);
-      expect(response.body.user).toMatchObject({ id: 1, is_deceased: false });
+      expect(response.body.user).toMatchObject({ id: 1, is_deceased: false, former_first_name: null, former_last_name: null });
     });
 
     it('should reject a missing is_deceased field', async () => {
       const response = await request(app)
-        .put('/api/admin/users/1/deceased')
-        .send({});
+        .put('/api/admin/users/1/profile')
+        .send({ first_name: 'John', last_name: 'Doe' });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
@@ -307,8 +336,17 @@ describe('Admin Users Routes', () => {
 
     it('should reject a non-boolean is_deceased field', async () => {
       const response = await request(app)
-        .put('/api/admin/users/1/deceased')
-        .send({ is_deceased: 'yes' });
+        .put('/api/admin/users/1/profile')
+        .send({ is_deceased: 'yes', first_name: 'John', last_name: 'Doe' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should reject a missing first_name or last_name', async () => {
+      const response = await request(app)
+        .put('/api/admin/users/1/profile')
+        .send({ is_deceased: true, first_name: '', last_name: 'Doe' });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
@@ -316,8 +354,8 @@ describe('Admin Users Routes', () => {
 
     it('should return 404 for a non-existent user', async () => {
       const response = await request(app)
-        .put('/api/admin/users/999/deceased')
-        .send({ is_deceased: true });
+        .put('/api/admin/users/999/profile')
+        .send({ is_deceased: true, first_name: 'John', last_name: 'Doe' });
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
@@ -331,8 +369,8 @@ describe('Admin Users Routes', () => {
       });
 
       const response = await request(app)
-        .put('/api/admin/users/1/deceased')
-        .send({ is_deceased: true });
+        .put('/api/admin/users/1/profile')
+        .send({ is_deceased: true, first_name: 'John', last_name: 'Doe' });
 
       expect(response.status).toBe(500);
       expect(response.body).toHaveProperty('error');

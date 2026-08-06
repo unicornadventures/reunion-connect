@@ -702,18 +702,18 @@ Resources:
       Policies:
         - !Ref LambdaSecretsManagerPolicy
 
-  UpdateUserDeceasedFunction:
+  UpdateUserProfileByAdminFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub 'classyear-update-user-deceased-${Environment}'
+      FunctionName: !Sub 'classyear-update-user-profile-admin-${Environment}'
       CodeUri: backend/
-      Handler: dist/src/lambda/admin.updateUserDeceasedHandler
+      Handler: dist/src/lambda/admin.updateUserProfileHandler
       Events:
-        PutUserDeceased:
+        PutUserProfile:
           Type: Api
           Properties:
             RestApiId: !Ref ClassYearAPI
-            Path: /api/admin/users/{userId}/deceased
+            Path: /api/admin/users/{userId}/profile
             Method: PUT
       Policies:
         - !Ref LambdaSecretsManagerPolicy

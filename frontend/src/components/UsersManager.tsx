@@ -10,6 +10,8 @@ interface User {
   email: string | null;
   first_name: string | null;
   last_name: string | null;
+  former_first_name: string | null;
+  former_last_name: string | null;
   is_deceased: boolean;
 }
 
@@ -150,10 +152,12 @@ const UsersManager: React.FC = () => {
   const [moveTargetClassId, setMoveTargetClassId] = useState<number | null>(null);
   const [moveLoading, setMoveLoading] = useState(false);
 
-  // Edit-deceased state
-  const [editDeceasedUser, setEditDeceasedUser] = useState<User | null>(null);
-  const [editDeceasedValue, setEditDeceasedValue] = useState(false);
-  const [editDeceasedLoading, setEditDeceasedLoading] = useState(false);
+  // Edit-user state (name fields + deceased status)
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState({
+    first_name: '', last_name: '', former_first_name: '', former_last_name: '', is_deceased: false,
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
   // Session restore
   useEffect(() => {
@@ -300,18 +304,24 @@ const UsersManager: React.FC = () => {
     }
   };
 
-  const handleUpdateDeceased = async () => {
-    if (!editDeceasedUser) return;
-    setEditDeceasedLoading(true);
+  const handleUpdateUser = async () => {
+    if (!editUser) return;
+    setEditLoading(true);
     setError(null);
     try {
-      await adminAPI.updateDeceased(editDeceasedUser.id, editDeceasedValue);
-      setEditDeceasedUser(null);
+      await adminAPI.updateUserProfile(editUser.id, {
+        is_deceased: editForm.is_deceased,
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        former_first_name: editForm.former_first_name || undefined,
+        former_last_name: editForm.former_last_name || undefined,
+      });
+      setEditUser(null);
       fetchUsers();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to update user.');
     } finally {
-      setEditDeceasedLoading(false);
+      setEditLoading(false);
     }
   };
 
@@ -444,7 +454,16 @@ const UsersManager: React.FC = () => {
                           View
                         </button>
                         <button
-                          onClick={() => { setEditDeceasedUser(user); setEditDeceasedValue(user.is_deceased); }}
+                          onClick={() => {
+                            setEditUser(user);
+                            setEditForm({
+                              first_name: user.first_name || '',
+                              last_name: user.last_name || '',
+                              former_first_name: user.former_first_name || '',
+                              former_last_name: user.former_last_name || '',
+                              is_deceased: user.is_deceased,
+                            });
+                          }}
                           className="px-3 py-1.5 bg-[#E2E8F0] text-[#0E2240] rounded text-xs font-semibold hover:opacity-80 cursor-pointer transition-opacity border-none">
                           Edit
                         </button>
@@ -606,32 +625,58 @@ const UsersManager: React.FC = () => {
         </div>
       )}
 
-      {/* Edit deceased modal */}
-      {editDeceasedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditDeceasedUser(null)}>
+      {/* Edit user modal */}
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditUser(null)}>
           <div className="absolute inset-0 bg-black/50" />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-semibold text-[#0E2240]">
-                Edit {editDeceasedUser.first_name} {editDeceasedUser.last_name}
+                Edit {editUser.first_name} {editUser.last_name}
               </h2>
-              <button onClick={() => setEditDeceasedUser(null)} className="text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer text-lg leading-none">✕</button>
+              <button onClick={() => setEditUser(null)} className="text-[#94A3B8] hover:text-[#0E2240] bg-transparent border-none cursor-pointer text-lg leading-none">✕</button>
             </div>
             {error && (
               <div className="bg-[#FFF8F8] text-[#C62828] border border-[#FFCDD2] rounded px-4 py-3 text-sm mb-4">{error}</div>
             )}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className={labelClass}>Original first name</label>
+                <input type="text" value={editForm.former_first_name}
+                  onChange={e => setEditForm(f => ({ ...f, former_first_name: e.target.value }))}
+                  placeholder="As it appears in the yearbook" className={inputClass} disabled={editLoading} />
+              </div>
+              <div>
+                <label className={labelClass}>Original last name</label>
+                <input type="text" value={editForm.former_last_name}
+                  onChange={e => setEditForm(f => ({ ...f, former_last_name: e.target.value }))}
+                  placeholder="Maiden or birth name" className={inputClass} disabled={editLoading} />
+              </div>
+              <div>
+                <label className={labelClass}>Current first name <span className="text-[#f44336]">*</span></label>
+                <input type="text" value={editForm.first_name} required
+                  onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))}
+                  placeholder="Current legal name" className={inputClass} disabled={editLoading} />
+              </div>
+              <div>
+                <label className={labelClass}>Current last name <span className="text-[#f44336]">*</span></label>
+                <input type="text" value={editForm.last_name} required
+                  onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Current last name" className={inputClass} disabled={editLoading} />
+              </div>
+            </div>
             <label className="flex items-center gap-2.5 cursor-pointer select-none mb-5">
-              <input type="checkbox" checked={editDeceasedValue}
-                onChange={e => setEditDeceasedValue(e.target.checked)}
-                disabled={editDeceasedLoading} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
+              <input type="checkbox" checked={editForm.is_deceased}
+                onChange={e => setEditForm(f => ({ ...f, is_deceased: e.target.checked }))}
+                disabled={editLoading} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
               <span className="text-sm text-[#64748B]">Mark as deceased</span>
             </label>
             <div className="flex gap-3">
-              <button onClick={handleUpdateDeceased} disabled={editDeceasedLoading}
-                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${editDeceasedLoading ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
-                {editDeceasedLoading ? 'Saving…' : 'Save'}
+              <button onClick={handleUpdateUser} disabled={editLoading || !editForm.first_name || !editForm.last_name}
+                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${editLoading || !editForm.first_name || !editForm.last_name ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
+                {editLoading ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" onClick={() => setEditDeceasedUser(null)}
+              <button type="button" onClick={() => setEditUser(null)}
                 className="px-5 py-2.5 rounded text-sm font-semibold border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer transition-colors">
                 Cancel
               </button>

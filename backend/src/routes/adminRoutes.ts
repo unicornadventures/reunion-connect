@@ -97,7 +97,7 @@ router.get('/classes/:classId/users', async (req, res) => {
     // Get paginated results
     const offset = (page - 1) * pageSize;
     const result = await query(
-      `SELECT u.id, u.email, p.first_name, p.last_name
+      `SELECT u.id, u.email, u.is_deceased, p.first_name, p.last_name, p.former_first_name, p.former_last_name
        FROM class_user cu
        JOIN users u ON cu.user_id = u.id
        LEFT JOIN profiles p ON u.id = p.user_id
@@ -145,13 +145,17 @@ router.put('/users/:userId', async (req, res) => {
   }
 });
 
-// PUT /api/admin/users/:userId/deceased - Mark/unmark a user as deceased (super admin or class admin for their own class)
-router.put('/users/:userId/deceased', requireUserAdmin, async (req, res) => {
+// PUT /api/admin/users/:userId/profile - Update a user's name fields and deceased status
+// (super admin, or class admin for a user in their own class)
+router.put('/users/:userId/profile', requireUserAdmin, async (req, res) => {
   const { userId } = req.params;
-  const { is_deceased } = req.body;
+  const { is_deceased, first_name, last_name, former_first_name, former_last_name } = req.body;
 
   if (typeof is_deceased !== 'boolean') {
     return res.status(400).json({ error: 'Missing required field: is_deceased.' });
+  }
+  if (!first_name || !last_name) {
+    return res.status(400).json({ error: 'Missing required fields: first_name and last_name.' });
   }
 
   try {
@@ -162,14 +166,29 @@ router.put('/users/:userId/deceased', requireUserAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    await query('BEGIN');
     const updateResult = await query(
       'UPDATE users SET is_deceased = $1 WHERE id = $2 RETURNING id, email, is_deceased',
       [is_deceased, userIdNum]
     );
+    await query(
+      'UPDATE profiles SET first_name = $1, last_name = $2, former_first_name = $3, former_last_name = $4 WHERE user_id = $5',
+      [first_name, last_name, former_first_name || null, former_last_name || null, userIdNum]
+    );
+    await query('COMMIT');
 
-    res.status(200).json({ user: updateResult.rows[0] });
+    res.status(200).json({
+      user: {
+        ...updateResult.rows[0],
+        first_name,
+        last_name,
+        former_first_name: former_first_name || null,
+        former_last_name: former_last_name || null,
+      },
+    });
   } catch (error) {
-    console.error('Update User Deceased Error:', error);
+    await query('ROLLBACK');
+    console.error('Update User Profile Error:', error);
     res.status(500).json({ error: 'Internal server error.' });
   }
 });

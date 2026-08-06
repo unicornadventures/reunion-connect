@@ -145,7 +145,7 @@ export const getClassUsersHandler = async (event: APIGatewayProxyEvent): Promise
     // Get paginated results
     const offset = (page - 1) * pageSize;
     const result = await query(
-      `SELECT u.id, u.email, u.is_deceased, p.first_name, p.last_name
+      `SELECT u.id, u.email, u.is_deceased, p.first_name, p.last_name, p.former_first_name, p.former_last_name
        FROM class_user cu
        JOIN users u ON cu.user_id = u.id
        LEFT JOIN profiles p ON u.id = p.user_id
@@ -201,10 +201,10 @@ export const updateUserClassAdminHandler = async (event: APIGatewayProxyEvent): 
 };
 
 /**
- * Whether the requester can manage (mark deceased) the given target user.
+ * Whether the requester can manage the given target user's profile/deceased status.
  * Super admins can manage anyone; class admins only users in their own class.
  */
-async function canManageUserDeceased(
+async function canManageUser(
   authUser: { id: number; is_admin: boolean; is_class_admin: boolean },
   targetUserId: number
 ): Promise<boolean> {
@@ -224,19 +224,24 @@ async function canManageUserDeceased(
 }
 
 /**
- * Lambda handler for PUT /api/admin/users/{userId}/deceased
+ * Lambda handler for PUT /api/admin/users/{userId}/profile
+ * Updates a user's name fields and deceased status (super admin, or class admin
+ * for a user in their own class).
  */
-export const updateUserDeceasedHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const updateUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
 
     await dbReady;
     const { userId } = event.pathParameters || {};
-    const { is_deceased } = JSON.parse(event.body || '{}');
+    const { is_deceased, first_name, last_name, former_first_name, former_last_name } = JSON.parse(event.body || '{}');
 
     if (!userId || typeof is_deceased !== 'boolean') {
       return errorResponse(400, 'Missing required fields.');
+    }
+    if (!first_name || !last_name) {
+      return errorResponse(400, 'Missing required fields: first_name and last_name.');
     }
 
     const userIdNum = parseInt(userId);
@@ -246,19 +251,34 @@ export const updateUserDeceasedHandler = async (event: APIGatewayProxyEvent): Pr
       return errorResponse(404, 'User not found.');
     }
 
-    const authorized = await canManageUserDeceased(authUser, userIdNum);
+    const authorized = await canManageUser(authUser, userIdNum);
     if (!authorized) {
       return errorResponse(403, 'Access denied. You can only manage users in your class.');
     }
 
+    await query('BEGIN');
     const updateResult = await query(
       'UPDATE users SET is_deceased = $1 WHERE id = $2 RETURNING id, email, is_deceased',
       [is_deceased, userIdNum]
     );
+    await query(
+      'UPDATE profiles SET first_name = $1, last_name = $2, former_first_name = $3, former_last_name = $4 WHERE user_id = $5',
+      [first_name, last_name, former_first_name || null, former_last_name || null, userIdNum]
+    );
+    await query('COMMIT');
 
-    return response(200, { user: updateResult.rows[0] });
+    return response(200, {
+      user: {
+        ...updateResult.rows[0],
+        first_name,
+        last_name,
+        former_first_name: former_first_name || null,
+        former_last_name: former_last_name || null,
+      },
+    });
   } catch (error: any) {
-    console.error('Update user deceased handler error:', error);
+    await query('ROLLBACK');
+    console.error('Update user profile handler error:', error);
     return errorResponse(500, 'Internal server error.');
   }
 };
