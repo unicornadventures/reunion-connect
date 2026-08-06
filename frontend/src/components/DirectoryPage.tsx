@@ -84,9 +84,6 @@ const DirectoryPage: React.FC = () => {
     (u.email?.toLowerCase() || '').includes(searchLower) ||
     (u.tags || []).some(tag => tag.toLowerCase().includes(searchLower))
   );
-  const living = filtered.filter(u => !u.is_deceased);
-  const deceased = filtered.filter(u => u.is_deceased);
-
   if (loading) {
     return (
       <div className="max-w-[1200px] mx-auto px-5 py-8">
@@ -130,107 +127,55 @@ const DirectoryPage: React.FC = () => {
           {search ? `No classmates match "${search}"` : 'No classmates found yet.'}
         </div>
       ) : (
-        <>
-          {living.length > 0 && (
-            <div className="grid gap-3 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
-              {living.map((user) => {
-                const displayName = getDisplayName(user);
-                return (
-                <button
-                  key={user.id}
-                  onClick={() => navigate(`/user/${user.id}`)}
-                  className="bg-white rounded-lg border border-[#E2E8F0] p-2 text-center hover:border-[#E8A93E] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px]"
-                >
-                  {user.now_photo_url ? (
-                    <img
-                      src={user.now_photo_url}
-                      alt={`${displayName.first} ${displayName.last}`}
-                      className="w-24 h-24 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="flex items-center justify-center rounded-full text-white font-bold flex-shrink-0"
-                      style={{
-                        width: 96,
-                        height: 96,
-                        fontSize: 30,
-                        background: user.avatar_color || getColorForInitials(getInitials(displayName.first, displayName.last)),
-                      }}
-                    >
-                      {getInitials(displayName.first, displayName.last)}
-                    </div>
-                  )}
-                  <div className="w-full">
-                    <div className="font-display text-sm font-bold text-[#0E2240] uppercase tracking-wide leading-tight">
-                      {displayName.last || displayName.first || 'Alumni'}
-                    </div>
-                    {displayName.first && displayName.last && (
-                      <div className="text-xs text-[#64748B] mt-0.5">{displayName.first}</div>
-                    )}
-                    {user.nickname && (
-                      <div className="text-[10px] text-[#94A3B8] mt-0.5">"{user.nickname}"</div>
-                    )}
-                  </div>
-                </button>
-                );
-              })}
-            </div>
-          )}
-
-          {deceased.length > 0 && (
-            <div>
-              <div className="flex items-center gap-3 mb-5">
-                <div className="h-px flex-1 bg-[#E2E8F0]" />
-                <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#94A3B8]">In Memoriam</span>
-                <div className="h-px flex-1 bg-[#E2E8F0]" />
-              </div>
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
-                {deceased.map((user) => {
-                  const displayName = getDisplayName(user);
-                  return (
-                  <button
-                    key={user.id}
-                    onClick={() => navigate(`/user/${user.id}`)}
-                    className="bg-[#F8FAFC] rounded-lg border border-[#E2E8F0] p-2 text-center hover:border-[#94A3B8] hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px] opacity-75"
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))' }}>
+          {filtered.map((user) => {
+            const displayName = getDisplayName(user);
+            const deceased = user.is_deceased;
+            return (
+              <button
+                key={user.id}
+                onClick={() => navigate(`/user/${user.id}`)}
+                className={`rounded-lg border p-2 text-center hover:shadow-sm transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 min-h-[140px] ${
+                  deceased
+                    ? 'bg-[#F8FAFC] border-[#E2E8F0] hover:border-[#94A3B8] opacity-75'
+                    : 'bg-white border-[#E2E8F0] hover:border-[#E8A93E]'
+                }`}
+              >
+                {user.now_photo_url ? (
+                  <img
+                    src={user.now_photo_url}
+                    alt={`${displayName.first} ${displayName.last}`}
+                    className={`w-24 h-24 rounded-full object-cover ${deceased ? 'grayscale' : ''}`}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center justify-center rounded-full font-bold flex-shrink-0"
+                    style={{
+                      width: 96,
+                      height: 96,
+                      fontSize: 30,
+                      background: deceased ? '#CBD5E1' : (user.avatar_color || getColorForInitials(getInitials(displayName.first, displayName.last))),
+                      color: deceased ? '#64748B' : '#FFFFFF',
+                    }}
                   >
-                    {user.now_photo_url ? (
-                      <img
-                        src={user.now_photo_url}
-                        alt={`${displayName.first} ${displayName.last}`}
-                        className="w-24 h-24 rounded-full object-cover grayscale"
-                      />
-                    ) : (
-                      <div
-                        className="flex items-center justify-center rounded-full font-bold flex-shrink-0"
-                        style={{
-                          width: 96,
-                          height: 96,
-                          fontSize: 30,
-                          background: '#CBD5E1',
-                          color: '#64748B',
-                        }}
-                      >
-                        {getInitials(displayName.first, displayName.last)}
-                      </div>
-                    )}
-                    <div className="w-full">
-                      <div className="font-display text-sm font-bold text-[#64748B] uppercase tracking-wide leading-tight">
-                        {displayName.last || displayName.first || 'Alumni'}
-                      </div>
-                      {displayName.first && displayName.last && (
-                        <div className="text-xs text-[#94A3B8] mt-0.5">{displayName.first}</div>
-                      )}
-                      {user.nickname && (
-                        <div className="text-[10px] text-[#CBD5E1] mt-0.5">"{user.nickname}"</div>
-                      )}
-                    </div>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </>
+                    {getInitials(displayName.first, displayName.last)}
+                  </div>
+                )}
+                <div className="w-full">
+                  <div className={`font-display text-sm font-bold uppercase tracking-wide leading-tight ${deceased ? 'text-[#64748B]' : 'text-[#0E2240]'}`}>
+                    {displayName.last || displayName.first || 'Alumni'}
+                  </div>
+                  {displayName.first && displayName.last && (
+                    <div className={`text-xs mt-0.5 ${deceased ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>{displayName.first}</div>
+                  )}
+                  {user.nickname && (
+                    <div className={`text-[10px] mt-0.5 ${deceased ? 'text-[#CBD5E1]' : 'text-[#94A3B8]'}`}>"{user.nickname}"</div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );

@@ -107,11 +107,11 @@ test.describe('Alumni Directory', () => {
     await expect(amyPhoto).toHaveAttribute('alt', 'Amy Chen');
   });
 
-  test('lists deceased classmates in a separate In Memoriam section using former name', async ({ page }) => {
+  test('lists deceased classmates alongside everyone else, using former name', async ({ page }) => {
     await mockDirectory(page);
     await page.goto('/directory');
 
-    await expect(page.getByText('In Memoriam')).toBeVisible();
+    await expect(page.getByText('In Memoriam')).toHaveCount(0);
 
     const deceasedCard = page.locator('button', { has: page.getByText('Walsh', { exact: true }) });
     await expect(deceasedCard.getByText('Dee', { exact: true })).toBeVisible();
@@ -119,15 +119,14 @@ test.describe('Alumni Directory', () => {
     await expect(page.getByText('Diane')).toHaveCount(0);
   });
 
-  test('renders living classmates sorted by effective (former-first) last name', async ({ page }) => {
+  test('renders all classmates sorted by effective (former-first) last name', async ({ page }) => {
     await mockDirectory(page);
     await page.goto('/directory');
 
-    const livingGrid = page.locator('div.mb-10');
-    await expect(livingGrid.locator('button')).toHaveCount(3);
-    const names = await livingGrid.locator('button .font-display').allTextContents();
+    await expect(page.getByText('Walsh', { exact: true })).toBeVisible();
+    const names = await page.locator('button .font-display').allTextContents();
 
-    expect(names).toEqual(['Chen', 'Reyes', 'Smith']);
+    expect(names).toEqual(['Chen', 'Reyes', 'Smith', 'Walsh']);
   });
 
   test('search matches former first name, former last name, current name, email, and tags', async ({ page }) => {
