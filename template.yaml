@@ -1315,6 +1315,9 @@ Resources:
   # Optional: Aurora Serverless v2 database (only for AWS, not LocalStack).
   # MinCapacity 0 lets the cluster pause when idle (~15s resume on first
   # connection) so cold-start behavior is observable in every environment.
+  # SecondsUntilAutoPause raised from the 300s minimum to 900s so a single
+  # active browsing session (clicks a few minutes apart) doesn't repeatedly
+  # trigger a resume; a genuinely idle app still pauses within 15 min.
   RDSCluster:
     Type: AWS::RDS::DBCluster
     Condition: CreateRDS
@@ -1332,7 +1335,7 @@ Resources:
       ServerlessV2ScalingConfiguration:
         MinCapacity: 0
         MaxCapacity: !If [IsProduction, 8, 2]
-        SecondsUntilAutoPause: 300
+        SecondsUntilAutoPause: 900
       VpcSecurityGroupIds:
         - !Ref DBSecurityGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
