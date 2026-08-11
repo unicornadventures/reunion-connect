@@ -117,6 +117,8 @@ Resources:
         CorsRules:
           - AllowedOrigins:
               - !Ref FrontendURL
+              - https://unicornconnections.org
+              - https://www.unicornconnections.org
             AllowedMethods:
               - PUT
               - GET
