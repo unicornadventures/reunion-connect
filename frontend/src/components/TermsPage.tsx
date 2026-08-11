@@ -1,4 +1,5 @@
 import React from 'react';
+import { SITE_BRAND } from '../branding';
 
 const section = (title: string, paragraphs: string[]) => (
   <div className="mb-8">
@@ -23,7 +24,7 @@ const TermsPage: React.FC = () => (
 
     <div className="bg-white rounded-lg border border-[#E2E8F0] p-8 space-y-0">
       {section('1. Acceptance of These Terms', [
-        'ReunionConnect is a private community for alumni to reconnect with their classmates. By creating an account or using the site, you agree to these Terms of Use. If you do not agree, please do not use the site.',
+        `${SITE_BRAND} is a private community for alumni to reconnect with their classmates. By creating an account or using the site, you agree to these Terms of Use. If you do not agree, please do not use the site.`,
       ])}
 
       {section('2. Who May Join', [
@@ -32,7 +33,7 @@ const TermsPage: React.FC = () => (
       ])}
 
       {section('3. Your Content', [
-        'You keep ownership of everything you post — your bio, comments, and photos. By posting, you give ReunionConnect permission to store and display that content to other signed-in members of the community, which is how the site works.',
+        `You keep ownership of everything you post — your bio, comments, and photos. By posting, you give ${SITE_BRAND} permission to store and display that content to other signed-in members of the community, which is how the site works.`,
         'You are responsible for what you post. Only upload photos you have the right to share, and be thoughtful about pictures that include other people — if someone pictured asks that a photo be removed, we may remove it.',
         'Comments left on a classmate\'s page are reviewed before they appear publicly. Submitting a comment does not guarantee it will be published, and edited comments go back for re-review.',
       ])}
@@ -54,8 +55,8 @@ const TermsPage: React.FC = () => (
       ])}
 
       {section('7. Disclaimers', [
-        'ReunionConnect is a volunteer-run community service provided "as is" and "as available," without warranties of any kind. We do not guarantee the site will always be available, error-free, or that content posted by members is accurate.',
-        'To the fullest extent permitted by law, ReunionConnect and its administrators are not liable for any indirect, incidental, or consequential damages arising from your use of the site or from content posted by other members.',
+        `${SITE_BRAND} is a volunteer-run community service provided "as is" and "as available," without warranties of any kind. We do not guarantee the site will always be available, error-free, or that content posted by members is accurate.`,
+        `To the fullest extent permitted by law, ${SITE_BRAND} and its administrators are not liable for any indirect, incidental, or consequential damages arising from your use of the site or from content posted by other members.`,
       ])}
 
       {section('8. Changes to These Terms', [

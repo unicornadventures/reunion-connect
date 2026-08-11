@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SITE_BRAND } from '../branding';
 
 const section = (title: string, items: string[]) => (
   <div className="mb-8">
@@ -19,7 +20,7 @@ const HelpPage: React.FC = () => (
   <div className="max-w-[800px] mx-auto px-5 py-10">
     <div className="mb-8">
       <h1 className="font-display text-3xl font-bold text-[#0E2240] uppercase tracking-tight mb-2">Help</h1>
-      <p className="text-sm text-[#64748B]">A quick guide to using ReunionConnect.</p>
+      <p className="text-sm text-[#64748B]">A quick guide to using {SITE_BRAND}.</p>
     </div>
 
     <div className="bg-white rounded-lg border border-[#E2E8F0] p-8 space-y-0">
@@ -63,7 +64,7 @@ const HelpPage: React.FC = () => (
       ])}
 
       <p className="text-sm text-[#64748B]">
-        Using ReunionConnect is subject to our{' '}
+        Using {SITE_BRAND} is subject to our{' '}
         <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>.
       </p>
     </div>

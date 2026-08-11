@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { SITE_BRAND } from '../branding';
 
 const AdminHeader: React.FC = () => {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ const AdminHeader: React.FC = () => {
           to={isSuperAdmin ? '/admin/schools' : '/'}
           className="font-display text-xl font-bold text-[#E8A93E] tracking-tight hover:opacity-90 transition-opacity"
         >
-          ReunionConnect
+          {SITE_BRAND}
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
