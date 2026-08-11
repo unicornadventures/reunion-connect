@@ -107,7 +107,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
         </p>
 
         <div className="space-y-4 text-sm text-[#475569] leading-relaxed">
-          <p>Hi. DeAnne Dotson here. And welcome to Reunion-Connect.org.</p>
+          <p>Hi. DeAnne Dotson here. And welcome to UnicornConnections.org.</p>
           <p>
             This idea was inspired from many different directions, but to keep from writing a
             book here, I'll only share a couple.
@@ -123,7 +123,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
             My version is that you never know what a person will remember about you. And it
             will most likely be some random, off-the-cuff comment that you made without
             thinking and it never crossed your mind again. But it made an impression and
-            decades later, it's still with you.
+            decades later, it's still with them.
           </p>
           <p>
             I was lucky enough to have someone share something nice that I had said to them
@@ -145,8 +145,8 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
             <ul className="space-y-2">
               {[
                 'Who did you think was SSSOOOO cool and why?',
-                'What did someone say to you one time that helped you thru a rough time or gave you a new, different perspective?',
-                'Who was quietly doing things for other people and not making a big deal about it?',
+                'What did someone say to you one time that helped you thru a rough time or give you a new, different perspective?',
+                'Who was quietly doing things for other people and not making a big deal about it.',
               ].map((prompt, i) => (
                 <li key={i} className="flex gap-2 text-sm text-[#475569] leading-relaxed">
                   <span className="text-[#E8A93E] font-bold flex-shrink-0">•</span>
@@ -177,7 +177,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
           </p>
 
           <p className="text-xs text-[#94A3B8] pt-2 border-t border-[#E2E8F0] mt-2">
-            If you have any questions or concerns as to how to use this site, please see the{' '}
+            If you have any questions/concerns as to how to use this site, please see the{' '}
             <Link to="/help" className="text-[#E8A93E] font-semibold hover:opacity-80">
               help page
             </Link>{' '}
