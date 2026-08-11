@@ -101,7 +101,7 @@ const WelcomePage: React.FC<{ currentUser: CurrentUser }> = ({ currentUser }) =>
       )}
 
       {/* Welcome letter */}
-      <div className="bg-white rounded-lg border border-[#E2E8F0] px-6 py-7 sm:px-10 sm:py-9 mb-6 max-w-3xl">
+      <div className="bg-white rounded-lg border border-[#E2E8F0] px-6 py-7 sm:px-10 sm:py-9 mb-6 max-w-3xl mx-auto">
         <p className="text-[10px] font-semibold text-[#94A3B8] tracking-[0.15em] uppercase mb-4">
           A Note From DeAnne Dotson
         </p>
