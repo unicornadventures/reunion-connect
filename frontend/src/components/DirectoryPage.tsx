@@ -163,7 +163,9 @@ const DirectoryPage: React.FC = () => {
           <h1 className="font-display text-4xl font-bold text-[#0E2240] uppercase tracking-tight">
             Alumni Directory
           </h1>
-          <p className="text-sm text-[#64748B] mt-1">{users.length} classmates registered</p>
+          <p className="text-sm text-[#64748B] mt-1">
+            {users.length} classmates · {users.filter(u => u.email).length} have claimed their profile
+          </p>
         </div>
         <input
           type="text"
