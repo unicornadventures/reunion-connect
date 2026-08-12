@@ -4,6 +4,8 @@ import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { adminAPI } from '../apiClient';
 import { getColorForInitials } from '../avatarColors';
+import ConfirmModal from './ConfirmModal';
+import UserDeletionWarning from './UserDeletionWarning';
 
 interface DirectoryUser {
   id: number;
@@ -51,6 +53,8 @@ const DirectoryPage: React.FC = () => {
   });
   const [savingUser, setSavingUser] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
   const canEditUsers = !!currentUser?.is_admin || !!currentUser?.is_class_admin;
 
   useEffect(() => {
@@ -117,6 +121,24 @@ const DirectoryPage: React.FC = () => {
       setEditError(err.response?.data?.error || 'Failed to update user.');
     } finally {
       setSavingUser(false);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    setDeleteModalOpen(false);
+    setDeleteWarningOpen(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!editingUser) return;
+    try {
+      await api.delete(`/admin/users/${editingUser.id}`);
+      setUsers(prev => prev.filter(u => u.id !== editingUser.id));
+      setDeleteWarningOpen(false);
+      setEditingUser(null);
+    } catch (err: any) {
+      setDeleteWarningOpen(false);
+      setEditError(err.response?.data?.error || 'Failed to delete user.');
     }
   };
 
@@ -190,6 +212,8 @@ const DirectoryPage: React.FC = () => {
                         is_deceased: user.is_deceased,
                       });
                       setEditError(null);
+                      setDeleteModalOpen(false);
+                      setDeleteWarningOpen(false);
                     }}
                     title="Edit name / deceased status"
                     className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-[#E2E8F0] text-[#94A3B8] text-xs hover:text-[#0E2240] hover:border-[#E8A93E] cursor-pointer"
@@ -238,6 +262,7 @@ const DirectoryPage: React.FC = () => {
       )}
 
       {editingUser && (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setEditingUser(null)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl p-6" onClick={e => e.stopPropagation()}>
@@ -286,18 +311,42 @@ const DirectoryPage: React.FC = () => {
                 disabled={savingUser} className="w-4 h-4 rounded border-[#E2E8F0] accent-[#0E2240] cursor-pointer" />
               <span className="text-sm text-[#64748B]">Mark as deceased</span>
             </label>
-            <div className="flex gap-3">
-              <button onClick={handleSaveUser} disabled={savingUser || !editForm.first_name || !editForm.last_name}
-                className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${savingUser || !editForm.first_name || !editForm.last_name ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
-                {savingUser ? 'Saving…' : 'Save'}
-              </button>
-              <button type="button" onClick={() => setEditingUser(null)}
-                className="px-5 py-2.5 rounded text-sm font-semibold border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer transition-colors">
-                Cancel
-              </button>
+            <div className="flex items-center justify-between gap-3">
+              {editingUser.id !== currentUser?.user_id ? (
+                <button type="button" onClick={() => setDeleteModalOpen(true)} disabled={savingUser}
+                  className="px-5 py-2.5 rounded text-sm font-semibold border-none bg-[#f44336] text-white hover:opacity-90 cursor-pointer transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                  Delete user
+                </button>
+              ) : <span />}
+              <div className="flex gap-3">
+                <button onClick={handleSaveUser} disabled={savingUser || !editForm.first_name || !editForm.last_name}
+                  className={`px-5 py-2.5 rounded text-sm font-semibold border-none transition-opacity ${savingUser || !editForm.first_name || !editForm.last_name ? 'bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed' : 'bg-[#0E2240] text-white hover:opacity-90 cursor-pointer'}`}>
+                  {savingUser ? 'Saving…' : 'Save'}
+                </button>
+                <button type="button" onClick={() => setEditingUser(null)}
+                  className="px-5 py-2.5 rounded text-sm font-semibold border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F8FAFC] cursor-pointer transition-colors">
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          title="Delete User"
+          message={`Are you sure you want to delete ${getDisplayName(editingUser).first || ''} ${getDisplayName(editingUser).last || ''}?`}
+          details={['All user profiles and data', 'All comments written by and about this user', 'All S3 photographs']}
+          confirmText="Delete" cancelText="Cancel" isDangerous
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteModalOpen(false)}
+        />
+        <UserDeletionWarning
+          isOpen={deleteWarningOpen} userCount={1}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setDeleteWarningOpen(false)}
+        />
+        </>
       )}
     </div>
   );
