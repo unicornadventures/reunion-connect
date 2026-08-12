@@ -62,7 +62,7 @@ export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
   try {
     const authUser = getAuthUser(event);
     if (!authUser) return errorResponse(401, 'Authentication required.');
-    if (!authUser.is_admin) return errorResponse(403, 'Admin access required.');
+    if (!authUser.is_admin && !authUser.is_class_admin) return errorResponse(403, 'Admin access required.');
 
     await dbReady;
     const { userId } = event.pathParameters || {};
@@ -71,15 +71,23 @@ export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
       return errorResponse(400, 'User ID required.');
     }
 
-    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userId]);
+    const userIdNum = parseInt(userId);
+
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [userIdNum]);
     if (userCheck.rows.length === 0) {
       return errorResponse(404, 'User not found.');
+    }
+
+    // Super admins can delete anyone; class admins only users in their own class
+    const authorized = await canManageUser(authUser, userIdNum);
+    if (!authorized) {
+      return errorResponse(403, 'Access denied. You can only manage users in your class.');
     }
 
     // Delete S3 photos before removing the user
     const profileResult = await query(
       'SELECT then_photo_url, now_photo_url FROM profiles WHERE user_id = $1',
-      [userId]
+      [userIdNum]
     );
     if (profileResult.rows.length > 0) {
       const { then_photo_url, now_photo_url } = profileResult.rows[0];
@@ -95,7 +103,7 @@ export const deleteUserHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 
     // Delete user — cascade removes profile, comments, tokens
-    await query('DELETE FROM users WHERE id = $1', [userId]);
+    await query('DELETE FROM users WHERE id = $1', [userIdNum]);
 
     return response(200, { message: 'User deleted successfully.' });
   } catch (error: any) {

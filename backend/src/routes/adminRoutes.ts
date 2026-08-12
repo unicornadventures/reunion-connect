@@ -47,7 +47,7 @@ router.get('/users', async (req, res) => {
 });
 
 // DELETE /api/admin/users/:userId
-router.delete('/users/:userId', async (req, res) => {
+router.delete('/users/:userId', requireUserAdmin, async (req, res) => {
   const { userId } = req.params;
 
   try {
