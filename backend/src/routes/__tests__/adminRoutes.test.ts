@@ -106,6 +106,13 @@ jest.mock('../../seed', () => ({
   })
 }));
 
+jest.mock('../../middleware/adminAuth.ts', () => ({
+  requireUserAdmin: (req: any, res: any, next: any) => {
+    req.user = { id: 1, is_admin: true, is_class_admin: false };
+    next();
+  }
+}));
+
 import { adminRoutes } from '../adminRoutes';
 
 describe('Admin Routes', () => {
