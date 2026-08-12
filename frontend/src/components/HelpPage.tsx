@@ -29,19 +29,19 @@ const HelpPage: React.FC = () => (
         'Add your bio to share what you\'ve been up to since graduation.',
         'Add tags (clubs, sports, dorm hall, etc.) to help classmates find you and see what you had in common.',
         'Upload "Then" and "Now" photos — click the photo area to select a file from your device.',
-        'You can also add up to 9 additional photos to your personal gallery. Click a gallery photo to view it full-screen.',
+        'You can also add up to 9 additional photos to your personal gallery (with a caption if you wish). Click a gallery photo to view it full-screen.',
       ])}
 
       {section('Directory', [
         'The Directory shows all members of your class year.',
         'Click on any classmate\'s name or photo to view their profile.',
-        'From a classmate\'s profile, click "View Comments" to see the comments page for that person.',
+        'Scroll down on a profile to see the photos they\'ve uploaded and the comments other classmates have left for them.',
       ])}
 
       {section('Leaving Comments', [
-        'Navigate to a classmate\'s comments page and type a message in the "Leave a comment" box.',
+        'Navigate to a classmate\'s profile, scroll down, and type a message in the "Leave a comment" box.',
         'Comments are reviewed before they appear publicly — they show as "Pending" until approved.',
-        'You can edit or delete comments you have posted. Editing a comment sends it back for re-approval.',
+        'You can edit or delete comments you have posted on other people\'s profiles. Click "My Comments" in the top navigation bar to see them all. Editing a comment sends it back for re-approval.',
       ])}
 
       {section('Events', [
@@ -55,12 +55,13 @@ const HelpPage: React.FC = () => (
         'Your "Now" photo shows who you are today.',
         'Photos are stored securely and only visible to logged-in classmates.',
         'Gallery photos appear in a 3-column grid on your profile. Click any photo to open it in full-screen.',
+        'Click "Slideshow" in the top navigation to see a random slideshow of all the photos your classmates have uploaded to their profiles.',
       ])}
 
       {section('Account & Security', [
-        'If you haven\'t registered yet, go to /join and search for your name to claim your account.',
+        `If you haven't registered yet, go to ${SITE_BRAND}'s /join page and search for your name to claim your account.`,
         'Use the "Forgot password" link on the login page to reset your password via email.',
-        'Your email address is only visible to you — other classmates see only your name and photos.',
+        'Your email address is only visible to you — other classmates see only your name, bio, and photos.',
       ])}
 
       <p className="text-sm text-[#64748B]">
