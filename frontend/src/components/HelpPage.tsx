@@ -64,7 +64,7 @@ const HelpPage: React.FC = () => (
         'Your email address is only visible to you — other classmates see only your name, bio, and photos.',
       ])}
 
-      <p className="text-sm text-[#64748B]">
+      <p className="text-sm text-[#64748B] mt-8 pt-6 border-t border-[#E2E8F0]">
         Using {SITE_BRAND} is subject to our{' '}
         <Link to="/terms" className="text-[#E8A93E] font-semibold hover:opacity-80">Terms of Use</Link>.
       </p>
