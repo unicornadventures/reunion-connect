@@ -59,7 +59,6 @@ const HelpPage: React.FC = () => (
       ])}
 
       {section('Account & Security', [
-        `If you haven't registered yet, go to ${SITE_BRAND}'s /join page and search for your name to claim your account.`,
         'Use the "Forgot password" link on the login page to reset your password via email.',
         'Your email address is only visible to you — other classmates see only your name, bio, and photos.',
       ])}
