@@ -23,7 +23,7 @@ const HelpPage: React.FC = () => (
       <p className="text-sm text-[#64748B]">A quick guide to using {SITE_BRAND}.</p>
     </div>
 
-    <div className="bg-white rounded-lg border border-[#E2E8F0] p-8 space-y-0">
+    <div className="bg-white rounded-lg border border-[#E2E8F0] p-8">
       {section('Your Profile', [
         'Click "Profile" in the top navigation bar to view and edit your profile.',
         'Add your bio to share what you\'ve been up to since graduation.',
