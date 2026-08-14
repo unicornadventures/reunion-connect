@@ -13,6 +13,7 @@ interface UserProfile {
     bio: string | null;
     then_photo_url: string | null;
     now_photo_url: string | null;
+    tags: string[] | null;
   };
 }
 
@@ -220,6 +221,15 @@ const UserCommentsPage: React.FC = () => {
         <p className="text-sm text-[#64748B] leading-relaxed">
           {profile?.bio || "Tell your classmates what you've been up to for the past 20 years!"}
         </p>
+        {profile?.tags && profile.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {profile.tags.map(tag => (
+              <span key={tag} className="px-2.5 py-1 bg-[#F6F8FC] border border-[#E2E8F0] text-[#0E2240] rounded-full text-xs font-medium">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {error && (
