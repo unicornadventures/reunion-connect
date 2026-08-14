@@ -682,8 +682,8 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                     ))}
                   </div>
                   {editTags.length < 10 && (
-                    <div>
-                      <div className="flex gap-2">
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
                         <input
                           type="text"
                           value={tagInput}
@@ -693,14 +693,14 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                           placeholder="Add a tag and press Enter"
                           maxLength={40}
                         />
-                        <button type="button" onClick={addTag}
-                          className="px-3 py-2 bg-[#0E2240] text-white text-sm font-semibold rounded hover:opacity-90 border-none cursor-pointer flex-shrink-0">
-                          Add
-                        </button>
+                        <div className={`text-xs mt-1 ${tagInput.length >= 40 ? 'font-semibold text-[#f44336]' : 'text-[#94A3B8]'}`}>
+                          {tagInput.length}/40{tagInput.length >= 40 ? ' — limit reached' : ''}
+                        </div>
                       </div>
-                      <div className={`text-xs mt-1 text-right ${tagInput.length >= 40 ? 'text-[#f44336]' : 'text-[#94A3B8]'}`}>
-                        {tagInput.length}/40
-                      </div>
+                      <button type="button" onClick={addTag}
+                        className="px-3 py-2 bg-[#0E2240] text-white text-sm font-semibold rounded hover:opacity-90 border-none cursor-pointer flex-shrink-0">
+                        Add
+                      </button>
                     </div>
                   )}
                 </div>
