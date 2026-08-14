@@ -682,20 +682,25 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                     ))}
                   </div>
                   {editTags.length < 10 && (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={e => setTagInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); }}}
-                        className={inputClass}
-                        placeholder="Add a tag and press Enter"
-                        maxLength={40}
-                      />
-                      <button type="button" onClick={addTag}
-                        className="px-3 py-2 bg-[#0E2240] text-white text-sm font-semibold rounded hover:opacity-90 border-none cursor-pointer flex-shrink-0">
-                        Add
-                      </button>
+                    <div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={tagInput}
+                          onChange={e => setTagInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); }}}
+                          className={inputClass}
+                          placeholder="Add a tag and press Enter"
+                          maxLength={40}
+                        />
+                        <button type="button" onClick={addTag}
+                          className="px-3 py-2 bg-[#0E2240] text-white text-sm font-semibold rounded hover:opacity-90 border-none cursor-pointer flex-shrink-0">
+                          Add
+                        </button>
+                      </div>
+                      <div className={`text-xs mt-1 text-right ${tagInput.length >= 40 ? 'text-[#f44336]' : 'text-[#94A3B8]'}`}>
+                        {tagInput.length}/40
+                      </div>
                     </div>
                   )}
                 </div>
