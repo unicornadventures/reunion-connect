@@ -666,10 +666,14 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
                   <label className={labelClass}>Bio</label>
                   <textarea
                     value={editData.bio || ''}
-                    onChange={e => setEditData({ ...editData, bio: e.target.value })}
+                    onChange={e => setEditData({ ...editData, bio: e.target.value.slice(0, 3000) })}
                     className={`${inputClass} resize-vertical min-h-[100px] py-3`}
                     placeholder="Tell your classmates what you've been up to..."
+                    maxLength={3000}
                   />
+                  <div className={`text-xs mt-1 ${(editData.bio?.length || 0) >= 3000 ? 'font-semibold text-[#f44336]' : 'text-[#94A3B8]'}`}>
+                    {editData.bio?.length || 0}/3000{(editData.bio?.length || 0) >= 3000 ? ' — limit reached' : ''}
+                  </div>
                 </div>
                 <div>
                   <label className={labelClass}>Tags <span className="font-normal">(up to 10 — clubs, sports, dorm hall, etc.)</span></label>
