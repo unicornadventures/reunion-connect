@@ -721,7 +721,7 @@ const UserProfile: React.FC<{ userId?: number | string }> = ({ userId }) => {
               </div>
             ) : (
               <div>
-                <p className="text-sm text-[#64748B] leading-relaxed mb-4">
+                <p className="text-sm text-[#64748B] leading-relaxed mb-4 whitespace-pre-wrap">
                   {profile?.bio || "Tell your classmates what you've been up to for the past 20 years!"}
                 </p>
                 {profile?.tags && profile.tags.length > 0 && (

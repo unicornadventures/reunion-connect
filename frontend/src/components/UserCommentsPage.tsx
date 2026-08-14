@@ -218,7 +218,7 @@ const UserCommentsPage: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-lg border border-[#E2E8F0] p-6 mb-6">
-        <p className="text-sm text-[#64748B] leading-relaxed">
+        <p className="text-sm text-[#64748B] leading-relaxed whitespace-pre-wrap">
           {profile?.bio || "Tell your classmates what you've been up to for the past 20 years!"}
         </p>
         {profile?.tags && profile.tags.length > 0 && (
