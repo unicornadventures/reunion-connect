@@ -48,7 +48,26 @@ async function getPool(): Promise<InstanceType<typeof Pool>> {
   return pool;
 }
 
+// Postgres error code for "password authentication failed" — thrown when a
+// cached Pool's credentials have gone stale (e.g. Secrets Manager rotated
+// the Aurora master password out from under an already-warm Lambda).
+const INVALID_PASSWORD = '28P01';
+
 export const query = async (text: string, params: any[] = []) => {
   const p = await getPool();
-  return p.query(text, params);
+  try {
+    return await p.query(text, params);
+  } catch (error: any) {
+    if (error?.code === INVALID_PASSWORD && process.env.DATABASE_SECRET_ARN) {
+      console.warn('DB credentials appear stale (28P01); refetching secret and retrying once.');
+      const stale = pool;
+      pool = null;
+      // Don't await — a pool whose credentials are rejected has no usable
+      // connections to drain, and end() can hang waiting for one.
+      stale?.end().catch(() => {});
+      const fresh = await getPool();
+      return fresh.query(text, params);
+    }
+    throw error;
+  }
 };
