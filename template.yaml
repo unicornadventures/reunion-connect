@@ -123,12 +123,24 @@ Resources:
         BlockPublicPolicy: false
         IgnorePublicAcls: true
         RestrictPublicBuckets: false
+      # Uploads are presigned PUTs the browser performs straight against this
+      # bucket, so the bucket answers the preflight and every origin that
+      # uploads has to be listed here. Displaying a photo is a plain <img> load
+      # and needs none of this, which is why a missing origin looks like
+      # "uploads are broken" while pictures still appear.
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
               - !Ref FrontendURL
+              # Was missing: the www variant of FrontendURL serves this app too,
+              # so uploads from it were failing their preflight.
+              - https://www.reunion-connect.org
               - https://unicornconnections.org
               - https://www.unicornconnections.org
+              # The NestJS app shares this bucket — its photo keys are in the
+              # same database, so they must name objects in the same bucket.
+              # See ClassYearNest docs section 27.
+              - https://nest.reunion-connect.org
             AllowedMethods:
               - PUT
               - GET
