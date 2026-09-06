@@ -10,38 +10,52 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# `test-lambda-endpoints.js` spawns `sam local start-api`, which runs each
+# handler in its own Docker container. Those containers are what talk to
+# Postgres, so the database has to be on a Docker network they can reach, under
+# the hostname `env-vars.json` names. The runner's own localhost is irrelevant
+# to them — which is why this uses docker compose rather than a `services:`
+# block: compose puts Postgres on the same network, reachable as `postgres`,
+# exactly as it is on a developer's machine.
+env:
+  # The harness derives the network from the checkout directory name
+  # (`projectDirName + '_local'`), so compose must use the same project name or
+  # SAM local is handed a network that does not exist.
+  COMPOSE_PROJECT_NAME: reunion-connect
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:14-alpine
-        env:
-          POSTGRES_DB: class_reunion
-          POSTGRES_USER: admin
-          POSTGRES_PASSWORD: testpass
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          # Matches `Runtime: nodejs24.x` in template.yaml. Testing on a version
+          # two majors below production is its own bug, and 18 is end-of-life.
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: 'backend/package-lock.json'
 
-      - name: Install SAM CLI
+      - name: Start Postgres on the network SAM local uses
         run: |
-          pip install aws-sam-cli
+          docker compose up -d postgres
+          # compose reports healthy via its own healthcheck; wait it out rather
+          # than racing the first connection.
+          for _ in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U postgres; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Postgres did not become ready" >&2
+          docker compose logs postgres
+          exit 1
+
+      - name: Install SAM CLI
+        run: pip install aws-sam-cli
 
       - name: Install dependencies
         run: |
@@ -55,38 +69,68 @@ jobs:
 
       - name: Run Lambda endpoint tests
         env:
+          # These reach the harness itself. The handlers read `env-vars.json`,
+          # where DB_HOST is `postgres` — the compose service name — because
+          # they resolve it from inside Docker, not from the runner.
           DB_HOST: localhost
           DB_PORT: 5432
           DB_NAME: class_reunion
-          DB_USER: admin
+          DB_USER: postgres
           DB_PASSWORD: testpass
           JWT_SECRET: test-secret-key
-        run: |
-          npm run test:lambda
+        run: npm run test:lambda
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: test-results.json
+          # The harness writes this at the end of a run, so a failure before
+          # that point leaves nothing to upload. Missing results are not a
+          # second failure to report.
+          if-no-files-found: ignore
 
       - name: Comment PR with results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
+        # `always()` so a failing suite still gets its summary. Without it this
+        # step is skipped exactly when the numbers matter most.
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
-            const comment = `## Lambda Test Results
-            
-            ✅ Passed: ${results.passed}/${results.passed + results.failed}
-            
-            ${results.failed > 0 ? `❌ Failed: ${results.failed}\n\n${results.tests.filter(t => !t.passed).map(t => `- ${t.name}`).join('\n')}` : 'All tests passed! 🎉'}`;
-            
-            github.rest.issues.createComment({
+            if (!fs.existsSync('test-results.json')) {
+              core.info('No test-results.json — the suite failed before writing one.');
+              return;
+            }
+            let results;
+            try {
+              results = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+            } catch (error) {
+              core.info(`test-results.json is unreadable: ${error.message}`);
+              return;
+            }
+            const total = results.passed + results.failed;
+            const failures = (results.tests ?? [])
+              .filter((t) => !t.passed)
+              .map((t) => `- ${t.name}`)
+              .join('\n');
+            // Built by joining rather than as an indented template literal:
+            // inside this block a multi-line literal carries its YAML
+            // indentation into the comment, and four leading spaces make
+            // Markdown render the whole thing as a code block.
+            const body = [
+              '## Lambda Test Results',
+              '',
+              `✅ Passed: ${results.passed}/${total}`,
+              '',
+              results.failed > 0
+                ? `❌ Failed: ${results.failed}\n\n${failures}`
+                : 'All tests passed! 🎉',
+            ].join('\n');
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              body,
             });
