@@ -40,8 +40,11 @@ jobs:
           # Matches `Runtime: nodejs24.x` in template.yaml. Testing on a version
           # two majors below production is its own bug, and 18 is end-of-life.
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'backend/package-lock.json'
+          # No `cache: npm`. It needs a lockfile to key on and `package-lock.json`
+          # is gitignored here, so setup-node fails outright with "Some specified
+          # paths were not resolved". Committing a lockfile would bring back both
+          # caching and `npm ci`; that is a dependency-policy decision, not a CI
+          # one, so this just installs.
 
       - name: Start Postgres on the network SAM local uses
         run: |
