@@ -7,6 +7,10 @@ on:
       - 'backend/src/lambda/**'
       - 'template.yaml'
       - 'test-lambda-endpoints.js'
+      # Its own definition, and the compose file it now depends on for a
+      # database. A change to either is a change to what this proves.
+      - '.github/workflows/test-lambda.yml'
+      - 'docker-compose.yml'
   pull_request:
     branches: [ main, develop ]
 
