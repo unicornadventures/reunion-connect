@@ -22,6 +22,15 @@ Globals:
         DB_PORT: '5432'
         DB_NAME: class_reunion
         DB_USER: classyear_admin
+        # Local only. In AWS the credentials come from Secrets Manager via
+        # DATABASE_SECRET_ARN, so this resolves to AWS::NoValue and the variable
+        # is absent from the deployed functions — db.ts takes the secret branch.
+        #
+        # It has to be declared here even so: `sam local --env-vars` can only
+        # override variables the template already defines, so without this line
+        # env-vars.json's DB_PASSWORD is silently dropped and every local
+        # handler dies with "SASL: client password must be a string".
+        DB_PASSWORD: !If [IsLocalStack, !Ref DBPassword, !Ref 'AWS::NoValue']
         JWT_SECRET: !Ref JWTSecret
         ADMIN_SEED_PASSWORD_PARAM: !If [IsLocalStack, !Ref 'AWS::NoValue', !Ref AdminSeedPasswordParam]
         FRONTEND_URL: !Ref FrontendURL
@@ -61,6 +70,20 @@ Parameters:
       - 'true'
       - 'false'
     Description: Toggle for the self-contained user feedback module ('false' makes its endpoints return 404)
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    # Matches POSTGRES_PASSWORD in docker-compose.yml, which is committed and
+    # is only ever a throwaway local credential. Not a secret, and not used at
+    # all when UseLocalStack=false — see DB_PASSWORD in Globals.
+    Default: testpass
+    Description: >-
+      Database password for local runs (`sam local`, the endpoint suite). AWS
+      deployments ignore it and read the credentials from Secrets Manager.
+      samconfig.toml's default profile passes it; it was dropped from this
+      template during the Secrets Manager refactor, which is what broke local
+      testing.
 
   UseLocalStack:
     Type: String

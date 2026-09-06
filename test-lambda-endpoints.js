@@ -558,6 +558,36 @@ async function runTests() {
   return results.failed === 0;
 }
 
+/**
+ * `docker compose` or `docker-compose`, whichever this machine has.
+ *
+ * Compose v1 was a standalone `docker-compose` binary; v2 is a plugin invoked
+ * as `docker compose`. Current CI images and recent Docker Desktop ship only
+ * v2, so hardcoding the hyphenated form fails with "docker-compose: not found"
+ * before a single test runs. Memoised — this shells out to find out.
+ */
+let cachedCompose = null;
+function composeCommand(cwd) {
+  if (cachedCompose) return cachedCompose;
+
+  for (const candidate of ['docker compose', 'docker-compose']) {
+    try {
+      require('child_process').execSync(`${candidate} version`, {
+        cwd,
+        stdio: 'ignore'
+      });
+      cachedCompose = candidate;
+      return cachedCompose;
+    } catch {
+      // Not this one; try the next.
+    }
+  }
+
+  throw new Error(
+    'Neither `docker compose` nor `docker-compose` is available — is Docker running?'
+  );
+}
+
 async function startSAM() {
   return new Promise((resolve, reject) => {
     log('yellow', 'Starting SAM local server...');
@@ -638,14 +668,15 @@ async function main() {
 
     // Check if containers are running
     log('yellow', 'Checking Docker containers...');
-    const containers = require('child_process').execSync('docker-compose ps --services', {
+    const compose = composeCommand(projectRoot);
+    const containers = require('child_process').execSync(`${compose} ps --services`, {
       cwd: projectRoot,
       encoding: 'utf-8'
     }).trim().split('\n');
 
     if (!containers.includes('postgres')) {
       log('yellow', '📦 Starting PostgreSQL container...');
-      require('child_process').execSync('docker-compose up -d postgres', {
+      require('child_process').execSync(`${compose} up -d postgres`, {
         cwd: projectRoot,
         stdio: 'ignore'
       });
